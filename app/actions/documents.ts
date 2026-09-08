@@ -1,8 +1,10 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-server";
+import { runExtractionForDocument } from "@/lib/extraction";
 
 export type UploadTarget =
   | { documentId: string; path: string; token: string }
@@ -104,5 +106,107 @@ export async function recordDocument(input: {
   });
   if (error) return { error: error.message };
 
+  return { ok: true };
+}
+
+// --- review + reprocess -------------------------------------------------
+
+export type ReviewState = { error?: string; ok?: boolean } | undefined;
+
+const DATE_KEYS = ["start_date", "end_date", "renewal_date"] as const;
+
+function parseDateInput(raw: string): string | null | "invalid" {
+  const v = raw.trim();
+  if (!v) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) {
+    return "invalid";
+  }
+  return v;
+}
+
+/** Save the user's edits to the extracted fields and mark the row confirmed. */
+export async function confirmExtraction(
+  _prev: ReviewState,
+  formData: FormData
+): Promise<ReviewState> {
+  const documentId = String(formData.get("document_id") ?? "");
+  if (!documentId) return { error: "Missing document." };
+
+  const supabase = await createClient();
+  const resolved = await resolveHousehold(supabase);
+  if (!resolved.ok) return { error: resolved.error };
+
+  const text = (key: string) => {
+    const value = String(formData.get(key) ?? "").trim();
+    return value.length > 0 ? value : null;
+  };
+
+  const patch: Record<string, unknown> = { extraction_status: "confirmed" };
+
+  patch.doc_type = text("document_type");
+  patch.provider = text("provider");
+  patch.reference = text("reference");
+  patch.key_contact_name = text("key_contact_name");
+  patch.key_contact_phone = text("key_contact_phone");
+
+  for (const key of DATE_KEYS) {
+    const parsed = parseDateInput(String(formData.get(key) ?? ""));
+    if (parsed === "invalid") {
+      return { error: `${key.replace("_", " ")} must be YYYY-MM-DD or blank.` };
+    }
+    patch[key] = parsed;
+  }
+
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  if (amountRaw) {
+    const amount = Number(amountRaw.replace(/[^0-9.\-]/g, ""));
+    if (!Number.isFinite(amount)) return { error: "Amount must be a number." };
+    patch.amount = amount;
+  } else {
+    patch.amount = null;
+  }
+
+  const currencyRaw = String(formData.get("currency") ?? "").trim().toUpperCase();
+  if (currencyRaw && !/^[A-Z]{3}$/.test(currencyRaw)) {
+    return { error: "Currency must be a 3-letter code (e.g. GBP) or blank." };
+  }
+  patch.currency = currencyRaw || null;
+
+  const { error } = await supabase
+    .from("documents")
+    .update(patch)
+    .eq("id", documentId)
+    .eq("household_id", resolved.householdId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/documents");
+  return { ok: true };
+}
+
+/** Re-run extraction for a document the caller owns (needs_review / failed). */
+export async function reprocessDocument(
+  _prev: ReviewState,
+  formData: FormData
+): Promise<ReviewState> {
+  const documentId = String(formData.get("document_id") ?? "");
+  if (!documentId) return { error: "Missing document." };
+
+  const supabase = await createClient();
+  const resolved = await resolveHousehold(supabase);
+  if (!resolved.ok) return { error: resolved.error };
+
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id")
+    .eq("id", documentId)
+    .eq("household_id", resolved.householdId)
+    .maybeSingle();
+  if (!doc) return { error: "Document not found." };
+
+  const result = await runExtractionForDocument(documentId);
+  revalidatePath("/documents");
+  if (result.error && result.status === "failed") {
+    return { error: `Extraction failed: ${result.error}` };
+  }
   return { ok: true };
 }

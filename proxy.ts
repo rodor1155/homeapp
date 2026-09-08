@@ -5,7 +5,12 @@ import { createServerClient } from "@supabase/ssr";
 // every request (Server Components can't write cookies) and bounces signed-out
 // visitors away from the app's authenticated areas.
 
-const PROTECTED_PREFIXES = ["/dashboard", "/documents", "/onboarding"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/documents",
+  "/onboarding",
+  "/internal",
+];
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
