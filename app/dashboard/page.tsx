@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import { LedgerPage, SectionHeading, Wordmark } from "@/components/ui";
 import { requireOnboarded } from "@/lib/household";
 
 export const metadata = { title: "Dashboard · homeapp" };
@@ -7,48 +8,51 @@ export const metadata = { title: "Dashboard · homeapp" };
 export default async function DashboardPage() {
   const { user, household, property } = await requireOnboarded();
 
+  const detail = [
+    property.type,
+    property.year_built ? `built ${property.year_built}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-12">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">{household.name}</h1>
-          <p className="text-sm opacity-70">{user.email}</p>
-        </div>
+    <LedgerPage>
+      <div className="flex items-start justify-between gap-4">
+        <Wordmark className="text-sm" />
         <SignOutButton />
+      </div>
+
+      <header className="mt-6 border-b border-rule pb-5">
+        <h1 className="text-3xl">{household.name}</h1>
+        <p className="mt-1.5 text-sm text-ink-soft">{user.email}</p>
       </header>
 
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-        <h2 className="text-sm font-medium uppercase tracking-wide opacity-60">
-          Property
-        </h2>
-        <p className="mt-2 whitespace-pre-line text-sm">{property.address}</p>
-        <p className="mt-1 text-sm opacity-70">
-          {[property.type, property.year_built ? `Built ${property.year_built}` : null]
-            .filter(Boolean)
-            .join(" · ") || "No further details yet"}
-        </p>
-        <p className="mt-1 text-xs opacity-50">Locale: {household.locale}</p>
+      <section className="mt-10">
+        <SectionHeading
+          aside={household.locale === "UK" ? "United Kingdom" : "United States"}
+        >
+          The property
+        </SectionHeading>
+        <p className="mt-4 whitespace-pre-line text-base">{property.address}</p>
+        {detail ? (
+          <p className="mt-1 text-sm text-ink-soft">{detail}</p>
+        ) : null}
       </section>
 
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/15">
-        <h2 className="text-sm font-medium uppercase tracking-wide opacity-60">
-          Documents
-        </h2>
-        <p className="mt-2 text-sm opacity-70">
-          Upload insurance, warranty, and utility paperwork so it is all in one
-          place.
+      <section className="mt-10">
+        <SectionHeading>Documents</SectionHeading>
+        <p className="mt-4 max-w-prose text-sm text-ink-soft">
+          Keep insurance, warranties, bills and the rest of the household
+          paperwork in one place. Each one is read and sorted for you.
         </p>
-        <Link
-          href="/documents"
-          className="mt-3 inline-block rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background"
-        >
-          Go to documents
+        <Link href="/documents" className="btn mt-4 inline-flex">
+          Open the documents file
         </Link>
       </section>
 
-      <p className="text-xs opacity-50">
-        Dashboard, reminders, and document extraction come in later phases.
+      <p className="mt-12 text-xs text-ink-faint">
+        Renewal reminders and a proper home overview come next.
       </p>
-    </main>
+    </LedgerPage>
   );
 }

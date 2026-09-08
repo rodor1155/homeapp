@@ -50,7 +50,7 @@ export default function ExtractionTester() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper-raised disabled:opacity-50"
           >
             {pending ? "Extracting…" : "Run extraction"}
           </button>

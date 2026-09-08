@@ -1,26 +1,347 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* =========================================================================
+   homeapp design tokens — "the household ledger"
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+   A calm, paper-led system: columnar-pad grounds, ink marks, ruled lines,
+   dated entries. Not a dashboard. Change values HERE, never per screen.
+
+   Palette (6 named hues + tints):
+     paper    #e9ebe2   the ground (warm grey-green, like ledger stock)
+     ink      #262f3d   printed marks / primary text (a deep blue-black, not #000)
+     rule     #d2d6c8   hairlines, ledger rules, borders
+     ochre    #97691b   the binding line, focus, links-on-hover, "needs a look"
+     sage     #47673f   "filed" / confirmed / settled
+     oxblood  #8a3a34   "couldn't read it" / faults
+
+   Motifs, defined as classes below:
+     .ledger-bound   ochre margin rule down the left of every screen's column
+     .sheet          a bound leaf (auth), same ochre edge as an inset
+     .ruled-row      section heading on a ruled baseline with an ochre column tick
+     .pill-*         confidence markers — filed labels, not generic tags
+     .entry--*       a register row's left status edge
+   ========================================================================= */
+
+@theme {
+  --color-paper: #e9ebe2;
+  --color-paper-raised: #f5f6f0;
+  --color-paper-sunk: #e0e3d7;
+
+  --color-ink: #262f3d;
+  --color-ink-soft: #57606d;
+  --color-ink-faint: #868d98;
+
+  --color-rule: #d2d6c8;
+  --color-rule-strong: #bcc1b0;
+
+  --color-ochre: #97691b;
+  --color-ochre-tint: #97691b1a;
+  --color-ochre-wash: #f0e7d5;
+
+  --color-sage: #47673f;
+  --color-sage-tint: #47673f14;
+
+  --color-oxblood: #8a3a34;
+  --color-oxblood-tint: #8a3a3417;
+
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body: var(--font-plex), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.45;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.22;
+  --text-2xl: 2rem;
+  --text-2xl--line-height: 1.14;
+  --text-3xl: 2.75rem;
+  --text-3xl--line-height: 1.06;
+
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-lg: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-paper: #171b21;
+    --color-paper-raised: #1f242d;
+    --color-paper-sunk: #12151a;
+
+    --color-ink: #e7e3d8;
+    --color-ink-soft: #a6aba1;
+    --color-ink-faint: #767c72;
+
+    --color-rule: #333a44;
+    --color-rule-strong: #464e5a;
+
+    --color-ochre: #d0a057;
+    --color-ochre-tint: #d0a05722;
+    --color-ochre-wash: #251e12;
+
+    --color-sage: #8bad83;
+    --color-sage-tint: #8bad8322;
+
+    --color-oxblood: #d18079;
+    --color-oxblood-tint: #d1807922;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
-    sans-serif;
+@layer base {
+  html {
+    background-color: var(--color-paper);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 480;
+    font-optical-sizing: auto;
+    letter-spacing: -0.006em;
+    line-height: 1.14;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+  ::selection {
+    background: var(--color-ochre-tint);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ochre);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--color-ochre);
+  }
+}
+
+@layer components {
+  /* The ledger's binding: an ochre margin rule down the left of the content
+     column. Present on every screen — the thread that ties them together. */
+  .ledger-bound {
+    border-left: 2px solid var(--color-ochre);
+    padding-left: clamp(1.1rem, 5vw, 2.5rem);
+  }
+
+  /* A bound leaf — the auth sheet. Same ochre edge, drawn as an inset so it
+     follows the corner radius. */
+  .sheet {
+    background-color: var(--color-paper-raised);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 3px 0 0 var(--color-ochre);
+    padding: clamp(1.5rem, 6vw, 2.25rem);
+  }
+
+  /* Section heading on a ruled baseline with a short ochre column tick. */
+  .ruled-row {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .ruled-row::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 1.75rem;
+    height: 2px;
+    background: var(--color-ochre);
+  }
+  .ruled-row > :first-child {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 480;
+    color: var(--color-ink);
+  }
+
+  .field-input {
+    width: 100%;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    font-size: var(--text-sm);
+  }
+  .field-input::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .field-input:focus-visible {
+    outline: none;
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px var(--color-ochre-tint);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background-color: var(--color-ink);
+    color: var(--color-paper-raised);
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius);
+    padding: 0.55rem 1.1rem;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.12s ease, transform 0.06s ease;
+  }
+  .btn:hover {
+    background-color: color-mix(in oklab, var(--color-ink) 87%, var(--color-paper));
+  }
+  .btn:active {
+    transform: translateY(0.5px);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background-color: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: var(--radius);
+    padding: 0.55rem 1.1rem;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+  }
+  .btn-quiet:hover {
+    background-color: var(--color-paper-sunk);
+  }
+  .btn-quiet:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .text-action {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
+    text-decoration-color: var(--color-rule-strong);
+    cursor: pointer;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+  }
+  .text-action:hover {
+    color: var(--color-ochre);
+    text-decoration-color: currentColor;
+  }
+
+  /* Confidence markers — small filed labels, dot + word. The app's key trust
+     signal, so: quiet tint, hairline in the hue, the hue as text. Not a tag. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid;
+    padding: 0.04rem 0.36rem 0.04rem 0.32rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .pill::before {
+    content: "";
+    width: 0.36rem;
+    height: 0.36rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .pill-high {
+    color: var(--color-sage);
+    border-color: color-mix(in oklab, var(--color-sage) 42%, transparent);
+    background: var(--color-sage-tint);
+  }
+  .pill-medium {
+    color: var(--color-ochre);
+    border-color: color-mix(in oklab, var(--color-ochre) 42%, transparent);
+    background: var(--color-ochre-tint);
+  }
+  .pill-low {
+    color: var(--color-oxblood);
+    border-color: color-mix(in oklab, var(--color-oxblood) 42%, transparent);
+    background: var(--color-oxblood-tint);
+  }
+
+  /* Register rows: hairline between entries, plus a left status edge.
+     Kept in CSS (not `divide-*` utilities) so the status colour isn't
+     overridden by a border-color utility. Neutral rows keep the 3px gutter. */
+  .entry {
+    border-left: 3px solid transparent;
+  }
+  .entry + .entry {
+    border-top: 1px solid var(--color-rule);
+  }
+  .entry--filed {
+    border-left-color: var(--color-sage);
+  }
+  .entry--review {
+    border-left-color: var(--color-ochre);
+  }
+  .entry--fault {
+    border-left-color: var(--color-oxblood);
+  }
+
+  .mark-filed {
+    color: var(--color-sage);
+  }
+  .mark-review {
+    color: var(--color-ochre);
+  }
+  .mark-fault {
+    color: var(--color-oxblood);
+  }
+  .mark-muted {
+    color: var(--color-ink-faint);
+  }
+
+  /* An annotation in the margin — used for extraction ambiguity notes. */
+  .margin-note {
+    border-left: 2px solid color-mix(in oklab, var(--color-ochre) 55%, transparent);
+    padding-left: 0.6rem;
+    color: var(--color-ochre);
+    font-size: var(--text-xs);
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
 }

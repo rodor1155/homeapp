@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createUploadTarget, recordDocument } from "@/app/actions/documents";
 import { createClient } from "@/lib/supabase-client";
+import { Button } from "@/components/ui";
 
 const ACCEPT = "application/pdf,image/*";
 
@@ -18,7 +19,7 @@ export default function DocumentsUploader({
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<number>(0);
+  const [done, setDone] = useState(0);
 
   async function uploadFiles(files: File[]) {
     if (busy || files.length === 0) return;
@@ -56,14 +57,14 @@ export default function DocumentsUploader({
       }
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+      setError(e instanceof Error ? e.message : "That didn’t upload. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -75,40 +76,38 @@ export default function DocumentsUploader({
           setDragOver(false);
           void uploadFiles(Array.from(e.dataTransfer.files));
         }}
-        className={`flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-4 py-10 text-center text-sm ${
+        className={`flex flex-col gap-3 rounded border border-dashed px-4 py-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
           dragOver
-            ? "border-foreground bg-black/5 dark:bg-white/10"
-            : "border-black/25 dark:border-white/25"
+            ? "border-ink bg-ochre-tint"
+            : "border-rule-strong bg-paper-sunk"
         }`}
       >
-        <p className="opacity-70">
-          Drag &amp; drop PDFs or photos here, or
+        <p className="text-sm text-ink-soft">
+          Add a document. Drop a PDF or photo here, or:
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <button
+        <div className="flex flex-wrap gap-2">
+          <Button
             type="button"
             disabled={busy}
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50"
           >
             {busy ? "Uploading…" : "Choose files"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="quiet"
             type="button"
             disabled={busy}
             onClick={() => cameraInputRef.current?.click()}
-            className="rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/5 sm:hidden"
+            className="sm:hidden"
           >
             Take a photo
-          </button>
+          </Button>
         </div>
-        {busy ? (
-          <p className="text-xs opacity-60">Uploaded {done} file(s)…</p>
-        ) : null}
-        {error ? (
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-        ) : null}
       </div>
+      {busy ? (
+        <p className="text-xs text-ink-faint">Uploaded {done} so far…</p>
+      ) : null}
+      {error ? <p className="text-xs mark-fault">{error}</p> : null}
 
       <input
         ref={fileInputRef}

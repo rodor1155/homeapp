@@ -8,58 +8,53 @@ import {
 } from "@/app/actions/documents";
 import {
   REVIEW_FIELDS,
-  type Confidence,
   type DocumentRow,
+  type ExtractionConfidence,
 } from "@/lib/document-types";
-
-const inputCls =
-  "w-full rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-black/40 dark:border-white/20 dark:focus:border-white/50";
-const btnPrimary =
-  "rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-50";
-const btnGhost =
-  "rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/5";
+import {
+  Button,
+  ConfidencePill,
+  StatusMark,
+  statusEdgeClass,
+} from "@/components/ui";
 
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "January", "February", "March", "April", "May", "June", "July",
+  "August", "September", "October", "November", "December",
 ];
 
 // Deterministic (locale-independent) so server and client markup match.
-function formatDate(iso: string): string {
+function formatDate(iso: string, short = false): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  const month = MONTHS[d.getUTCMonth()];
+  return short
+    ? `${d.getUTCDate()} ${month.slice(0, 3)} ${d.getUTCFullYear()}`
+    : `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}`;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: "opacity-60",
-  processing: "opacity-60",
-  extracted: "text-blue-700 dark:text-blue-300",
-  needs_review: "text-amber-700 dark:text-amber-300",
-  confirmed: "text-green-700 dark:text-green-300",
-  failed: "text-red-700 dark:text-red-300",
-};
-
-const CONF_STYLE: Record<Confidence, string> = {
-  high: "border-green-600/40 text-green-700 dark:text-green-300",
-  medium: "border-amber-600/40 text-amber-700 dark:text-amber-300",
-  low: "border-red-600/40 text-red-700 dark:text-red-300",
-};
-
-function ConfidencePill({ c }: { c: Confidence }) {
-  return (
-    <span
-      className={`rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${CONF_STYLE[c]}`}
-    >
-      {c}
-    </span>
-  );
+function summaryLine(conf: ExtractionConfidence | null): string {
+  if (!conf) return "";
+  const parts: string[] = [];
+  if (conf.extracted_at) parts.push(`Read on ${formatDate(conf.extracted_at)}.`);
+  if (conf.page_count) {
+    parts.push(`${conf.page_count} ${conf.page_count === 1 ? "page" : "pages"}.`);
+  }
+  if (conf.overall_confidence) {
+    parts.push(`Overall confidence: ${conf.overall_confidence}.`);
+  }
+  const flags = conf.flags ?? [];
+  if (flags.includes("long_document")) {
+    parts.push("It’s a long scan, so please check it carefully.");
+  } else if (flags.includes("poor_quality")) {
+    parts.push("The scan was hard to read in places.");
+  }
+  return parts.join(" ");
 }
 
 function initialValue(doc: DocumentRow, column: keyof DocumentRow): string {
   const v = doc[column];
-  if (v === null || v === undefined) return "";
-  return String(v);
+  return v === null || v === undefined ? "" : String(v);
 }
 
 function ReviewForm({ doc }: { doc: DocumentRow }) {
@@ -68,31 +63,31 @@ function ReviewForm({ doc }: { doc: DocumentRow }) {
     undefined
   );
   const fieldMeta = doc.extraction_confidence?.fields ?? {};
+  const confirmed = doc.extraction_status === "confirmed";
 
   return (
-    <form action={submit} className="mt-3 flex flex-col gap-3">
+    <form action={submit} className="mt-4 flex flex-col gap-4">
       <input type="hidden" name="document_id" value={doc.id} />
-      <div className="grid gap-3 sm:grid-cols-2">
+
+      <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
         {REVIEW_FIELDS.map((f) => {
           const meta = fieldMeta[f.key];
           return (
-            <label key={f.key} className="flex flex-col gap-1 text-sm">
-              <span className="flex items-center gap-2">
+            <label key={f.key} className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-2 text-sm text-ink-soft">
                 {f.label}
-                {meta ? <ConfidencePill c={meta.confidence} /> : null}
+                {meta ? <ConfidencePill level={meta.confidence} /> : null}
               </span>
               <input
                 name={f.key}
-                type={f.type === "date" ? "text" : "text"}
+                type="text"
                 inputMode={f.type === "amount" ? "decimal" : undefined}
                 placeholder={f.type === "date" ? "YYYY-MM-DD" : undefined}
                 defaultValue={initialValue(doc, f.column)}
-                className={inputCls}
+                className={`field-input ${f.type === "amount" || f.type === "date" ? "tnum" : ""}`}
               />
               {meta?.ambiguity ? (
-                <span className="text-xs text-amber-700 dark:text-amber-300">
-                  ⚠ {meta.ambiguity}
-                </span>
+                <span className="margin-note">{meta.ambiguity}</span>
               ) : null}
             </label>
           );
@@ -100,108 +95,131 @@ function ReviewForm({ doc }: { doc: DocumentRow }) {
       </div>
 
       {state?.error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="text-sm mark-fault">{state.error}</p>
       ) : null}
       {state?.ok ? (
-        <p className="text-sm text-green-700 dark:text-green-400">Saved.</p>
+        <p className="text-sm mark-filed">Saved and filed.</p>
       ) : null}
 
-      <div className="flex items-center gap-2">
-        <button type="submit" disabled={pending} className={btnPrimary}>
+      <div>
+        <Button type="submit" disabled={pending}>
           {pending
             ? "Saving…"
-            : doc.extraction_status === "confirmed"
+            : confirmed
               ? "Save changes"
-              : "Confirm"}
-        </button>
+              : "Confirm and file"}
+        </Button>
       </div>
     </form>
   );
 }
 
-function ReprocessButton({ doc }: { doc: DocumentRow }) {
+function ReprocessAction({ doc }: { doc: DocumentRow }) {
   const [state, submit, pending] = useActionState<ReviewState, FormData>(
     reprocessDocument,
     undefined
   );
   return (
-    <form action={submit} className="mt-2 flex flex-col gap-2">
+    <form action={submit} className="mt-3 flex flex-col gap-1.5">
       <input type="hidden" name="document_id" value={doc.id} />
-      <div>
-        <button type="submit" disabled={pending} className={btnGhost}>
-          {pending ? "Re-running…" : "Re-run extraction"}
-        </button>
-      </div>
+      <button type="submit" disabled={pending} className="text-action text-sm">
+        {pending ? "Reading it again…" : "Read it again"}
+      </button>
       {state?.error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="text-sm mark-fault">{state.error}</p>
       ) : null}
     </form>
   );
 }
 
-function DocumentCard({ doc }: { doc: DocumentRow }) {
+function Entry({ doc }: { doc: DocumentRow }) {
   const [open, setOpen] = useState(
     doc.extraction_status === "needs_review" ||
       doc.extraction_status === "extracted"
   );
   const conf = doc.extraction_confidence;
-  const flags = conf?.flags ?? [];
   const reviewable = ["extracted", "needs_review", "confirmed"].includes(
     doc.extraction_status
   );
+  const inProgress =
+    doc.extraction_status === "pending" ||
+    doc.extraction_status === "processing";
 
   return (
-    <li className="px-4 py-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="min-w-0 flex-1 truncate text-left hover:underline"
-        >
-          {doc.original_filename}
-        </button>
-        <span className="shrink-0 opacity-60">{formatDate(doc.created_at)}</span>
-        <span
-          className={`shrink-0 text-xs font-medium capitalize ${
-            STATUS_STYLE[doc.extraction_status] ?? "opacity-70"
+    <li className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base text-ink">
+            {doc.original_filename}
+          </span>
+          {reviewable && doc.provider ? (
+            <span className="mt-0.5 block truncate text-sm text-ink-soft">
+              {doc.provider}
+            </span>
+          ) : null}
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5">
+          <span className="tnum text-xs text-ink-faint">
+            {formatDate(doc.created_at, true)}
+          </span>
+          <StatusMark status={doc.extraction_status} />
+        </span>
+        <svg
+          viewBox="0 0 12 12"
+          width="12"
+          height="12"
+          aria-hidden
+          className={`mt-1 shrink-0 text-ink-faint transition-transform ${
+            open ? "rotate-90" : ""
           }`}
         >
-          {doc.extraction_status.replace("_", " ")}
-        </span>
-      </div>
+          <path
+            d="M4 2l4 4-4 4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
 
       {open ? (
-        <div className="mt-1">
-          {(doc.extraction_status === "pending" ||
-            doc.extraction_status === "processing") && (
-            <p className="text-sm opacity-60">Extraction in progress…</p>
+        <div className="border-t border-rule bg-paper-sunk px-4 py-4">
+          {inProgress && (
+            <p className="text-sm text-ink-soft">
+              We’re reading this now. It’ll be ready to check shortly.
+            </p>
           )}
 
           {doc.extraction_status === "failed" && (
-            <div className="text-sm">
-              <p className="text-red-600 dark:text-red-400">
-                Extraction failed{conf?.error ? `: ${conf.error}` : ""}.
+            <div>
+              <p className="text-sm text-ink">
+                We couldn’t read this one
+                {conf?.error ? (
+                  <span className="text-ink-soft"> — {conf.error}</span>
+                ) : null}
+                .
               </p>
-              <ReprocessButton doc={doc} />
+              <ReprocessAction doc={doc} />
             </div>
           )}
 
           {reviewable && (
-            <>
-              {flags.length > 0 && (
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Flags: {flags.join(", ")}
-                  {conf?.overall_confidence
-                    ? ` · overall ${conf.overall_confidence}`
-                    : ""}
-                  {conf?.page_count ? ` · ${conf.page_count} pages` : ""}
-                </p>
-              )}
+            <div>
+              {summaryLine(conf) ? (
+                <p className="text-sm text-ink-soft">{summaryLine(conf)}</p>
+              ) : null}
               <ReviewForm doc={doc} />
               {doc.extraction_status !== "confirmed" && (
-                <ReprocessButton doc={doc} />
+                <ReprocessAction doc={doc} />
               )}
-            </>
+            </div>
           )}
         </div>
       ) : null}
@@ -215,9 +233,9 @@ export default function DocumentsList({
   documents: DocumentRow[];
 }) {
   return (
-    <ul className="divide-y divide-black/10 rounded-lg border border-black/10 dark:divide-white/10 dark:border-white/15">
+    <ul className="border-y border-rule bg-paper-raised">
       {documents.map((doc) => (
-        <DocumentCard key={doc.id} doc={doc} />
+        <Entry key={doc.id} doc={doc} />
       ))}
     </ul>
   );

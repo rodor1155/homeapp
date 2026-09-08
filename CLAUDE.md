@@ -19,6 +19,44 @@ agent (or human) picking up the repo has the same context.
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
 
+## Design system — "the household ledger"
+
+One visual system, defined once, used by every screen. **Build new screens
+(dashboard proper, reminders, settings) on this — don't reinvent it.**
+
+- **Tokens live in `app/globals.css`** — a `@theme` block (Tailwind v4 native, so
+  `bg-paper` / `text-ink` / `text-lg` / `rounded` etc. are generated) plus a
+  `@media (prefers-color-scheme: dark)` `:root` override of the same custom
+  properties. Never hard-code a colour or a one-off font size in a component.
+  - Palette (6 hues + tints): `paper` (warm grey-green ground), `ink`
+    (blue-black text/marks), `rule` (hairlines), `ochre` (the binding line,
+    focus, links-on-hover, "needs a look"), `sage` ("filed"), `oxblood`
+    ("couldn't read it"). Plus `paper-raised` / `paper-sunk`, `ink-soft` /
+    `ink-faint`, `*-tint`.
+  - Type: **Fraunces** (display / headings / wordmark) + **IBM Plex Sans**
+    (body, with `.tnum` tabular figures for dates, amounts, counts), loaded in
+    `app/layout.tsx` as `--font-fraunces` / `--font-plex`. Scale: `--text-xs`…
+    `--text-3xl` in `@theme`.
+  - Geometry: `--radius` 4px (8px for the auth sheet). **No drop shadows** —
+    depth comes from paper tones + hairlines.
+- **Motif classes** (also in `globals.css` `@layer components`): `.ledger-bound`
+  (ochre margin rule down the content column — on every screen), `.sheet` (the
+  auth "bound leaf"), `.ruled-row` (section heading on a ruled baseline with an
+  ochre column tick — used via `<SectionHeading>`), `.field-input`, `.btn` /
+  `.btn-quiet` / `.text-action`, `.pill` + `.pill-high|medium|low` (confidence
+  markers), `.entry` + `.entry--filed|review|fault` (register-row left status
+  edge), `.mark-filed|review|fault|muted`, `.margin-note` (extraction ambiguity).
+- **Primitives in `components/ui.tsx`** (presentational, no `"use client"`, safe
+  in server or client components): `LedgerPage`, `Wordmark`, `SectionHeading`,
+  `Button`, `Field`, `ConfidencePill`, `StatusMark` + `STATUS_META` /
+  `statusEdgeClass` (map an `extraction_status` to a plain-spoken label + tone).
+- **Tone**: plain-spoken and domestic, never SaaS. Status is shown as words in a
+  restrained colour ("Filed", "Needs a look", "Ready to check", "Couldn't read
+  it"), not badges. Confidence pills are the one place colour is deliberately
+  front-and-centre — keep them calm.
+- `/internal/extraction-test` is deliberately left unstyled beyond the base
+  font/colour — do not dress it up.
+
 ## Stack
 
 - Next.js 16 (App Router, Turbopack) + React 19
@@ -44,7 +82,7 @@ app/
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   actions/              auth.ts, onboarding.ts, documents.ts, extraction-test.ts
-components/      AuthPanel.tsx, SignOutButton.tsx
+components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx
 lib/
   supabase-client.ts   browser client (createBrowserClient)
   supabase-server.ts   server client with cookie bridge (server-only)

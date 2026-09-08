@@ -9,13 +9,7 @@ import {
   type AuthState,
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase-client";
-
-const inputCls =
-  "rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:border-black/40 dark:border-white/20 dark:focus:border-white/50";
-const btnPrimary =
-  "rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-50";
-const btnSecondary =
-  "rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-50 dark:border-white/20 dark:hover:bg-white/5";
+import { Button, Field, Wordmark } from "@/components/ui";
 
 export default function AuthPanel({ mode }: { mode: "sign-in" | "sign-up" }) {
   const isSignUp = mode === "sign-up";
@@ -57,100 +51,98 @@ export default function AuthPanel({ mode }: { mode: "sign-in" | "sign-up" }) {
   const isError = Boolean(pwState?.error || mlState?.error || googleError);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 px-4 py-12">
-      <div>
-        <h1 className="text-xl font-semibold">
-          {isSignUp ? "Create your account" : "Sign in"}
-        </h1>
-        <p className="mt-1 text-sm opacity-70">
-          {isSignUp
-            ? "Set up your household in a minute."
-            : "Welcome back to homeapp."}
-        </p>
+    <div className="mx-auto flex min-h-screen w-full max-w-[27rem] flex-col justify-center gap-7 px-5 py-12">
+      <header className="flex flex-col gap-4">
+        <Wordmark className="text-sm" />
+        <div>
+          <h1 className="text-2xl">
+            {isSignUp ? "Start your household file" : "Welcome back"}
+          </h1>
+          <p className="mt-1.5 text-sm text-ink-soft">
+            {isSignUp
+              ? "One place for the paperwork that protects your home."
+              : "Sign in to your household file."}
+          </p>
+        </div>
+      </header>
+
+      <div className="sheet flex flex-col gap-5">
+        <Button variant="quiet" type="button" onClick={handleGoogle} disabled={googlePending}>
+          {googlePending ? "Taking you to Google…" : "Continue with Google"}
+        </Button>
+
+        <div className="flex items-center gap-3 text-xs text-ink-faint">
+          <span className="h-px flex-1 bg-rule" />
+          or use your email
+          <span className="h-px flex-1 bg-rule" />
+        </div>
+
+        <form action={pwSubmit} className="flex flex-col gap-4">
+          <Field label="Email">
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field-input"
+              placeholder="you@example.com"
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              minLength={isSignUp ? 8 : undefined}
+              className="field-input"
+              placeholder={isSignUp ? "At least 8 characters" : "Your password"}
+            />
+          </Field>
+          <Button type="submit" disabled={pwPending} className="mt-1">
+            {pwPending
+              ? "One moment…"
+              : isSignUp
+                ? "Create account"
+                : "Sign in"}
+          </Button>
+        </form>
+
+        <form action={mlSubmit} className="flex flex-col">
+          <input type="hidden" name="email" value={email} />
+          <button
+            type="submit"
+            disabled={mlPending || email.length === 0}
+            className="text-action self-start text-sm disabled:opacity-40"
+          >
+            {mlPending ? "Sending a link…" : "Email me a sign-in link instead"}
+          </button>
+        </form>
+
+        {notice ? (
+          <p
+            className={`text-sm ${isError ? "mark-fault" : "mark-filed"}`}
+          >
+            {notice}
+          </p>
+        ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={handleGoogle}
-        disabled={googlePending}
-        className={btnSecondary}
-      >
-        {googlePending ? "Redirecting…" : "Continue with Google"}
-      </button>
-
-      <div className="flex items-center gap-3 text-xs uppercase tracking-wide opacity-50">
-        <span className="h-px flex-1 bg-current" />
-        or
-        <span className="h-px flex-1 bg-current" />
-      </div>
-
-      <form action={pwSubmit} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputCls}
-            placeholder="you@example.com"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            minLength={isSignUp ? 8 : undefined}
-            className={inputCls}
-            placeholder={isSignUp ? "At least 8 characters" : "Your password"}
-          />
-        </label>
-        <button type="submit" disabled={pwPending} className={btnPrimary}>
-          {pwPending ? "Working…" : isSignUp ? "Sign up" : "Sign in"}
-        </button>
-      </form>
-
-      <form action={mlSubmit} className="flex flex-col gap-2">
-        <input type="hidden" name="email" value={email} />
-        <button
-          type="submit"
-          disabled={mlPending || email.length === 0}
-          className={btnSecondary}
-        >
-          {mlPending ? "Sending…" : "Email me a sign-in link"}
-        </button>
-      </form>
-
-      {notice ? (
-        <p
-          className={`text-sm ${
-            isError
-              ? "text-red-600 dark:text-red-400"
-              : "text-green-700 dark:text-green-400"
-          }`}
-        >
-          {notice}
-        </p>
-      ) : null}
-
-      <p className="text-sm opacity-70">
+      <p className="text-sm text-ink-soft">
         {isSignUp ? (
           <>
-            Already have an account?{" "}
-            <Link className="underline" href="/sign-in">
+            Already have a file?{" "}
+            <Link className="text-action" href="/sign-in">
               Sign in
             </Link>
           </>
         ) : (
           <>
             New here?{" "}
-            <Link className="underline" href="/sign-up">
-              Create an account
+            <Link className="text-action" href="/sign-up">
+              Start your household file
             </Link>
           </>
         )}
