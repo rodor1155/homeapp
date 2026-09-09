@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Car,
   ClipboardCheck,
@@ -27,6 +28,7 @@ import {
   upcomingDates,
   type Category,
   type OverviewDocument,
+  type UpcomingDate,
 } from "@/lib/home-overview";
 import { summariseHome } from "@/lib/home-summary";
 
@@ -57,6 +59,7 @@ export default async function DashboardPage() {
 
   const documents = (data as DocumentRow[] | null) ?? [];
   const invites = await loadPendingInvites(supabase);
+  const reminded = await remindedEntries(supabase, household.id, documents);
 
   const detail = [
     property.type,
@@ -170,6 +173,9 @@ export default async function DashboardPage() {
                             </span>
                             <span className="block text-xs text-ink-faint">
                               {entry.label}
+                              {reminded.has(entryKey(entry)) ? (
+                                <span> · reminders on</span>
+                              ) : null}
                             </span>
                           </span>
                         </span>
@@ -341,11 +347,51 @@ export default async function DashboardPage() {
         )}
 
         <p className="px-1 pt-2 text-center text-xs text-ink-faint">
-          Signed in as {user.email}. Renewal reminders come next.
+          Signed in as {user.email}. Renewal reminders come by email.
         </p>
       </div>
     </AppShell>
   );
+}
+
+/* --- which "Coming up" rows have a reminder scheduled ------------------- */
+
+// upcomingDates() gives back display values, not document ids, so a row is
+// matched back to its reminder on the three things both sides know.
+function entryKey(entry: Pick<UpcomingDate, "provider" | "date" | "label">) {
+  return `${entry.provider}|${entry.date}|${entry.label}`;
+}
+
+const KIND_LABEL: Record<string, string> = { renewal: "Renews", end: "Ends" };
+
+async function remindedEntries(
+  supabase: SupabaseClient,
+  householdId: string,
+  documents: readonly OverviewDocument[]
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("reminders")
+    .select("document_id, kind, due_date")
+    .eq("household_id", householdId)
+    .eq("status", "scheduled");
+
+  const byId = new Map(documents.map((doc) => [doc.id, doc]));
+  const keys = new Set<string>();
+
+  for (const row of data ?? []) {
+    const doc = byId.get(row.document_id as string);
+    const label = KIND_LABEL[row.kind as string];
+    if (!doc || !label) continue;
+    keys.add(
+      entryKey({
+        provider: documentLabel(doc),
+        date: row.due_date as string,
+        label,
+      })
+    );
+  }
+
+  return keys;
 }
 
 /* --- the AI summary: best-effort, omitted entirely if it doesn't come back --- */

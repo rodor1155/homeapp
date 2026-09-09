@@ -2,6 +2,7 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { PDFDocument } from "pdf-lib";
+import { syncRemindersForDocument } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 // The user pinned this model for the extraction benchmark.
@@ -561,6 +562,15 @@ export async function runExtractionForDocument(
         content,
       }))
     );
+  }
+
+  // Whatever dates came off the page are now schedulable. A reminder is a
+  // nice-to-have on top of a finished extraction, so a failure here is logged
+  // and dropped rather than reported as an extraction failure.
+  try {
+    await syncRemindersForDocument(documentId);
+  } catch (e) {
+    console.error(`[reminders] sync after extraction failed for ${documentId}`, e);
   }
 
   return {

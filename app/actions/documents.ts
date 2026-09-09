@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-server";
 import { runExtractionForDocument } from "@/lib/extraction";
+import { syncRemindersForDocument } from "@/lib/reminders";
 
 export type UploadTarget =
   | { documentId: string; path: string; token: string }
@@ -179,6 +180,14 @@ export async function confirmExtraction(
     .eq("household_id", resolved.householdId);
   if (error) return { error: error.message };
 
+  // The user may well have corrected a date, so the schedule has to follow.
+  // Never at the cost of the save they just made, though.
+  try {
+    await syncRemindersForDocument(documentId);
+  } catch (e) {
+    console.error(`[reminders] sync after confirm failed for ${documentId}`, e);
+  }
+
   revalidatePath("/documents");
   return { ok: true };
 }
@@ -203,6 +212,7 @@ export async function reprocessDocument(
     .maybeSingle();
   if (!doc) return { error: "Document not found." };
 
+  // Reminders are re-synced inside runExtractionForDocument.
   const result = await runExtractionForDocument(documentId);
   revalidatePath("/documents");
   if (result.error && result.status === "failed") {

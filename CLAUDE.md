@@ -15,7 +15,8 @@ agent (or human) picking up the repo has the same context.
 | 1b | Embeddings for `document_chunks` + retrieval. | next |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — **migration written, not yet applied** |
-| later | Reminder generation, the real dashboard. | not started |
+| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — **migration written, not yet applied** |
+| later | The real dashboard. | not started |
 
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
@@ -122,6 +123,17 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 - `document_chunks(id, document_id, chunk_index, content)` — ~500-token (≈2000-char)
   plain-text chunks. Select-only RLS via the parent document; writes are service-role.
   No embeddings yet (phase 1b).
+- `reminder_rules(category, locale, offsets int[], pk(category, locale))` — reference
+  data: how many days before a due date to nudge. `category` mirrors `CATEGORIES` in
+  `lib/home-overview.ts`, plus a `default` row. Readable by any signed-in user
+  (RLS on, `using (true)`); written only by migrations.
+- `reminders(id, household_id, document_id, kind check renewal|end, due_date, offsets int[],
+  status check scheduled|sent|cancelled, created_at, unique(document_id, kind))` —
+  members can select/update/delete; **no insert policy**, rows come from
+  `syncRemindersForDocument()` on the service role. Indexed on `(status, due_date)`.
+- `reminder_events(id, reminder_id, offset_days, channel, result, sent_at,
+  unique(reminder_id, offset_days))` — the send log, and the thing that stops a
+  duplicate nudge. Select-only via the parent reminder; writes are service-role.
 - Private Storage bucket `documents`, key pattern `<household_id>/<document_id>/<filename>`
 
 RLS model: every table (and the bucket) is gated on
@@ -158,6 +170,28 @@ cleaned up — a known gap for a later lifecycle job.
   + transcription. No Storage/DB. Gated to `INTERNAL_TOOLS_EMAILS` (or any
   signed-in user if unset). Not linked from anywhere.
 
+## Reminder engine (phase 4)
+
+- **`lib/reminders.ts`** (server-only, admin client): `pickReminderDates()` picks the
+  renewal date, else the end date, and only if it is still ahead — so most documents
+  get nothing. `offsetsFor()` reads `reminder_rules`, falling back to the `default`
+  row then to `FALLBACK_OFFSETS`. `syncRemindersForDocument()` is idempotent: an
+  unchanged due date is left alone, a moved one deletes and re-inserts (so old events
+  don't suppress the new nudges), a vanished one cancels.
+- **Wired in** at the end of `runExtractionForDocument()` (covers the webhook *and*
+  `reprocessDocument`) and `confirmExtraction()`. Both best-effort — a reminder is
+  never allowed to fail the user's action.
+- **`lib/email.ts`**: Resend wrapper. No `RESEND_API_KEY` / `REMINDERS_FROM_EMAIL`
+  → warn and return `{ skipped: true }`; nothing in it throws.
+- **`GET /api/cron/reminders`** (nodejs, maxDuration 60): bearer-token compare against
+  `CRON_SECRET`, then for each scheduled reminder with `due_date >= today`, fires the
+  offsets landing on today that have no `reminder_events` row yet, emails every
+  household member (resolved through `auth.admin.getUserById`), logs the result, and
+  marks the reminder `sent` once the 0-offset has gone. One bad reminder is caught and
+  counted, not fatal. Returns `{ processed, sent, skipped, errors }`.
+- **`vercel.json`** runs it at `0 8 * * *`. Vercel supplies the `Authorization: Bearer`
+  header itself once `CRON_SECRET` is set on the project.
+
 ## Conventions
 
 - Server-only modules import `server-only` at the top.
@@ -181,6 +215,9 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
 | `ANTHROPIC_API_KEY` | **server-only, secret** | Claude vision extraction |
 | `EXTRACTION_WEBHOOK_SECRET` | **server-only, secret** | must equal the Vault secret `extraction_webhook_secret` |
 | `INTERNAL_TOOLS_EMAILS` | server-only | optional CSV allow-list for `/internal/*`; unset = any signed-in user |
+| `RESEND_API_KEY` | **server-only, secret** | reminder email; unset = sends are logged as skipped |
+| `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email (domain verified in Resend) |
+| `CRON_SECRET` | **server-only, secret** | bearer token for `/api/cron/reminders`; Vercel sends it automatically |
 
 ## Supabase config not captured in code (do this in the dashboard)
 

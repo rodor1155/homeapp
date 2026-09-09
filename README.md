@@ -23,6 +23,9 @@ Open http://localhost:3000.
 | `ANTHROPIC_API_KEY` | server-only secret | Claude vision extraction |
 | `EXTRACTION_WEBHOOK_SECRET` | server-only secret | shared secret for `/api/extraction`; must match the Supabase Vault secret `extraction_webhook_secret` |
 | `INTERNAL_TOOLS_EMAILS` | server-only | optional CSV allow-list for `/internal/*` pages |
+| `RESEND_API_KEY` | server-only secret | Resend key for reminder email; unset = reminders are logged as skipped, not sent |
+| `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email, on a domain verified in Resend |
+| `CRON_SECRET` | server-only secret | bearer token for `/api/cron/reminders`; Vercel sends it automatically once set |
 
 Set the secrets in the Vercel project settings (Production + Preview).
 `NEXT_PUBLIC_SITE_URL` must match the deployment origin (`https://homeapp-mu.vercel.app`).
@@ -31,8 +34,9 @@ Set the secrets in the Vercel project settings (Production + Preview).
 
 Migrations live in [`supabase/migrations/`](./supabase/migrations) and are already applied
 to the linked project. Tables: `households`, `household_members`, `properties`,
-`household_invites`, `documents`, `document_chunks`; plus a private `documents` Storage
-bucket. Every table has row-level security scoped to household membership.
+`household_invites`, `documents`, `document_chunks`, `reminder_rules`, `reminders`,
+`reminder_events`; plus a private `documents` Storage bucket. Every table has row-level
+security scoped to household membership.
 
 ## Document extraction
 
@@ -41,6 +45,19 @@ webhook → `POST /api/extraction` → Claude (`claude-sonnet-4-6`) vision extra
 fields + confidence written back, full text chunked into `document_chunks`. Review and
 confirm extracted fields on `/documents`. `/internal/extraction-test` is a benchmark
 harness (not linked from any nav).
+
+## Renewal reminders
+
+Every extracted or confirmed document with a future renewal (or, failing that, end)
+date gets a `reminders` row, written server-side by `syncRemindersForDocument()` in
+[`lib/reminders.ts`](./lib/reminders.ts) whenever extraction finishes or a review is
+confirmed. How far ahead to nudge comes from `reminder_rules`, keyed on the category
+from `lib/home-overview.ts` and the household's locale — 60/30/7/0 days by default.
+
+`GET /api/cron/reminders` runs daily at 08:00 UTC (see [`vercel.json`](./vercel.json)),
+emails every household member whose reminder falls due that day via Resend, and logs
+each send in `reminder_events` — the unique `(reminder_id, offset_days)` there is what
+stops a nudge going out twice. The day-of send closes the reminder off as `sent`.
 
 ## Supabase config that isn't in code
 
