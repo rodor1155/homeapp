@@ -45,9 +45,14 @@ export default async function DashboardPage() {
           Keep insurance, warranties, bills and the rest of the household
           paperwork in one place. Each one is read and sorted for you.
         </p>
-        <Link href="/documents" className="btn mt-4 inline-flex">
-          Open the documents file
-        </Link>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <Link href="/documents" className="btn inline-flex">
+            Open the documents file
+          </Link>
+          <a href="/api/export" className="text-action text-sm">
+            Export everything
+          </a>
+        </div>
       </section>
 
       <p className="mt-12 text-xs text-ink-faint">

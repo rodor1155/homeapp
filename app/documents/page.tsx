@@ -28,11 +28,16 @@ export default async function DocumentsPage() {
         </Link>
       </div>
 
-      <header className="mt-6 border-b border-rule pb-5">
-        <h1 className="text-2xl">Documents</h1>
-        <p className="mt-1.5 text-sm text-ink-soft">
-          {property.address.split("\n")[0]}
-        </p>
+      <header className="mt-6 flex items-end justify-between gap-4 border-b border-rule pb-5">
+        <div>
+          <h1 className="text-2xl">Documents</h1>
+          <p className="mt-1.5 text-sm text-ink-soft">
+            {property.address.split("\n")[0]}
+          </p>
+        </div>
+        <a href="/api/export" className="text-action shrink-0 text-sm">
+          Export everything
+        </a>
       </header>
 
       <div className="mt-8">
