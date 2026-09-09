@@ -16,6 +16,7 @@ agent (or human) picking up the repo has the same context.
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — **migration written, not yet applied** |
 | 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — **migration written, not yet applied** |
+| 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — **migration written, not yet applied** |
 | later | The real dashboard. | not started |
 
 Do not build the next phase's work until this table says so. Reminders, the
@@ -45,12 +46,14 @@ One visual system, defined once, used by every screen. **Build new screens
   (ochre margin rule down the content column — on every screen), `.sheet` (the
   auth "bound leaf"), `.ruled-row` (section heading on a ruled baseline with an
   ochre column tick — used via `<SectionHeading>`), `.field-input`, `.btn` /
-  `.btn-quiet` / `.text-action`, `.pill` + `.pill-high|medium|low` (confidence
+  `.btn-quiet` / `.btn-danger` (oxblood — irreversible actions only) /
+  `.text-action`, `.pill` + `.pill-high|medium|low` (confidence
   markers), `.entry` + `.entry--filed|review|fault` (register-row left status
   edge), `.mark-filed|review|fault|muted`, `.margin-note` (extraction ambiguity).
 - **Primitives in `components/ui.tsx`** (presentational, no `"use client"`, safe
   in server or client components): `LedgerPage`, `Wordmark`, `SectionHeading`,
-  `Button`, `Field`, `ConfidencePill`, `StatusMark` + `STATUS_META` /
+  `Card`, `Button` (`solid|quiet|ghost|danger`), `Field`, `ConfidencePill`,
+  `StatusMark` + `STATUS_META` /
   `statusEdgeClass` (map an `extraction_status` to a plain-spoken label + tone).
 - **Tone**: plain-spoken and domestic, never SaaS. Status is shown as words in a
   restrained colour ("Filed", "Needs a look", "Ready to check", "Couldn't read
@@ -82,10 +85,14 @@ app/
   dashboard/            placeholder, gated on completed onboarding
   documents/            list + uploader + per-doc extraction review/confirm (DocumentsList)
   invite/               pending invites, accept/decline (InviteList); works signed out
+  settings/             household + property + locale (HouseholdForm), people and sent
+                        invites (PeoplePanel), sign out, account deletion (DeleteAccountPanel)
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
-  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts
-components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx
+  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
+                        settings.ts, account.ts
+components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
+                 AppShell.tsx (top bar: sign out + gear to /settings), BottomTabBar.tsx
 lib/
   supabase-client.ts   browser client (createBrowserClient)
   supabase-server.ts   server client with cookie bridge (server-only)
@@ -96,7 +103,12 @@ lib/
                        runExtractionForDocument() (download → extract → persist) + chunkText()
   document-types.ts    client-safe row/confidence shapes + REVIEW_FIELDS + DOCUMENTS_SELECT
   invites.ts           PendingInvite + loadPendingInvites(client) — wraps the RPC,
-                       returns [] on any error so a page never fails over invites
+                       returns [] on any error so a page never fails over invites;
+                       plus SentInvite + loadSentInvites(client, householdId)
+  members.ts           HouseholdMember + loadHouseholdMembers(client, householdId) —
+                       membership rows off the table, emails off the SECURITY DEFINER
+                       function; emails come back null if that call fails
+  property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
   safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
 supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 ```
@@ -104,7 +116,12 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 ## Database (all in `supabase/migrations/`)
 
 - `households(id, name, locale check UK|US, created_at)`
-- `household_members(household_id, user_id, role, pk(household_id,user_id))`
+- `household_members(household_id, user_id, role, pk(household_id,user_id))` — members can
+  read the rows, but `auth.users` is not exposed, so the settings "People" list gets
+  addresses from `public.household_member_emails(uuid)` — SECURITY DEFINER, guarded on
+  `private.is_household_member`, `authenticated` only. This is the only privilege phase 5
+  adds. `20260909171500_household_member_emails.sql` is **written but not applied**; until
+  it is, the list still renders with the emails blank.
 - `properties(id, household_id, address, type, year_built, created_at)`
 - `household_invites(id, household_id, email, invited_by, status, created_at)` — created
   during onboarding from the partner email. Members-only select, so the invitee reaches
@@ -192,6 +209,29 @@ cleaned up — a known gap for a later lifecycle job.
 - **`vercel.json`** runs it at `0 8 * * *`. Vercel supplies the `Authorization: Bearer`
   header itself once `CRON_SECRET` is set on the project.
 
+## Settings + account deletion (phase 5)
+
+- **`/settings`** (inside `AppShell`, `requireOnboarded`, reached from the gear in the top
+  bar — deliberately *not* a bottom tab). Four cards: "Your household", "People",
+  "Sign out", "Delete account".
+- **`app/actions/settings.ts`** — all on the cookie client, so RLS decides the scope;
+  each action resolves the caller's oldest membership the same way the rest of the app
+  does. `updateHousehold()` repeats onboarding's validation shape (name, `UK|US`,
+  address, 1000–2100 year) and writes `households` + `properties`. `inviteMember()`
+  inserts a `household_invites` row with `invited_by = caller` — the same rule
+  onboarding uses — after rejecting the caller's own address, an existing member and a
+  duplicate pending invite. `revokeInvite()` updates `status` to `'revoked'`, which the
+  existing member update policy already allows.
+- **`app/actions/account.ts`** — `deleteAccount(confirmText)` refuses anything but
+  `DELETE`, then on the **admin client**: find the households where the caller is the
+  only member, delete every Storage object under each `<household_id>/` prefix, and
+  `auth.admin.deleteUser()`. The FK cascades plus `prune_empty_household()` clear
+  `household_members`, `households`, `properties`, `documents`, `document_chunks`,
+  invites and reminders — no migration needed for any of it. Storage has no cascade,
+  which is why it is done by hand, and the whole cleanup is wrapped: a failure there is
+  logged and the deletion still goes through. Finally `signOut()` and `redirect("/")`.
+- Households the caller **shares** with someone else are never touched.
+
 ## Conventions
 
 - Server-only modules import `server-only` at the top.
@@ -239,7 +279,8 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
 ## Assumptions changed from earlier phases
 
 - Phase 1 CLAUDE.md said "no middleware". Next 16 replaced Middleware with Proxy;
-  `proxy.ts` handles Supabase session refresh + the auth redirect (now also `/internal`).
+  `proxy.ts` handles Supabase session refresh + the auth redirect (now also `/internal`
+  and `/settings`).
 - Onboarding gate = household has a `locale` **and** at least one property row.
 - `/documents` now scopes its query by `property_id` (one property per household
   for now), and its list is a client component (`DocumentsList`) for the review forms.

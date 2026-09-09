@@ -98,13 +98,14 @@ export function Card({
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "solid" | "quiet" | "ghost";
+  variant?: "solid" | "quiet" | "ghost" | "danger";
 };
 
 const BUTTON_CLASS: Record<NonNullable<ButtonProps["variant"]>, string> = {
   solid: "btn",
   quiet: "btn-quiet",
   ghost: "btn-ghost",
+  danger: "btn-danger",
 };
 
 export function Button({ variant = "solid", className = "", ...props }: ButtonProps) {

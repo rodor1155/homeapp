@@ -23,7 +23,7 @@
 
    Motifs, defined as classes below:
      .card / .card-accent   the white (or sage-tinted) rounded panel
-     .btn / .btn-quiet / .btn-ghost   pill buttons
+     .btn / .btn-quiet / .btn-ghost / .btn-danger   pill buttons
      .pill-*                confidence markers
      .entry--*              a list row's left status edge
    ========================================================================= */
@@ -245,7 +245,8 @@
 
   .btn,
   .btn-quiet,
-  .btn-ghost {
+  .btn-ghost,
+  .btn-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -262,12 +263,14 @@
   }
   .btn:active,
   .btn-quiet:active,
-  .btn-ghost:active {
+  .btn-ghost:active,
+  .btn-danger:active {
     transform: translateY(0.5px);
   }
   .btn:disabled,
   .btn-quiet:disabled,
-  .btn-ghost:disabled {
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
     opacity: 0.45;
     cursor: default;
     transform: none;
@@ -292,6 +295,19 @@
   .btn-quiet:hover:not(:disabled) {
     background-color: var(--color-navy-tint);
     border-color: var(--color-rule-strong);
+  }
+
+  /* Destructive: the one button that isn't reversible. */
+  .btn-danger {
+    background-color: var(--color-oxblood);
+    border-color: var(--color-oxblood);
+    color: var(--color-paper-raised);
+  }
+  /* Toward ink rather than black, so the hover stays legible in dark mode
+     too, where oxblood is the light tone and the label is the dark one. */
+  .btn-danger:hover:not(:disabled) {
+    background-color: color-mix(in oklab, var(--color-oxblood) 85%, var(--color-ink));
+    border-color: color-mix(in oklab, var(--color-oxblood) 85%, var(--color-ink));
   }
 
   /* Ghost: no chrome until you reach for it. */

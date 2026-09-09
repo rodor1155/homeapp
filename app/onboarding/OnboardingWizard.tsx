@@ -7,6 +7,7 @@ import {
   type OnboardingState,
 } from "@/app/actions/onboarding";
 import type { Locale } from "@/lib/household";
+import { PROPERTY_TYPES } from "@/lib/property";
 import { Button, Field, Wordmark } from "@/components/ui";
 
 type Props = {
@@ -17,15 +18,6 @@ type Props = {
 };
 
 const STEPS = ["Where your home is", "About the property", "Sharing"] as const;
-
-const PROPERTY_TYPES = [
-  "House",
-  "Flat / Apartment",
-  "Bungalow",
-  "Condo",
-  "Townhouse",
-  "Other",
-];
 
 export default function OnboardingWizard({
   defaultLocale,

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import BottomTabBar from "@/components/BottomTabBar";
 import SignOutButton from "@/components/SignOutButton";
 import { Wordmark } from "@/components/ui";
@@ -65,6 +67,13 @@ export default function AppShell({
             </p>
           </div>
           <SignOutButton />
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-navy-tint hover:text-ink"
+          >
+            <Settings size={19} strokeWidth={1.8} aria-hidden />
+          </Link>
           <span
             aria-hidden
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-semibold text-paper-raised"
