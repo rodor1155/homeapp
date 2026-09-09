@@ -15,6 +15,7 @@ import AppShell from "@/components/AppShell";
 import { Card, SectionHeading, statusEdgeClass } from "@/components/ui";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded, type Locale } from "@/lib/household";
+import { loadPendingInvites } from "@/lib/invites";
 import {
   contacts,
   documentLabel,
@@ -55,6 +56,7 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false });
 
   const documents = (data as DocumentRow[] | null) ?? [];
+  const invites = await loadPendingInvites(supabase);
 
   const detail = [
     property.type,
@@ -71,6 +73,23 @@ export default async function DashboardPage() {
   return (
     <AppShell user={user}>
       <div className="flex flex-col gap-4">
+        {invites.length > 0 ? (
+          <Card tone="accent">
+            <h2 className="text-base font-semibold text-ink">
+              {invites.length === 1
+                ? `You’ve been invited to join ${invites[0].household_name}`
+                : `You’ve been invited to join ${invites.length} households`}
+            </h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Accepting shares that household’s documents, dates and contacts
+              with you.
+            </p>
+            <Link href="/invite" className="btn mt-4">
+              See the invitation
+            </Link>
+          </Card>
+        ) : null}
+
         <section className="home-hero card overflow-hidden p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

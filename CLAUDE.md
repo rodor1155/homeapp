@@ -14,7 +14,8 @@ agent (or human) picking up the repo has the same context.
 | 3 | Document extraction worker — DB webhook → Claude vision → fields + confidence + chunked text; review/confirm UI; internal test harness. | done |
 | 1b | Embeddings for `document_chunks` + retrieval. | next |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
-| later | Reminder generation, the real dashboard, invite-accept flow. | not started |
+| 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — **migration written, not yet applied** |
+| later | Reminder generation, the real dashboard. | not started |
 
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
@@ -72,16 +73,17 @@ One visual system, defined once, used by every screen. **Build new screens
 proxy.ts        Session refresh + auth gate. Next 16 renamed Middleware -> Proxy;
                 the file is proxy.ts, the export is `proxy`. Do NOT add middleware.ts.
 app/
-  page.tsx              routes to /sign-in, /onboarding, or /dashboard
+  page.tsx              routes to /sign-in, /invite, /onboarding, or /dashboard
   sign-in/, sign-up/    AuthPanel (client) — password + magic link + Google
   auth/callback/        PKCE code exchange (magic link, OAuth, email confirm)
   auth/sign-out/        POST route handler
   onboarding/           3-step wizard (locale -> property -> partner invite)
   dashboard/            placeholder, gated on completed onboarding
   documents/            list + uploader + per-doc extraction review/confirm (DocumentsList)
+  invite/               pending invites, accept/decline (InviteList); works signed out
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
-  actions/              auth.ts, onboarding.ts, documents.ts, extraction-test.ts
+  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx
 lib/
   supabase-client.ts   browser client (createBrowserClient)
@@ -92,6 +94,9 @@ lib/
   extraction.ts        server-only: extractDocument() (pure Claude call) +
                        runExtractionForDocument() (download → extract → persist) + chunkText()
   document-types.ts    client-safe row/confidence shapes + REVIEW_FIELDS + DOCUMENTS_SELECT
+  invites.ts           PendingInvite + loadPendingInvites(client) — wraps the RPC,
+                       returns [] on any error so a page never fails over invites
+  safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
 supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 ```
 
@@ -100,7 +105,15 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 - `households(id, name, locale check UK|US, created_at)`
 - `household_members(household_id, user_id, role, pk(household_id,user_id))`
 - `properties(id, household_id, address, type, year_built, created_at)`
-- `household_invites(id, household_id, email, invited_by, status, created_at)` — record only; accept flow is later
+- `household_invites(id, household_id, email, invited_by, status, created_at)` — created
+  during onboarding from the partner email. Members-only select, so the invitee reaches
+  their own row through `public.pending_invites_for_me()` /
+  `accept_household_invite(uuid)` / `decline_household_invite(uuid)` — SECURITY DEFINER,
+  `authenticated` only. Accepting also inserts the `household_members` row (no insert
+  policy exists) and, if the caller never used the household they were given at signup
+  (no property, no documents, sole member), drops that membership so they still hold
+  exactly one household — every other query assumes the oldest membership is the right
+  one. `20260909142300_household_invite_accept.sql` is **written but not applied**.
 - `documents(...)` — upload lands `extraction_status = 'pending'`; the worker fills
   `doc_type / provider / reference / start_date / end_date / renewal_date / amount /
   currency / key_contact_name / key_contact_phone` and the `extraction_confidence`
@@ -195,3 +208,10 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
   for now), and its list is a client component (`DocumentsList`) for the review forms.
 - Model is pinned to `claude-sonnet-4-6` for the extraction benchmark (not the
   newer default) — `EXTRACTION_MODEL` in `lib/extraction.ts`.
+- `/sign-in` + `/sign-up` take `?next=`, and only the **password** flows honour it.
+  Supabase matches `emailRedirectTo` / OAuth `redirectTo` against the redirect
+  allow-list as whole strings (query included), so magic link and Google come back
+  to the bare `/auth/callback` and `/` re-routes from there. Adding
+  `<SITE>/auth/callback**` to the allow-list would let `next` survive those two.
+- `/invite` is deliberately **not** in `proxy.ts`'s protected prefixes — an invite
+  link has to render for a signed-out visitor.

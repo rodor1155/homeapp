@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { safeNextPath } from "@/lib/safe-path";
 
 export type AuthState = { error?: string; success?: string } | undefined;
 
@@ -14,6 +15,17 @@ function readEmail(formData: FormData): string {
   return String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
+}
+
+/**
+ * Where to land once signed in — set by the page that sent the user here.
+ * Only the password flows can honour it: Supabase matches `emailRedirectTo`
+ * and OAuth `redirectTo` against the allow-list as whole strings, query
+ * included, so a link round-trip has to come back to the bare callback and
+ * let `/` route from there.
+ */
+function readNext(formData: FormData): string {
+  return safeNextPath(String(formData.get("next") ?? ""));
 }
 
 export async function signInWithPassword(
@@ -30,7 +42,7 @@ export async function signInWithPassword(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
 
-  redirect("/");
+  redirect(readNext(formData));
 }
 
 export async function signUpWithPassword(
@@ -45,6 +57,7 @@ export async function signUpWithPassword(
     };
   }
 
+  const next = readNext(formData);
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -59,7 +72,7 @@ export async function signUpWithPassword(
     };
   }
 
-  redirect("/");
+  redirect(next);
 }
 
 export async function sendMagicLink(

@@ -11,9 +11,18 @@ import {
 import { createClient } from "@/lib/supabase-client";
 import { Button, Field, Wordmark } from "@/components/ui";
 
-export default function AuthPanel({ mode }: { mode: "sign-in" | "sign-up" }) {
+export default function AuthPanel({
+  mode,
+  next = "/",
+}: {
+  mode: "sign-in" | "sign-up";
+  /** Where to land once signed in. Already sanitised by the page. */
+  next?: string;
+}) {
   const isSignUp = mode === "sign-up";
   const passwordAction = isSignUp ? signUpWithPassword : signInWithPassword;
+  const withNext = (path: string) =>
+    next === "/" ? path : `${path}?next=${encodeURIComponent(next)}`;
 
   const [email, setEmail] = useState("");
   const [pwState, pwSubmit, pwPending] = useActionState<AuthState, FormData>(
@@ -78,6 +87,7 @@ export default function AuthPanel({ mode }: { mode: "sign-in" | "sign-up" }) {
         </div>
 
         <form action={pwSubmit} className="flex flex-col gap-4">
+          <input type="hidden" name="next" value={next} />
           <Field label="Email">
             <input
               name="email"
@@ -134,14 +144,14 @@ export default function AuthPanel({ mode }: { mode: "sign-in" | "sign-up" }) {
         {isSignUp ? (
           <>
             Already have a file?{" "}
-            <Link className="text-action" href="/sign-in">
+            <Link className="text-action" href={withNext("/sign-in")}>
               Sign in
             </Link>
           </>
         ) : (
           <>
             New here?{" "}
-            <Link className="text-action" href="/sign-up">
+            <Link className="text-action" href={withNext("/sign-up")}>
               Start your household file
             </Link>
           </>
