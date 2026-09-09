@@ -233,7 +233,7 @@ export default function DocumentsList({
   documents: DocumentRow[];
 }) {
   return (
-    <ul className="border-y border-rule bg-paper-raised">
+    <ul>
       {documents.map((doc) => (
         <Entry key={doc.id} doc={doc} />
       ))}

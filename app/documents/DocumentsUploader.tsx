@@ -76,10 +76,10 @@ export default function DocumentsUploader({
           setDragOver(false);
           void uploadFiles(Array.from(e.dataTransfer.files));
         }}
-        className={`flex flex-col gap-3 rounded border border-dashed px-4 py-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+        className={`flex flex-col gap-3 rounded-lg border border-dashed px-4 py-5 transition-colors sm:flex-row sm:items-center sm:justify-between ${
           dragOver
-            ? "border-ink bg-ochre-tint"
-            : "border-rule-strong bg-paper-sunk"
+            ? "border-sage-soft bg-sage-tint"
+            : "border-rule-strong bg-paper"
         }`}
       >
         <p className="text-sm text-ink-soft">

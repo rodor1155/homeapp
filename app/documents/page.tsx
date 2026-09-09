@@ -1,14 +1,16 @@
 import Link from "next/link";
+import { FilePlus2 } from "lucide-react";
 import DocumentsUploader from "./DocumentsUploader";
 import DocumentsList from "./DocumentsList";
-import { LedgerPage, SectionHeading, Wordmark } from "@/components/ui";
+import AppShell from "@/components/AppShell";
+import { Card, SectionHeading } from "@/components/ui";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded } from "@/lib/household";
 
 export const metadata = { title: "Documents · homeapp" };
 
 export default async function DocumentsPage() {
-  const { supabase, property } = await requireOnboarded();
+  const { supabase, user, property } = await requireOnboarded();
 
   const { data } = await supabase
     .from("documents")
@@ -20,46 +22,61 @@ export default async function DocumentsPage() {
   const count = documents.length;
 
   return (
-    <LedgerPage>
-      <div className="flex items-start justify-between gap-4">
-        <Wordmark className="text-sm" />
-        <Link href="/dashboard" className="text-action text-sm">
-          Dashboard
-        </Link>
-      </div>
-
-      <header className="mt-6 flex items-end justify-between gap-4 border-b border-rule pb-5">
-        <div>
-          <h1 className="text-2xl">Documents</h1>
-          <p className="mt-1.5 text-sm text-ink-soft">
-            {property.address.split("\n")[0]}
-          </p>
-        </div>
-        <a href="/api/export" className="text-action shrink-0 text-sm">
-          Export everything
-        </a>
-      </header>
-
-      <div className="mt-8">
-        <DocumentsUploader propertyId={property.id} />
-      </div>
-
-      <section className="mt-10">
-        <SectionHeading
-          aside={count === 0 ? undefined : `${count} ${count === 1 ? "entry" : "entries"}`}
-        >
-          In your file
-        </SectionHeading>
-        <div className="mt-4">
-          {count === 0 ? (
-            <p className="text-sm text-ink-faint">
-              Nothing filed yet. Add a document above to get started.
+    <AppShell user={user}>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div className="min-w-0">
+            <h1 className="text-2xl">Documents</h1>
+            <p className="mt-0.5 truncate text-sm text-ink-soft">
+              {property.address.split("\n")[0]}
             </p>
+          </div>
+          <a href="/api/export" className="btn-ghost shrink-0">
+            Export
+          </a>
+        </div>
+
+        <Card>
+          <DocumentsUploader propertyId={property.id} />
+        </Card>
+
+        <div>
+          <SectionHeading
+            aside={
+              count === 0
+                ? undefined
+                : `${count} ${count === 1 ? "entry" : "entries"}`
+            }
+          >
+            In your file
+          </SectionHeading>
+
+          {count === 0 ? (
+            <Card className="text-center">
+              <span
+                aria-hidden
+                className="mx-auto flex h-12 w-12 items-center justify-center rounded-pill bg-sage-tint text-sage"
+              >
+                <FilePlus2 size={22} strokeWidth={1.8} />
+              </span>
+              <h3 className="mt-3 text-base font-semibold text-ink">
+                Nothing filed yet
+              </h3>
+              <p className="mx-auto mt-1.5 max-w-xs text-sm text-ink-soft">
+                Add a PDF or a photo above and it will be read, sorted and
+                filed for you.
+              </p>
+              <Link href="/dashboard" className="text-action mt-4 inline-block text-sm">
+                Back to your home
+              </Link>
+            </Card>
           ) : (
-            <DocumentsList documents={documents} />
+            <Card padding="none">
+              <DocumentsList documents={documents} />
+            </Card>
           )}
         </div>
-      </section>
-    </LedgerPage>
+      </div>
+    </AppShell>
   );
 }
