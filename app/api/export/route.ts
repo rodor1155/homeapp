@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { getEntitlements } from "@/lib/billing";
 import { createClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
@@ -82,6 +83,16 @@ export async function GET() {
     return Response.json(
       { error: "No household found for your account." },
       { status: 400 }
+    );
+  }
+
+  // Inert until Stripe keys are set: with billing unconfigured every household
+  // can export, exactly as before.
+  const entitlements = await getEntitlements(membership.household_id);
+  if (!entitlements.canExport) {
+    return Response.json(
+      { error: "Export is a paid feature." },
+      { status: 402 }
     );
   }
 

@@ -184,6 +184,11 @@ export async function syncRemindersForDocument(
     (ruleRows as ReminderRule[] | null) ?? []
   );
 
+  // TODO(billing): a free household gets `reminderLimit` active reminders
+  // (getEntitlements in lib/billing.ts). Enforce it here, before the insert
+  // below, by counting this household's scheduled rows. Not done in this pass —
+  // reminder behaviour is unchanged until the limit is designed properly
+  // (which document loses its nudge, and how the household is told).
   const scheduled: ReminderDate[] = [];
   for (const target of wanted) {
     const current = existing.find((row) => row.kind === target.kind);

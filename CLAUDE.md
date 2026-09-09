@@ -17,6 +17,7 @@ agent (or human) picking up the repo has the same context.
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — **migration written, not yet applied** |
 | 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — **migration written, not yet applied** |
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — **migration written, not yet applied** |
+| 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | scaffold done — **migration written, not yet applied; no Stripe keys set, so billing is off and every gate is inert** |
 | later | The real dashboard. | not started |
 
 Do not build the next phase's work until this table says so. Reminders, the
@@ -85,10 +86,12 @@ app/
   dashboard/            placeholder, gated on completed onboarding
   documents/            list + uploader + per-doc extraction review/confirm (DocumentsList)
   invite/               pending invites, accept/decline (InviteList); works signed out
-  settings/             household + property + locale (HouseholdForm), people and sent
-                        invites (PeoplePanel), sign out, account deletion (DeleteAccountPanel)
+  settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
+                        people and sent invites (PeoplePanel), sign out, account
+                        deletion (DeleteAccountPanel)
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
+  api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
                         settings.ts, account.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
@@ -108,6 +111,9 @@ lib/
   members.ts           HouseholdMember + loadHouseholdMembers(client, householdId) —
                        membership rows off the table, emails off the SECURITY DEFINER
                        function; emails come back null if that call fails
+  billing.ts           server-only: isBillingConfigured / getEntitlements /
+                       createStripeClient / priceIdFor + the `subscriptions` read+write
+                       helpers. Unconfigured = paid entitlements, so gates are inert
   property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
   safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
 supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
@@ -151,6 +157,14 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 - `reminder_events(id, reminder_id, offset_days, channel, result, sent_at,
   unique(reminder_id, offset_days))` — the send log, and the thing that stops a
   duplicate nudge. Select-only via the parent reminder; writes are service-role.
+- `subscriptions(household_id pk → households, stripe_customer_id, stripe_subscription_id,
+  status default 'none', plan, current_period_end, cancel_at_period_end, updated_at)` —
+  one row per household (the household is the Stripe customer, so everyone in it shares
+  the plan). Members-only select; **no insert/update/delete policy**, rows are written by
+  the Stripe webhook and the checkout route on the service role. Indexed on
+  `stripe_customer_id`, which is how a webhook event finds the household. `status` is
+  deliberately unconstrained — an unknown Stripe status should land in the row rather
+  than fail the webhook. `20260909180000_subscriptions.sql` is **written but not applied**.
 - Private Storage bucket `documents`, key pattern `<household_id>/<document_id>/<filename>`
 
 RLS model: every table (and the bucket) is gated on
@@ -212,8 +226,8 @@ cleaned up — a known gap for a later lifecycle job.
 ## Settings + account deletion (phase 5)
 
 - **`/settings`** (inside `AppShell`, `requireOnboarded`, reached from the gear in the top
-  bar — deliberately *not* a bottom tab). Four cards: "Your household", "People",
-  "Sign out", "Delete account".
+  bar — deliberately *not* a bottom tab). Five cards: "Your household", "Plan" (phase 6),
+  "People", "Sign out", "Delete account".
 - **`app/actions/settings.ts`** — all on the cookie client, so RLS decides the scope;
   each action resolves the caller's oldest membership the same way the rest of the app
   does. `updateHousehold()` repeats onboarding's validation shape (name, `UK|US`,
@@ -231,6 +245,54 @@ cleaned up — a known gap for a later lifecycle job.
   which is why it is done by hand, and the whole cleanup is wrapped: a failure there is
   logged and the deletion still goes through. Finally `signOut()` and `redirect("/")`.
 - Households the caller **shares** with someone else are never touched.
+
+## Billing (phase 6)
+
+Freemium. **Free**: unlimited documents, 3 active reminders, no export, no AI Q&A.
+**Paid**: unlimited reminders, export, household sharing, and (later) AI Q&A + cover
+analysis. £4.99/mo or £39/yr for UK households, $6.99/mo or $59/yr for US ones.
+Cancellation is one click in Stripe's own billing portal — never behind our UI.
+
+- **Off by default, and off means inert.** `isBillingConfigured()` is true only when
+  `STRIPE_SECRET_KEY` is set. While it is false, `getEntitlements()` returns the *paid*
+  set without touching Stripe or the database, so every gate is a no-op and the app
+  behaves exactly as it did before phase 6. Once it is true, a household is paid only on
+  a `subscriptions.status` of `active` or `trialing`; anything else (including an
+  unreadable row) is free, i.e. `canExport: false`, `reminderLimit: 3`.
+- **`lib/billing.ts`** (server-only) is the whole surface: `isBillingConfigured()`,
+  `getEntitlements(householdId)`, `createStripeClient()` (throws if unconfigured — guard
+  first), `priceIdFor(locale, interval)` reading the four `STRIPE_PRICE_*` vars,
+  `planForPriceId()` for the reverse lookup, `loadSubscription()` / `saveSubscription()` /
+  `householdIdForCustomer()` on the admin client, and `patchFromSubscription()`.
+  `current_period_end` comes off the subscription's **items** — Stripe moved it there.
+- **`POST /api/stripe/checkout`** — cookie client for auth, `loadHouseholdContext()` for
+  the household, 503 `{ error: "Billing is not set up yet." }` when unconfigured or when
+  that locale/interval has no price. Reuses `stripe_customer_id` or creates the customer
+  and stores it first, then creates a subscription Checkout Session carrying
+  `household_id` in `metadata`, `client_reference_id` *and* `subscription_data.metadata`.
+  Returns `{ url }`; success lands on `/settings?billing=success`.
+- **`POST /api/stripe/portal`** — same guards, opens a Billing Portal session for the
+  household's customer, returns `{ url }`. This is the cancel path.
+- **`POST /api/stripe/webhook`** — raw `request.text()` verified with
+  `constructEventAsync` against `STRIPE_WEBHOOK_SECRET`; 400 on a bad or missing
+  signature, 200 no-op when billing is unconfigured. Handles
+  `checkout.session.completed` (retrieves the subscription for its real status) and
+  `customer.subscription.created/updated/deleted`, upserting the row keyed on
+  `household_id` — found from the event metadata, else from `stripe_customer_id`.
+  Unrecognised events are answered 200 and ignored; a failed *write* answers 500 so
+  Stripe retries.
+- **Gates in place**: `/api/export` returns 402 `{ error: "Export is a paid feature." }`
+  when `!canExport`. The reminder cap is **not** enforced yet — `reminderLimit` is
+  exposed and there is a `TODO(billing)` in `lib/reminders.ts` where it would go.
+- **`/settings` → "Plan"** reads entitlements server-side and renders `PlanPanel`
+  (client): upgrade buttons that POST to checkout, or "Manage billing" that POSTs to the
+  portal, and a muted "Billing isn't set up yet" note when unconfigured. Display prices
+  live in `PlanPanel` and must be kept in step with the Stripe prices.
+- **To turn it on** (none of this is done yet): apply the migration, create one product
+  with four recurring prices in Stripe, add a webhook endpoint at
+  `<SITE>/api/stripe/webhook` for `checkout.session.completed` +
+  `customer.subscription.created/updated/deleted`, enable the billing portal with
+  cancellation on, then set the six `STRIPE_*` variables locally and in Vercel.
 
 ## Conventions
 
@@ -258,6 +320,15 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
 | `RESEND_API_KEY` | **server-only, secret** | reminder email; unset = sends are logged as skipped |
 | `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email (domain verified in Resend) |
 | `CRON_SECRET` | **server-only, secret** | bearer token for `/api/cron/reminders`; Vercel sends it automatically |
+| `STRIPE_SECRET_KEY` | **server-only, secret** | Stripe key; **unset = billing off**, gates inert, paid entitlements for everyone |
+| `STRIPE_WEBHOOK_SECRET` | **server-only, secret** | signing secret for `/api/stripe/webhook`; unset = the webhook 200s and does nothing |
+| `STRIPE_PRICE_GBP_MONTHLY` | server-only | price offered to UK households, £4.99/mo |
+| `STRIPE_PRICE_GBP_YEARLY` | server-only | price offered to UK households, £39/yr |
+| `STRIPE_PRICE_USD_MONTHLY` | server-only | price offered to US households, $6.99/mo |
+| `STRIPE_PRICE_USD_YEARLY` | server-only | price offered to US households, $59/yr |
+
+None of the `STRIPE_*` variables are set anywhere yet — that is the current state, and
+the app is expected to run exactly as before while they are missing.
 
 ## Supabase config not captured in code (do this in the dashboard)
 

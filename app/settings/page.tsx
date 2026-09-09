@@ -1,20 +1,37 @@
 import AppShell from "@/components/AppShell";
 import SignOutButton from "@/components/SignOutButton";
 import { Card } from "@/components/ui";
+import {
+  getEntitlements,
+  isBillingConfigured,
+  loadSubscription,
+} from "@/lib/billing";
 import { requireOnboarded } from "@/lib/household";
 import { loadSentInvites } from "@/lib/invites";
 import { loadHouseholdMembers } from "@/lib/members";
 import DeleteAccountPanel from "./DeleteAccountPanel";
 import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
+import PlanPanel from "./PlanPanel";
 
 export const metadata = { title: "Settings · homeapp" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage(props: PageProps<"/settings">) {
+  const { billing } = await props.searchParams;
   const { supabase, user, household, property } = await requireOnboarded();
 
   const members = await loadHouseholdMembers(supabase, household.id);
   const invites = await loadSentInvites(supabase, household.id);
+
+  const billingConfigured = isBillingConfigured();
+  const entitlements = await getEntitlements(household.id);
+  // The row is only read for the renewal date on the paid card. A free
+  // household has no date to show, and with billing unconfigured there is no
+  // row at all — so neither case touches the table.
+  const subscription =
+    billingConfigured && entitlements.activeSubscription
+      ? await loadSubscription(household.id)
+      : null;
 
   // The member list is the household's own rows, so this is the whole truth
   // for the household the user is looking at.
@@ -37,6 +54,17 @@ export default async function SettingsPage() {
             defaultAddress={property.address}
             defaultType={property.type ?? ""}
             defaultYearBuilt={property.year_built}
+          />
+        </Card>
+
+        <Card title="Plan">
+          <PlanPanel
+            configured={billingConfigured}
+            plan={entitlements.plan}
+            locale={household.locale}
+            periodEnd={subscription?.current_period_end ?? null}
+            cancelAtPeriodEnd={subscription?.cancel_at_period_end ?? false}
+            justPaid={billing === "success"}
           />
         </Card>
 

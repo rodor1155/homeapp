@@ -26,6 +26,12 @@ Open http://localhost:3000.
 | `RESEND_API_KEY` | server-only secret | Resend key for reminder email; unset = reminders are logged as skipped, not sent |
 | `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email, on a domain verified in Resend |
 | `CRON_SECRET` | server-only secret | bearer token for `/api/cron/reminders`; Vercel sends it automatically once set |
+| `STRIPE_SECRET_KEY` | server-only secret | Stripe key; **unset = billing off**, every household keeps the paid entitlements |
+| `STRIPE_WEBHOOK_SECRET` | server-only secret | signing secret for `/api/stripe/webhook`; unset = the webhook no-ops |
+| `STRIPE_PRICE_GBP_MONTHLY` | server-only | price ID offered to UK households, £4.99/mo |
+| `STRIPE_PRICE_GBP_YEARLY` | server-only | price ID offered to UK households, £39/yr |
+| `STRIPE_PRICE_USD_MONTHLY` | server-only | price ID offered to US households, $6.99/mo |
+| `STRIPE_PRICE_USD_YEARLY` | server-only | price ID offered to US households, $59/yr |
 
 Set the secrets in the Vercel project settings (Production + Preview).
 `NEXT_PUBLIC_SITE_URL` must match the deployment origin (`https://homeapp-mu.vercel.app`).
@@ -35,8 +41,9 @@ Set the secrets in the Vercel project settings (Production + Preview).
 Migrations live in [`supabase/migrations/`](./supabase/migrations) and are already applied
 to the linked project. Tables: `households`, `household_members`, `properties`,
 `household_invites`, `documents`, `document_chunks`, `reminder_rules`, `reminders`,
-`reminder_events`; plus a private `documents` Storage bucket. Every table has row-level
-security scoped to household membership.
+`reminder_events`, `subscriptions`; plus a private `documents` Storage bucket. Every
+table has row-level security scoped to household membership. The `subscriptions`
+migration is the exception: written, not yet applied.
 
 ## Document extraction
 
@@ -58,6 +65,22 @@ from `lib/home-overview.ts` and the household's locale — 60/30/7/0 days by def
 emails every household member whose reminder falls due that day via Resend, and logs
 each send in `reminder_events` — the unique `(reminder_id, offset_days)` there is what
 stops a nudge going out twice. The day-of send closes the reminder off as `sent`.
+
+## Billing
+
+Free households keep unlimited documents but get three live reminders, no export
+and (later) no AI answers. Paying lifts all of that: £4.99/mo or £39/yr in the UK,
+$6.99/mo or $59/yr in the US, cancelled in one click from Stripe's billing portal.
+
+Billing is off until `STRIPE_SECRET_KEY` is set, and off means **inert** —
+[`lib/billing.ts`](./lib/billing.ts) hands back the paid entitlements, so the gates
+change nothing for anyone until the keys are in place. With the key set, plans come
+off the `subscriptions` table: `POST /api/stripe/checkout` starts a Checkout Session
+(household id in the metadata), `POST /api/stripe/portal` opens the portal, and
+`POST /api/stripe/webhook` verifies Stripe's signature against the raw body and
+writes the row on the service role. `/settings` shows the plan and the buttons.
+
+The `subscriptions` migration is written but **not yet applied** to the project.
 
 ## Supabase config that isn't in code
 
