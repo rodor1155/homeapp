@@ -214,9 +214,11 @@ type PinnedResponse = {
 };
 
 /**
- * HTTPS GET that dials only the pre-resolved public addresses. The TLS SNI
- * and Host header still use the original hostname so legitimate school ICS
- * hosts keep working.
+ * HTTPS GET that dials only the pre-resolved public addresses. Node skips a
+ * custom `lookup` when `hostname` is already an IP literal, so we pin by
+ * putting the vetted IP in `hostname` (the TCP peer) while `servername` (SNI)
+ * and the Host header keep the original DNS name — that is what makes TLS
+ * and virtual-hosting work for real school ICS hosts.
  */
 function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
   const addresses = pinned.addresses;
@@ -234,7 +236,10 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
       const request = https.request(
         {
           protocol: "https:",
+          // Dial the vetted public IP directly (no second DNS / no rebind).
           hostname: target.address,
+          family: target.family,
+          // SNI + Host stay on the original name the certificate expects.
           servername: pinned.hostname,
           port: url.port || 443,
           path: `${url.pathname}${url.search}`,
@@ -242,27 +247,6 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
           headers: {
             host: pinned.hostname,
             accept: "text/calendar, text/plain, */*",
-          },
-          // Pin: ignore the runtime's own DNS and only dial what we vetted.
-          lookup(
-            _hostname: string,
-            options: unknown,
-            callback: (
-              err: Error | null,
-              address: string,
-              family: number
-            ) => void
-          ) {
-            const familyOpt =
-              typeof options === "object" && options && "family" in options
-                ? (options as { family?: number }).family
-                : undefined;
-            const match =
-              familyOpt === 4 || familyOpt === 6
-                ? addresses.find((entry) => entry.family === familyOpt) ??
-                  target
-                : target;
-            callback(null, match.address, match.family);
           },
           timeout: FETCH_TIMEOUT_MS,
         },

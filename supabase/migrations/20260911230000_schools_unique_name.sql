@@ -1,10 +1,9 @@
 -- Dedupe school names within a household, then enforce uniqueness on
 -- lower(trim(name)). Safe to re-run: the unique index is IF NOT EXISTS.
 --
--- Apply on prod (project fybpmpnfocaxhqiwiyhs) when ready:
---   supabase db push
--- or run this file in the SQL editor. Until then, app code still select-or-
--- inserts by normalised name.
+-- Applied on prod project fybpmpnfocaxhqiwiyhs on 2026-09-11 via
+-- apply_migration. Do NOT re-apply; keep IF NOT EXISTS for local / fresh DBs.
+-- App code still select-or-inserts by normalised name as a belt-and-braces.
 
 -- Re-point children and events at the oldest school of each duplicate group.
 with ranked as (

@@ -333,15 +333,39 @@ export async function saveSchool(
       .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
   } else {
-    const minted = await findOrCreateSchool(supabase, caller.householdId, name);
-    if ("error" in minted) return { error: minted.error };
-    savedId = minted.id;
-    const { error } = await supabase
+    // Add path: never silently overwrite an existing school that matches by
+    // normalised name — mint-from-child reuses via findOrCreateSchool; the
+    // Schools form should open the row to edit instead.
+    const needle = normaliseSchoolName(name);
+    const { data: listed, error: listErr } = await supabase
       .from("schools")
-      .update(values)
-      .eq("id", savedId)
+      .select("id, name")
       .eq("household_id", caller.householdId);
-    if (error) return { error: error.message };
+    if (listErr) return { error: listErr.message };
+    const clash = (listed ?? []).find(
+      (row) => normaliseSchoolName(String(row.name ?? "")) === needle
+    );
+    if (clash) {
+      return {
+        error: "That school is already on the list — open it to edit.",
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("schools")
+      .insert({ household_id: caller.householdId, ...values })
+      .select("id")
+      .single();
+    if (error) {
+      // Unique race: another save minted the same name first.
+      if (error.code === "23505") {
+        return {
+          error: "That school is already on the list — open it to edit.",
+        };
+      }
+      return { error: error.message };
+    }
+    savedId = data.id as string;
   }
 
   // A changed link is fetched straight away so the household sees dates (or

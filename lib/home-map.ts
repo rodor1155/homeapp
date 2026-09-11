@@ -52,24 +52,23 @@ export function roundCoord(value: number): number {
   return Math.round(value * factor) / factor;
 }
 
-/** Signing material: prefer an explicit secret, else the service-role key. */
+/**
+ * Dedicated HMAC secret only — never the service-role (or anon) key.
+ * Unset = do not mint tokens; /api/home-map falls back to a signed-in session.
+ */
 function signingSecret(): string | null {
-  return (
-    process.env.HOME_MAP_SIGNING_SECRET?.trim() ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    null
-  );
+  return process.env.HOME_MAP_SIGNING_SECRET?.trim() || null;
 }
 
 /**
- * Short-lived HMAC over rounded lat/lng. The API accepts this *or* a signed-in
- * session, so the hero can load without a second round trip while anonymous
- * stitch abuse stays closed.
+ * Short-lived HMAC over rounded lat/lng when HOME_MAP_SIGNING_SECRET is set.
+ * The API accepts this *or* a signed-in session, so the signed-in hero still
+ * works without a secret while anonymous stitch abuse stays closed.
  */
 export function mintHomeMapToken(lat: number, lng: number, now = Date.now()): string {
   const secret = signingSecret();
   if (!secret) {
-    // Without a secret the route falls back to session auth only.
+    // No dedicated secret → no token; route requires a session instead.
     return "";
   }
   const exp = Math.floor((now + TOKEN_TTL_MS) / 1000);

@@ -54,12 +54,21 @@ export async function GET(request: Request) {
   }
 
   const result = await lookupAddresses(postcodeRaw);
-  // Cache hits and real answers; skip caching pure validation typos so a
-  // corrected digit isn't stuck behind a bad response.
-  if (!("error" in result) || result.error !== "That doesn’t look like a UK postcode.") {
+  // Cache successes and genuine permanent client errors only. Timeouts, 429,
+  // 5xx and network blips must not sit in the cache for ten minutes.
+  if (isCacheableLookup(result)) {
     cacheSet(cacheKey, result, CACHE_TTL_MS);
   }
   // A bad postcode is the household's typo, not a server fault, so it comes
   // back as a 200 with an `error` the picker prints under the field.
   return NextResponse.json(result);
+}
+
+/** Permanent outcomes worth remembering; transient provider failures are not. */
+function isCacheableLookup(result: AddressLookupResult): boolean {
+  if (!("error" in result)) return true;
+  return (
+    result.error === "That doesn’t look like a UK postcode." ||
+    result.error === "We couldn’t find that postcode."
+  );
 }
