@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import BottomTabBar from "@/components/BottomTabBar";
+import PullToRefresh from "@/components/PullToRefresh";
 import SignOutButton from "@/components/SignOutButton";
 import { Wordmark } from "@/components/ui";
 
@@ -84,7 +85,7 @@ export default function AppShell({
       </header>
 
       <main className="mx-auto w-full max-w-[32rem] px-4 pb-28 pt-5">
-        {children}
+        <PullToRefresh>{children}</PullToRefresh>
       </main>
 
       <BottomTabBar />

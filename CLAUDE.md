@@ -493,6 +493,10 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
 - Nothing emails a school date: a school calendar only ever shows up on the page and in
   "Coming up".
 
+## Tab navigation cache
+
+- **Tab Client Cache**: `experimental.staleTimes` keeps recently visited signed-in tabs in the Next Client Cache (`dynamic` 120s, `static` 300s with `prefetch={true}` on the tab bar). Pull-to-refresh on the shell calls `router.refresh()` when fresh data is needed.
+
 ## Shopping lists (phase 8)
 
 - **`/lists`** (fourth tab, between Family and Documents) is the household's lists; a

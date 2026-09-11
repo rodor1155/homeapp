@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useTransition } from "react";
 import {
   FileText,
   House,
@@ -30,6 +31,14 @@ function isActive(pathname: string, href: string): boolean {
 
 export default function BottomTabBar() {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const routeHref =
+    TABS.find((tab) => isActive(pathname, tab.href))?.href ?? pathname;
+  // Optimistic highlight until the real route catches up — no effect needed.
+  const highlightHref =
+    pendingHref && pendingHref !== routeHref ? pendingHref : routeHref;
 
   return (
     <nav
@@ -38,13 +47,20 @@ export default function BottomTabBar() {
     >
       <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-2">
         {TABS.map((tab) => {
-          const active = isActive(pathname, tab.href);
+          const active = isActive(highlightHref, tab.href);
           const Icon = tab.icon;
           return (
             <li key={tab.href} className="flex-1">
               <Link
                 href={tab.href}
+                // Full prefetch so the Client Cache uses the longer static TTL
+                // and a second tap can paint from memory instead of the network.
+                prefetch={true}
                 aria-current={active ? "page" : undefined}
+                onClick={() => {
+                  if (isActive(pathname, tab.href)) return;
+                  startTransition(() => setPendingHref(tab.href));
+                }}
                 className={`flex flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${
                   active ? "text-ink" : "text-ink-faint hover:text-ink-soft"
                 }`}
