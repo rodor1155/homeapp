@@ -15,10 +15,15 @@ function pruneMap<T extends { resetAt?: number; expiresAt?: number }>(
   map: Map<string, T>,
   expired: (entry: T, now: number) => boolean
 ): void {
-  if (map.size <= MAX_ENTRIES) return;
   const now = Date.now();
   for (const [k, entry] of map) {
     if (expired(entry, now)) map.delete(k);
+  }
+  // After TTL prune, hard-bound by eviction order (Map insertion order).
+  if (map.size <= MAX_ENTRIES) return;
+  for (const k of map.keys()) {
+    if (map.size <= MAX_ENTRIES) break;
+    map.delete(k);
   }
 }
 
@@ -34,7 +39,7 @@ export function takeToken(
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });
-    pruneMap(buckets, (entry, t) => entry.resetAt <= t);
+    pruneMap(buckets, (entry, t) => (entry.resetAt ?? 0) <= t);
     return true;
   }
   if (existing.count >= limit) return false;

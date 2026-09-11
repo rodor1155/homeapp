@@ -94,10 +94,7 @@ export async function GET(request: Request) {
 
   if (calErr) {
     console.error("[calendars] could not load household calendars", calErr);
-    return NextResponse.json({
-      schools: schoolsSummary,
-      household: { error: calErr.message },
-    });
+    return NextResponse.json({ error: calErr.message }, { status: 500 });
   }
 
   const schools = schoolRows ?? [];

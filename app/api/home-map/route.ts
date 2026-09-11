@@ -22,7 +22,8 @@ const COLS = 3;
 const ROWS = 2;
 const FETCH_TIMEOUT_MS = 8_000;
 const USER_AGENT = "homeapp/1.0 (https://homeapp-mu.vercel.app; family home app)";
-const STITCH_CACHE_TTL_MS = 60 * 60 * 1000;
+/** In-process only; keep short — PNG mosaics are large. */
+const STITCH_CACHE_TTL_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
 

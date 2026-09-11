@@ -462,17 +462,29 @@ export function parseDateParts(value: string | null): DateParts | null {
     : null;
 }
 
+/** Reused — constructing Intl.DateTimeFormat per call is relatively expensive. */
+const LONDON_DAY_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+});
+
 /** Year/month/day on the Europe/London wall clock for `now`. */
 export function calendarDayParts(
   now: Date = new Date(),
   timeZone: string = APP_CALENDAR_TZ
 ): DateParts {
-  const bits = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).formatToParts(now);
+  const formatter =
+    timeZone === APP_CALENDAR_TZ || timeZone === "Europe/London"
+      ? LONDON_DAY_FORMAT
+      : new Intl.DateTimeFormat("en-GB", {
+          timeZone,
+          year: "numeric",
+          month: "numeric",
+          day: "numeric",
+        });
+  const bits = formatter.formatToParts(now);
   const num = (type: Intl.DateTimeFormatPartTypes) =>
     Number(bits.find((part) => part.type === type)?.value);
   return { year: num("year"), month: num("month"), day: num("day") };

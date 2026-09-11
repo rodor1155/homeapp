@@ -225,10 +225,37 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
   let attempt = 0;
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let activeRequest: ReturnType<typeof https.request> | null = null;
+    let activeResponse: { destroy: () => void } | null = null;
+
+    // https.request `timeout` is socket inactivity only — a trickling body
+    // never trips it. This wall-clock deadline covers dial + headers + body.
+    const hardTimer = setTimeout(() => {
+      fail(new CalendarError("The calendar took too long to answer."));
+    }, FETCH_TIMEOUT_MS);
+
+    const succeed = (value: PinnedResponse) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      resolve(value);
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      activeResponse?.destroy();
+      activeRequest?.destroy();
+      reject(error);
+    };
+
     const tryNext = () => {
+      if (settled) return;
       const target = addresses[attempt];
       if (!target) {
-        reject(new CalendarError("We couldn’t reach that calendar."));
+        fail(new CalendarError("We couldn’t reach that calendar."));
         return;
       }
       attempt += 1;
@@ -248,18 +275,25 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
             host: pinned.hostname,
             accept: "text/calendar, text/plain, */*",
           },
+          // Inactivity timeout (complements the hard wall-clock above).
           timeout: FETCH_TIMEOUT_MS,
         },
         (response) => {
+          if (settled) {
+            response.destroy();
+            return;
+          }
+          activeResponse = response;
           const chunks: Buffer[] = [];
           let size = 0;
           let rejected = false;
           response.on("data", (chunk: Buffer) => {
+            if (settled) return;
             size += chunk.byteLength;
             if (size > MAX_BYTES) {
               rejected = true;
               response.destroy();
-              reject(
+              fail(
                 new CalendarError("That calendar is too big for us to read.")
               );
               return;
@@ -267,8 +301,8 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
             chunks.push(chunk);
           });
           response.on("end", () => {
-            if (rejected) return;
-            resolve({
+            if (rejected || settled) return;
+            succeed({
               statusCode: response.statusCode ?? 0,
               headers: {
                 location: headerValue(response.headers.location),
@@ -280,16 +314,19 @@ function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
             });
           });
           response.on("error", () => {
-            if (!rejected) tryNext();
+            if (!rejected && !settled) tryNext();
           });
         }
       );
 
+      activeRequest = request;
       request.on("timeout", () => {
         request.destroy();
-        reject(new CalendarError("The calendar took too long to answer."));
+        fail(new CalendarError("The calendar took too long to answer."));
       });
-      request.on("error", () => tryNext());
+      request.on("error", () => {
+        if (!settled) tryNext();
+      });
       request.end();
     };
 

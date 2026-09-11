@@ -27,6 +27,9 @@ export const metadata = { title: "Home overview · homeapp" };
  * own Suspense boundary. Documents are loaded once per request via
  * `loadOverviewDocuments` (React `cache`), so those sections share a round trip
  * without blocking each other or the hero.
+ *
+ * The map underlay is decorative: resolve it in a child Suspense so postcodes.io
+ * cannot hold the first byte of the hero chrome.
  */
 export default async function DashboardPage() {
   const { user, household, property } = await requireOnboarded();
@@ -39,8 +42,6 @@ export default async function DashboardPage() {
     .filter(Boolean)
     .join(", ");
 
-  const homeMap = await resolveHomeMap(property.address);
-
   return (
     <div className="flex flex-col gap-4">
       <Suspense fallback={null}>
@@ -48,13 +49,9 @@ export default async function DashboardPage() {
       </Suspense>
 
       <section className="home-hero card relative overflow-hidden p-5">
-        {homeMap ? (
-          <div
-            aria-hidden
-            className="home-hero-map"
-            style={{ backgroundImage: `url(${homeMap.imagePath})` }}
-          />
-        ) : null}
+        <Suspense fallback={null}>
+          <HomeMapUnderlay address={property.address} />
+        </Suspense>
         <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-sage">
@@ -78,11 +75,9 @@ export default async function DashboardPage() {
             <HeroExport householdId={household.id} />
           </Suspense>
         </div>
-        {homeMap ? (
-          <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
-            Map © OpenStreetMap · Carto
-          </p>
-        ) : null}
+        <Suspense fallback={null}>
+          <HomeMapCredit address={property.address} />
+        </Suspense>
       </section>
 
       <Suspense fallback={<HintsFallback />}>
@@ -109,5 +104,28 @@ export default async function DashboardPage() {
         Signed in as {user.email}. Renewal reminders come by email.
       </p>
     </div>
+  );
+}
+
+/** Decorative map wash — streams in after geocode; must not block hero chrome. */
+async function HomeMapUnderlay({ address }: { address: string }) {
+  const homeMap = await resolveHomeMap(address);
+  if (!homeMap) return null;
+  return (
+    <div
+      aria-hidden
+      className="home-hero-map"
+      style={{ backgroundImage: `url(${homeMap.imagePath})` }}
+    />
+  );
+}
+
+async function HomeMapCredit({ address }: { address: string }) {
+  const homeMap = await resolveHomeMap(address);
+  if (!homeMap) return null;
+  return (
+    <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
+      Map © OpenStreetMap · Carto
+    </p>
   );
 }
