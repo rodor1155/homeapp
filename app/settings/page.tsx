@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import SignOutButton from "@/components/SignOutButton";
 import { Card } from "@/components/ui";
@@ -81,6 +82,14 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
             invites={invites}
             currentUserId={user.id}
           />
+          <p className="mt-4 border-t border-rule pt-3 text-xs text-ink-faint">
+            This is who can sign in. Children, birthdays and schools live on
+            the{" "}
+            <Link href="/family" className="text-action text-xs">
+              Family page
+            </Link>
+            .
+          </p>
         </Card>
 
         <Card title="Sign out">

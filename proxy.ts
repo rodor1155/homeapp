@@ -8,6 +8,7 @@ import { createServerClient } from "@supabase/ssr";
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/documents",
+  "/family",
   "/settings",
   "/onboarding",
   "/internal",

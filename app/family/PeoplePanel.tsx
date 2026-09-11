@@ -1,0 +1,294 @@
+"use client";
+
+import { useActionState, useCallback, useEffect, useState } from "react";
+import {
+  deletePerson,
+  savePerson,
+  type FamilyState,
+} from "@/app/actions/family";
+import { Button, Field } from "@/components/ui";
+import { formatDate, relativeWhen } from "@/lib/dates";
+import {
+  nextBirthday,
+  PERSON_KINDS,
+  PERSON_KIND_LABEL,
+  type HouseholdPerson,
+  type PersonKind,
+  type School,
+} from "@/lib/family";
+import type { Locale } from "@/lib/household";
+
+type Props = {
+  people: HouseholdPerson[];
+  schools: School[];
+  locale: Locale;
+};
+
+export default function PeoplePanel({ people, schools, locale }: Props) {
+  const [adding, setAdding] = useState(false);
+  const stopAdding = useCallback(() => setAdding(false), []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {people.length === 0 ? (
+        <p className="text-sm text-ink-faint">
+          Nobody here yet. Add yourself, whoever you live with, and the
+          children — birthdays and schools hang off these.
+        </p>
+      ) : (
+        <ul className="divide-y divide-rule">
+          {people.map((person) => (
+            <PersonRow
+              key={person.id}
+              person={person}
+              schools={schools}
+              locale={locale}
+            />
+          ))}
+        </ul>
+      )}
+
+      <div className="border-t border-rule pt-4">
+        {adding ? (
+          <PersonForm schools={schools} onDone={stopAdding} />
+        ) : (
+          <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
+            Add someone
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PersonRow({
+  person,
+  schools,
+  locale,
+}: {
+  person: HouseholdPerson;
+  schools: School[];
+  locale: Locale;
+}) {
+  const [editing, setEditing] = useState(false);
+  const stopEditing = useCallback(() => setEditing(false), []);
+
+  const school = schools.find((s) => s.id === person.school_id) ?? null;
+  const birthday = nextBirthday(person.birthday);
+
+  const meta = [
+    PERSON_KIND_LABEL[person.kind],
+    school?.name,
+    person.year_group,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sm font-semibold text-sage"
+        >
+          {person.name.trim()[0]?.toUpperCase() ?? "?"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{person.name}</p>
+          <p className="truncate text-xs text-ink-faint">{meta}</p>
+          {birthday ? (
+            <p className="tnum mt-0.5 text-xs text-ink-soft">
+              Turns {birthday.turning} on {formatDate(birthday.date, locale)} ·{" "}
+              {relativeWhen(birthday.daysAway)}
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditing((open) => !open)}
+          className="text-action shrink-0 text-sm"
+        >
+          {editing ? "Close" : "Edit"}
+        </button>
+      </div>
+
+      {editing ? (
+        <div className="mt-3 rounded-lg bg-paper-sunk p-3">
+          <PersonForm
+            person={person}
+            schools={schools}
+            onDone={stopEditing}
+          />
+          <RemovePerson person={person} />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function PersonForm({
+  person,
+  schools,
+  onDone,
+}: {
+  person?: HouseholdPerson;
+  schools: School[];
+  onDone: () => void;
+}) {
+  const [state, submit, pending] = useActionState<FamilyState, FormData>(
+    savePerson,
+    undefined
+  );
+  const [kind, setKind] = useState<PersonKind>(person?.kind ?? "adult");
+
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state?.ok, onDone]);
+
+  return (
+    <form action={submit} className="flex flex-col gap-3">
+      {person ? (
+        <input type="hidden" name="person_id" value={person.id} />
+      ) : null}
+
+      <Field label="Name">
+        <input
+          name="name"
+          type="text"
+          required
+          defaultValue={person?.name ?? ""}
+          className="field-input"
+          placeholder="Ada"
+        />
+      </Field>
+
+      <Field label="Who they are">
+        <select
+          name="kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as PersonKind)}
+          className="field-input"
+        >
+          {PERSON_KINDS.map((option) => (
+            <option key={option} value={option}>
+              {PERSON_KIND_LABEL[option]}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
+        label="Birthday"
+        hint="optional"
+        note="This is what puts their birthday on your home screen."
+      >
+        <input
+          name="birthday"
+          type="date"
+          defaultValue={person?.birthday ?? ""}
+          className="field-input tnum"
+        />
+      </Field>
+
+      {kind === "child" ? (
+        <>
+          <Field
+            label="School"
+            hint="optional"
+            note={
+              schools.length === 0
+                ? "Add a school further down the page and it will show up here."
+                : undefined
+            }
+          >
+            <select
+              name="school_id"
+              defaultValue={person?.school_id ?? ""}
+              className="field-input"
+            >
+              <option value="">Not at school</option>
+              {schools.map((school) => (
+                <option key={school.id} value={school.id}>
+                  {school.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Year or class" hint="optional">
+            <input
+              name="year_group"
+              type="text"
+              defaultValue={person?.year_group ?? ""}
+              className="field-input"
+              placeholder="Year 4"
+            />
+          </Field>
+        </>
+      ) : null}
+
+      <Field label="Anything worth noting" hint="optional">
+        <textarea
+          name="notes"
+          rows={2}
+          defaultValue={person?.notes ?? ""}
+          className="field-input"
+          placeholder="Allergic to penicillin"
+        />
+      </Field>
+
+      {state?.error ? (
+        <p className="text-sm mark-fault">{state.error}</p>
+      ) : null}
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : person ? "Save" : "Add them"}
+        </Button>
+        <button type="button" onClick={onDone} className="text-action text-sm">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RemovePerson({ person }: { person: HouseholdPerson }) {
+  const [state, submit, pending] = useActionState<FamilyState, FormData>(
+    deletePerson,
+    undefined
+  );
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <form
+      action={submit}
+      className="mt-3 flex items-center justify-between gap-3 border-t border-rule pt-3"
+    >
+      <input type="hidden" name="person_id" value={person.id} />
+      <p className={`text-xs ${state?.error ? "mark-fault" : "text-ink-faint"}`}>
+        {state?.error ??
+          (confirming
+            ? `Take ${person.name} off the family list?`
+            : "Their birthday and school go with them.")}
+      </p>
+      {confirming ? (
+        <button
+          type="submit"
+          disabled={pending}
+          className="text-action mark-fault shrink-0 text-sm"
+        >
+          {pending ? "Removing…" : "Yes, remove"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="text-action shrink-0 text-sm"
+        >
+          Remove
+        </button>
+      )}
+    </form>
+  );
+}

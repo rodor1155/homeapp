@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, House, type LucideIcon } from "lucide-react";
+import { FileText, House, Users, type LucideIcon } from "lucide-react";
 
 type Tab = {
   href: string;
@@ -13,6 +13,7 @@ type Tab = {
 /* Add a tab by adding a row here — the bar sizes itself. */
 const TABS: Tab[] = [
   { href: "/dashboard", label: "Home", icon: House },
+  { href: "/family", label: "Family", icon: Users },
   { href: "/documents", label: "Documents", icon: FileText },
 ];
 

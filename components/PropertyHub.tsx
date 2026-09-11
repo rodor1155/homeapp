@@ -1,29 +1,24 @@
 import Link from "next/link";
-import { House, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { CATEGORY_ICON, CATEGORY_SHORT_LABEL } from "@/components/category-icons";
 import { Card } from "@/components/ui";
 import { CATEGORIES, type Category } from "@/lib/categories";
 
-/* The property hub: the property in the middle, one bucket per filing
-   category around it. A bucket opens its slice of the file; its + opens the
-   uploader already set to that category. Every bucket is shown, empty or not,
-   so the shape of the file is always the same. */
-
-/** How far out the buckets sit, as a share of the (square) hub. */
-const RADIUS = 35;
-/** Where a spoke starts, clear of the centre disc. */
-const SPOKE_START = 17;
-
-function position(index: number, radius: number) {
-  const angle = (-90 + (360 / CATEGORIES.length) * index) * (Math.PI / 180);
-  return { x: 50 + radius * Math.cos(angle), y: 50 + radius * Math.sin(angle) };
-}
+/* The house file: one drawer per filing category, laid out on a ruled grid
+   like the front of a plan chest. A drawer opens its slice of the file; its +
+   opens the uploader already set to that category. Every drawer is shown,
+   empty or not, so the shape of the file never changes under you. */
 
 function documentsHref(category: Category, upload = false): string {
   const params = new URLSearchParams();
   if (upload) params.set("upload", "1");
   params.set("category", category);
   return `/documents?${params.toString()}${upload ? "#upload" : ""}`;
+}
+
+function filedLabel(n: number): string {
+  if (n === 0) return "Empty";
+  return `${n} ${n === 1 ? "document" : "documents"}`;
 }
 
 export default function PropertyHub({
@@ -34,70 +29,57 @@ export default function PropertyHub({
   const total = CATEGORIES.reduce((sum, c) => sum + counts[c], 0);
 
   return (
-    <Card>
-      <div className="relative mx-auto aspect-square w-full max-w-[23rem]">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden
-          className="absolute inset-0 h-full w-full"
-        >
-          {CATEGORIES.map((category, i) => {
-            const from = position(i, SPOKE_START);
-            const to = position(i, RADIUS);
-            return (
-              <line
-                key={category}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                vectorEffect="non-scaling-stroke"
-                className="stroke-rule-strong"
-                strokeWidth="1"
-              />
-            );
-          })}
-        </svg>
+    <Card padding="none">
+      <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
+        <h2 className="text-base font-semibold text-ink">The house file</h2>
+        <span className="tnum shrink-0 text-xs text-ink-faint">
+          {total === 0 ? "nothing filed yet" : `${total} filed`}
+        </span>
+      </div>
 
-        <div
-          className="absolute left-1/2 top-1/2 flex h-[6.25rem] w-[6.25rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-full border border-sage-soft/50 bg-sage-tint text-sage"
-        >
-          <House size={26} strokeWidth={1.7} aria-hidden />
-          <span className="text-xs font-semibold text-ink">Property</span>
-          <span className="tnum text-[0.625rem] text-ink-faint">
-            {total} {total === 1 ? "document" : "documents"}
-          </span>
-        </div>
-
+      <div className="grid grid-cols-2">
         {CATEGORIES.map((category, i) => {
           const Icon = CATEGORY_ICON[category];
           const n = counts[category];
-          const { x, y } = position(i, RADIUS);
+
+          // Seven drawers into two columns: the odd one out takes the full
+          // width of the bottom row rather than leaving a gap.
+          const full = CATEGORIES.length % 2 === 1 && i === CATEGORIES.length - 1;
+          const edges = `border-t border-rule ${
+            !full && i % 2 === 0 ? "border-r border-rule" : ""
+          }`;
 
           return (
             <div
               key={category}
-              className="absolute flex w-[5.25rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
-              style={{ left: `${x}%`, top: `${y}%` }}
+              className={`relative ${full ? "col-span-2" : ""} ${edges}`}
             >
               <Link
                 href={documentsHref(category)}
-                aria-label={`${category} — ${n} ${
-                  n === 1 ? "document" : "documents"
-                }`}
-                className="group flex flex-col items-center gap-1.5"
+                aria-label={`${category} — ${filedLabel(n).toLowerCase()}`}
+                className="group flex items-center gap-3 px-3.5 py-3 pr-11"
               >
-                <span className="relative flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-rule-strong bg-paper-raised text-ink-soft transition-colors group-hover:border-sage-soft group-hover:text-sage">
-                  <Icon size={22} strokeWidth={1.8} aria-hidden />
-                  {n > 0 ? (
-                    <span className="tnum absolute -bottom-1 -left-1 flex h-5 min-w-5 items-center justify-center rounded-pill bg-sage-tint px-1 text-[0.625rem] font-semibold text-sage">
-                      {n}
-                    </span>
-                  ) : null}
+                <span
+                  aria-hidden
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    n > 0
+                      ? "bg-sage-tint text-sage"
+                      : "bg-paper-sunk text-ink-faint group-hover:text-ink-soft"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={1.9} />
                 </span>
-                <span className="text-center text-[0.6875rem] font-medium leading-tight text-ink">
-                  {CATEGORY_SHORT_LABEL[category]}
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-ink">
+                    {CATEGORY_SHORT_LABEL[category]}
+                  </span>
+                  <span
+                    className={`tnum block text-xs ${
+                      n > 0 ? "text-ink-soft" : "text-ink-faint"
+                    }`}
+                  >
+                    {filedLabel(n)}
+                  </span>
                 </span>
               </Link>
 
@@ -105,17 +87,17 @@ export default function PropertyHub({
                 href={documentsHref(category, true)}
                 aria-label={`Add a document to ${category}`}
                 title={`Add a document to ${category}`}
-                className="absolute left-1/2 top-0 -mt-1 ml-3.5 flex h-6 w-6 items-center justify-center rounded-full bg-navy text-paper-raised transition-colors hover:bg-navy-soft"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-pill text-ink-faint transition-colors hover:bg-navy-tint hover:text-ink"
               >
-                <Plus size={14} strokeWidth={2.4} aria-hidden />
+                <Plus size={16} strokeWidth={2.2} aria-hidden />
               </Link>
             </div>
           );
         })}
       </div>
 
-      <p className="mt-1 text-center text-xs text-ink-faint">
-        Tap a bucket to see what’s filed there, or + to add something to it.
+      <p className="border-t border-rule px-4 py-3 text-xs text-ink-faint">
+        Open a drawer to see what is filed there, or + to put something in it.
       </p>
     </Card>
   );

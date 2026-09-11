@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Sparkles } from "lucide-react";
+import { Cake, CalendarDays, FileText, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ExportButton from "@/components/ExportButton";
 import PropertyHub from "@/components/PropertyHub";
 import { CATEGORY_ICON } from "@/components/category-icons";
 import { Card, statusEdgeClass } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
+import {
+  birthdayEntries,
+  documentEntries,
+  eventEntries,
+  mergeComingUp,
+  type ComingUpEntry,
+  type ComingUpKind,
+} from "@/lib/coming-up";
+import { formatDate, intlLocale, relativeWhen } from "@/lib/dates";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
+import { loadHouseholdEvents, loadHouseholdPeople } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import {
@@ -46,6 +56,10 @@ export default async function DashboardPage() {
   const documents = (data as DocumentRow[] | null) ?? [];
   const invites = await loadPendingInvites(supabase);
   const reminded = await remindedEntries(supabase, household.id, documents);
+  const [people, events] = await Promise.all([
+    loadHouseholdPeople(supabase, household.id),
+    loadHouseholdEvents(supabase, household.id),
+  ]);
 
   const detail = [
     property.type,
@@ -54,11 +68,17 @@ export default async function DashboardPage() {
     .filter(Boolean)
     .join(", ");
 
-  const coming = upcomingDates(documents);
+  const coming = mergeComingUp(
+    documentEntries(upcomingDates(documents), (entry) =>
+      reminded.has(entryKey(entry))
+    ),
+    birthdayEntries(people),
+    eventEntries(events, people)
+  );
   const categories = groupByCategory(documents);
   const counts = countByCategory(documents);
   const totals = spendByCurrency(documents);
-  const people = contacts(documents);
+  const keyContacts = contacts(documents);
 
   return (
     <AppShell user={user}>
@@ -113,6 +133,18 @@ export default async function DashboardPage() {
 
         <PropertyHub counts={counts} />
 
+        {documents.length > 0 ? (
+          <Suspense fallback={<GlanceFallback />}>
+            <AtAGlance documents={documents} locale={locale} />
+          </Suspense>
+        ) : null}
+
+        <ComingUp
+          entries={coming}
+          locale={locale}
+          hasPeople={people.length > 0}
+        />
+
         {documents.length === 0 ? (
           <Card className="text-center">
             <HouseIllustration className="mx-auto h-24 w-32" />
@@ -127,71 +159,6 @@ export default async function DashboardPage() {
           </Card>
         ) : (
           <>
-            <Suspense fallback={<GlanceFallback />}>
-              <AtAGlance documents={documents} locale={locale} />
-            </Suspense>
-
-            <Card
-              title="Coming up"
-              action={
-                coming.length > 0 ? (
-                  <span className="tnum text-xs text-ink-faint">
-                    {coming.length} dated
-                  </span>
-                ) : undefined
-              }
-            >
-              {coming.length === 0 ? (
-                <p className="text-sm text-ink-faint">
-                  No dates ahead in what has been read so far.
-                </p>
-              ) : (
-                <ul className="divide-y divide-rule">
-                  {coming.map((entry, i) => {
-                    const soon = entry.daysAway <= SOON_DAYS;
-                    return (
-                      <li
-                        key={`${entry.date}-${entry.label}-${i}`}
-                        className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span
-                            aria-hidden
-                            className={`h-2 w-2 shrink-0 rounded-full ${
-                              soon ? "bg-ochre" : "bg-rule-strong"
-                            }`}
-                          />
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-ink">
-                              {entry.provider}
-                            </span>
-                            <span className="block text-xs text-ink-faint">
-                              {entry.label}
-                              {reminded.has(entryKey(entry)) ? (
-                                <span> · reminders on</span>
-                              ) : null}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="tnum shrink-0 text-right">
-                          <span className="block text-sm text-ink">
-                            {formatDate(entry.date, locale)}
-                          </span>
-                          <span
-                            className={`block text-xs ${
-                              soon ? "mark-review font-medium" : "text-ink-faint"
-                            }`}
-                          >
-                            {relativeWhen(entry.daysAway)}
-                          </span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Card>
-
             {categories.map((group) => {
               const Icon = CATEGORY_ICON[group.category];
               return (
@@ -267,13 +234,13 @@ export default async function DashboardPage() {
             </Card>
 
             <Card title="Key contacts">
-              {people.length === 0 ? (
+              {keyContacts.length === 0 ? (
                 <p className="text-sm text-ink-faint">
                   No names or numbers have turned up yet.
                 </p>
               ) : (
                 <ul className="divide-y divide-rule">
-                  {people.map((contact, i) => (
+                  {keyContacts.map((contact, i) => (
                     <li
                       key={`${contact.name ?? ""}-${contact.phone ?? ""}-${i}`}
                       className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
@@ -356,6 +323,91 @@ async function remindedEntries(
   }
 
   return keys;
+}
+
+/* --- coming up: renewals, birthdays and the dates someone typed in ------- */
+
+const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
+  document: FileText,
+  birthday: Cake,
+  event: CalendarDays,
+};
+
+function ComingUp({
+  entries,
+  locale,
+  hasPeople,
+}: {
+  entries: readonly ComingUpEntry[];
+  locale: Locale;
+  hasPeople: boolean;
+}) {
+  return (
+    <Card
+      title="Coming up"
+      action={
+        <Link href="/family" className="text-action text-xs">
+          Family dates
+        </Link>
+      }
+    >
+      {entries.length === 0 ? (
+        <p className="text-sm text-ink-faint">
+          {hasPeople
+            ? "Nothing on the horizon — no renewals, birthdays or dates ahead."
+            : "Nothing on the horizon yet. Add the family and their birthdays show up here."}
+        </p>
+      ) : (
+        <ul className="divide-y divide-rule">
+          {entries.map((entry) => {
+            const soon = entry.daysAway <= SOON_DAYS;
+            const Icon = COMING_UP_ICON[entry.kind];
+            return (
+              <li
+                key={entry.key}
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className={`shrink-0 ${
+                      entry.kind === "birthday"
+                        ? "text-sage"
+                        : soon
+                          ? "mark-review"
+                          : "text-ink-faint"
+                    }`}
+                  >
+                    <Icon size={15} strokeWidth={1.9} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-ink">
+                      {entry.title}
+                    </span>
+                    <span className="block truncate text-xs text-ink-faint">
+                      {entry.note}
+                    </span>
+                  </span>
+                </span>
+                <span className="tnum shrink-0 text-right">
+                  <span className="block text-sm text-ink">
+                    {formatDate(entry.date, locale)}
+                  </span>
+                  <span
+                    className={`block text-xs ${
+                      soon ? "mark-review font-medium" : "text-ink-faint"
+                    }`}
+                  >
+                    {relativeWhen(entry.daysAway)}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
 }
 
 /* --- the AI summary: best-effort, omitted entirely if it doesn't come back --- */
@@ -493,21 +545,6 @@ function RowMeta({ doc, locale }: { doc: OverviewDocument; locale: Locale }) {
   );
 }
 
-function intlLocale(locale: Locale): string {
-  return locale === "US" ? "en-US" : "en-GB";
-}
-
-function formatDate(iso: string, locale: Locale): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat(intlLocale(locale), {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
 function formatMoney(amount: number, currency: string, locale: Locale): string {
   try {
     return new Intl.NumberFormat(intlLocale(locale), {
@@ -517,12 +554,4 @@ function formatMoney(amount: number, currency: string, locale: Locale): string {
   } catch {
     return `${currency} ${amount.toFixed(2)}`;
   }
-}
-
-function relativeWhen(daysAway: number): string {
-  if (daysAway === 0) return "today";
-  if (daysAway === 1) return "tomorrow";
-  if (daysAway < 45) return `in ${daysAway} days`;
-  const months = Math.round(daysAway / 30);
-  return months < 12 ? `in about ${months} months` : "in over a year";
 }

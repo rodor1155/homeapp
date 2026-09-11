@@ -18,7 +18,12 @@ agent (or human) picking up the repo has the same context.
 | 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — migrations applied; Resend + `CRON_SECRET` not set on Vercel yet |
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
+| 7 | Home solution slice 1 — household people + schools + key dates, birthdays on the dashboard, property hub redesigned off the radial layout. | done — **`household_people` / `schools` / `household_events` migration not yet applied** |
 | later | The real dashboard. | not started |
+
+Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
+the people who live in the house are first-class, not just the paperwork. Still
+explicitly out: school calendar (ICS) linking, shopping lists, RAG.
 
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
@@ -86,18 +91,23 @@ app/
   dashboard/            home overview + property hub, gated on completed onboarding
   documents/            list + uploader + per-doc extraction review/confirm (DocumentsList);
                         reads `?category=` (filter + preselected bucket) and `?upload=1`
+  family/               who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
+                        EventsPanel — all client, inline add/edit/remove)
   invite/               pending invites, accept/decline (InviteList); works signed out
   settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
-                        people and sent invites (PeoplePanel), sign out, account
-                        deletion (DeleteAccountPanel)
+                        sign-in members and sent invites (PeoplePanel — the *account*
+                        people, not the family), sign out, account deletion
+                        (DeleteAccountPanel)
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
-                        settings.ts, account.ts
+                        settings.ts, account.ts, family.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
-                 AppShell.tsx (top bar: sign out + gear to /settings), BottomTabBar.tsx,
-                 PropertyHub.tsx (the hub), category-icons.ts (icon + short label per category)
+                 AppShell.tsx (top bar: sign out + gear to /settings),
+                 BottomTabBar.tsx (Home / Family / Documents),
+                 PropertyHub.tsx (the house file), category-icons.ts (icon + short
+                 label per category)
 lib/
   categories.ts        client-safe CATEGORIES / Category / isCategory / asCategory /
                        categorise() keyword guess / effectiveCategory() (stored, else guess)
@@ -119,6 +129,14 @@ lib/
                        createStripeClient / priceIdFor + the `subscriptions` read+write
                        helpers. Unconfigured = paid entitlements, so gates are inert
   property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
+  family.ts            client-safe: HouseholdPerson / School / HouseholdEvent shapes,
+                       PERSON_KINDS + EVENT_TYPES picklists and their labels, the three
+                       load*(client, householdId) helpers (all return [] on error, so an
+                       unapplied migration reads as "nobody"), and nextBirthday() /
+                       daysUntil() date arithmetic
+  coming-up.ts         server-only: ComingUpEntry + documentEntries / birthdayEntries /
+                       eventEntries / mergeComingUp — the one dated list the dashboard shows
+  dates.ts             client-safe formatDate() / relativeWhen() / intlLocale()
   safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
 supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 ```
@@ -133,6 +151,24 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   adds. `20260909171500_household_member_emails.sql` is **written but not applied**; until
   it is, the list still renders with the emails blank.
 - `properties(id, household_id, address, type, year_built, created_at)`
+- `household_people(id, household_id, user_id null → auth.users, name, kind check
+  adult|child|other, birthday date null, school_id null → schools, year_group null,
+  notes null, sort_order, created_at)` — who *lives* here, which is not the same list as
+  who can sign in (`household_members`). `user_id` is only set if this person also has an
+  account. School is a column pair rather than a join table: one school at a time, no
+  history — promote it to `person_schools` if that changes.
+- `schools(id, household_id, name, address null, notes null, created_at)` — deleting one
+  leaves the children in place, the FK just nulls their `school_id`.
+- `household_events(id, household_id, title, event_date, event_type check
+  birthday|school|home|other, person_id null, school_id null, notes null, created_at)` —
+  dates someone typed in (term starts, the boiler service). **Birthdays are not mirrored
+  in here** — the dashboard derives the next one from `household_people.birthday`, so
+  there is only ever one copy of it.
+  All three are plain member read/write (select/insert/update/delete on
+  `private.is_household_member`) with explicit `grant … to authenticated`; nothing on
+  these tables is written by a worker.
+  `20260911180000_household_people_schools_events.sql` is **written but not applied** —
+  until it is, `/family` and the dashboard's birthdays read as empty rather than erroring.
 - `household_invites(id, household_id, email, invited_by, status, created_at)` — created
   during onboarding from the partner email. Members-only select, so the invitee reaches
   their own row through `public.pending_invites_for_me()` /
@@ -315,12 +351,15 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   if there is one, else the guess. **Read a document's category through
   `effectiveCategory()`, never off the column**, or legacy rows fall out of their bucket.
   `lib/home-overview.ts` keeps the shaping (`groupByCategory`, `countByCategory`).
-- **`components/PropertyHub.tsx`** (presentational, server-safe): the property in the
-  centre, the seven buckets on spokes around it — always all seven, empty or not. A bucket
+- **`components/PropertyHub.tsx`** (presentational, server-safe) — "the house file": one
+  drawer per category on a two-column ruled grid, like the front of a plan chest. Always
+  all seven, empty or not; the odd one out takes the full width of the bottom row. A drawer
   links to `/documents?category=<name>`; its **+** links to
-  `/documents?upload=1&category=<name>#upload`. Geometry is a square box with the nodes
-  placed by angle, so it holds its shape from a narrow phone up to the 32rem column.
-  Icons and the hub's short labels are in `components/category-icons.ts`.
+  `/documents?upload=1&category=<name>#upload`. Icons and the short labels are in
+  `components/category-icons.ts`.
+  **This deliberately replaced a centre-and-spokes radial hub** (phase 6 and earlier) —
+  it read as a clone of a competitor. Don't reintroduce a radial layout, dashed circles
+  or anything else that puts the property in the middle with categories orbiting it.
 - **`/documents`** reads both params: the category filters the list (through
   `effectiveCategory`, so the filter is not a SQL `where`) and preselects the uploader's
   "File it under"; `upload=1` scrolls the panel into view. The uploader is keyed on the
@@ -329,6 +368,31 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   so anything off-list is stored as null rather than rejected. The review form carries the
   same picker (`name="category"`), and `confirmExtraction` only writes the column when the
   form actually posted the field.
+
+## Family, school and key dates (phase 7)
+
+- **`/family`** (inside `AppShell`, `requireOnboarded`, third tab in the bottom bar):
+  three cards — "Who lives here", "Schools", "Key dates". Each is a client panel with
+  rows that expand into an inline form; "Remove"/"Delete" is a two-step confirm in the
+  open form, never a bare button on the row. The school and year-group fields only appear
+  when the person's kind is `child`, and switching someone off `child` clears them.
+- **`app/actions/family.ts`** — `savePerson` / `deletePerson`, `saveSchool` /
+  `deleteSchool`, `saveEvent` / `deleteEvent`, all `useActionState`-shaped
+  (`FamilyState = { error?, ok? }`) on the cookie client, so RLS decides the scope. Each
+  one resolves the caller's oldest membership the same way `settings.ts` does, scopes
+  every write with `.eq("household_id", …)` as well, and stores an empty optional field
+  as null. Dates are checked for being real (`2026-02-31` is refused) and a birthday in
+  the future is refused.
+- **Birthdays are derived, never stored twice.** `nextBirthday()` in `lib/family.ts`
+  rolls a birthday forward to its next occurrence (29 February lands on 1 March in the
+  years without one) and reports the age being reached. `household_events` is only for
+  dates somebody typed in.
+- **Dashboard "Coming up"** is now one merged list from `lib/coming-up.ts`: document
+  renewal/end dates (unbounded, as before, with the "reminders on" note), birthdays
+  inside `BIRTHDAY_HORIZON_DAYS` (60), and every future `household_events` row. It sits
+  outside the "nothing filed yet" branch, so a household with no documents still sees
+  its family dates.
+- Reminder emails still only cover documents — nothing nudges you about a birthday yet.
 
 ## Conventions
 
@@ -396,8 +460,8 @@ limit until custom SMTP is configured.
 ## Assumptions changed from earlier phases
 
 - Phase 1 CLAUDE.md said "no middleware". Next 16 replaced Middleware with Proxy;
-  `proxy.ts` handles Supabase session refresh + the auth redirect (now also `/internal`
-  and `/settings`).
+  `proxy.ts` handles Supabase session refresh + the auth redirect (now also `/internal`,
+  `/settings` and `/family`).
 - Onboarding gate = household has a `locale` **and** at least one property row.
 - `/documents` now scopes its query by `property_id` (one property per household
   for now), and its list is a client component (`DocumentsList`) for the review forms.
