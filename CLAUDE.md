@@ -14,10 +14,10 @@ agent (or human) picking up the repo has the same context.
 | 3 | Document extraction worker — DB webhook → Claude vision → fields + confidence + chunked text; review/confirm UI; internal test harness. | done |
 | 1b | Embeddings for `document_chunks` + retrieval. | next |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
-| 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — **migration written, not yet applied** |
-| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — **migration written, not yet applied** |
-| 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — **migration written, not yet applied** |
-| 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | scaffold done — **migration written, not yet applied; no Stripe keys set, so billing is off and every gate is inert** |
+| 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — migrations applied |
+| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — migrations applied; Resend + `CRON_SECRET` not set on Vercel yet |
+| 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
+| 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
 | later | The real dashboard. | not started |
 
 Do not build the next phase's work until this table says so. Reminders, the
@@ -137,7 +137,7 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   policy exists) and, if the caller never used the household they were given at signup
   (no property, no documents, sole member), drops that membership so they still hold
   exactly one household — every other query assumes the oldest membership is the right
-  one. `20260909142300_household_invite_accept.sql` is **written but not applied**.
+  one. `/onboarding` redirects to `/invite` when pending invites exist (same as `/`).
 - `documents(...)` — upload lands `extraction_status = 'pending'`; the worker fills
   `doc_type / provider / reference / start_date / end_date / renewal_date / amount /
   currency / key_contact_name / key_contact_phone` and the `extraction_confidence`
@@ -214,8 +214,10 @@ cleaned up — a known gap for a later lifecycle job.
   never allowed to fail the user's action.
 - **`lib/email.ts`**: Resend wrapper. No `RESEND_API_KEY` / `REMINDERS_FROM_EMAIL`
   → warn and return `{ skipped: true }`; nothing in it throws.
-- **`GET /api/cron/reminders`** (nodejs, maxDuration 60): bearer-token compare against
-  `CRON_SECRET`, then for each scheduled reminder with `due_date >= today`, fires the
+- **`GET /api/cron/reminders`** (nodejs, maxDuration 60): when `CRON_SECRET` is unset,
+  logs a warning and returns 200 `{ skipped: true }` so Vercel's daily schedule does
+  not error; bearer-token compare against `CRON_SECRET` when set, then for each
+  scheduled reminder with `due_date >= today`, fires the
   offsets landing on today that have no `reminder_events` row yet, emails every
   household member (resolved through `auth.admin.getUserById`), logs the result, and
   marks the reminder `sent` once the 0-offset has gone. One bad reminder is caught and
@@ -282,8 +284,10 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   Unrecognised events are answered 200 and ignored; a failed *write* answers 500 so
   Stripe retries.
 - **Gates in place**: `/api/export` returns 402 `{ error: "Export is a paid feature." }`
-  when `!canExport`. The reminder cap is **not** enforced yet — `reminderLimit` is
-  exposed and there is a `TODO(billing)` in `lib/reminders.ts` where it would go.
+  when `!canExport`. Dashboard and `/documents` use `ExportButton` to show that gate
+  in the UI (upgrade link to `/settings`) instead of a raw JSON response. The reminder
+  cap is **not** enforced yet — `reminderLimit` is exposed and there is a
+  `TODO(billing)` in `lib/reminders.ts` where it would go.
 - **`/settings` → "Plan"** reads entitlements server-side and renders `PlanPanel`
   (client): upgrade buttons that POST to checkout, or "Manage billing" that POSTs to the
   portal, and a muted "Billing isn't set up yet" note when unconfigured. Display prices
@@ -327,8 +331,18 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
 | `STRIPE_PRICE_USD_MONTHLY` | server-only | price offered to US households, $6.99/mo |
 | `STRIPE_PRICE_USD_YEARLY` | server-only | price offered to US households, $59/yr |
 
-None of the `STRIPE_*` variables are set anywhere yet — that is the current state, and
-the app is expected to run exactly as before while they are missing.
+`STRIPE_SECRET_KEY` is set on Vercel production (export gate is live for free
+households). Other `STRIPE_*` vars, Resend, and `CRON_SECRET` are still unset locally
+and may be partially unset in Vercel — billing-off behaviour remains the fallback
+when `STRIPE_SECRET_KEY` is missing.
+
+## Verification harness
+
+`scripts/verify-flows.mjs` runs invite-accept and delete-account checks against the
+linked Supabase project using the service role (creates confirmed throwaway users,
+checks shared household membership, storage purge, and orphan rows). Requires
+`.env.local`. Production UI walkthrough is blocked by Supabase's built-in email rate
+limit until custom SMTP is configured.
 
 ## Supabase config not captured in code (do this in the dashboard)
 

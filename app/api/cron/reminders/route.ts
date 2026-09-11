@@ -49,7 +49,22 @@ function label(document: ReminderRow["document"]): string {
 }
 
 export async function GET(request: Request) {
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  if (!cronSecret) {
+    console.warn(
+      "[reminders] cron skipped — CRON_SECRET is not set, so this run is ignored"
+    );
+    return NextResponse.json({
+      skipped: true,
+      reason: "CRON_SECRET not configured",
+      processed: 0,
+      sent: 0,
+      errors: 0,
+    });
+  }
+
   if (!authorized(request)) {
+    console.warn("[reminders] cron rejected — bearer token did not match");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -13,7 +13,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import ExportButton from "@/components/ExportButton";
 import { Card, SectionHeading, statusEdgeClass } from "@/components/ui";
+import { getEntitlements, isBillingConfigured } from "@/lib/billing";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
@@ -49,6 +51,8 @@ const CATEGORY_ICON: Record<Category, LucideIcon> = {
 export default async function DashboardPage() {
   const { supabase, user, household, property } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
+  const billingConfigured = isBillingConfigured();
+  const entitlements = await getEntitlements(household.id);
 
   const { data } = await supabase
     .from("documents")
@@ -113,9 +117,14 @@ export default async function DashboardPage() {
             <Link href="/documents" className="btn">
               Open the documents file
             </Link>
-            <a href="/api/export" className="btn-quiet">
+            <ExportButton
+              canExport={entitlements.canExport}
+              billingConfigured={billingConfigured}
+              variant="quiet"
+              align="start"
+            >
               Export everything
-            </a>
+            </ExportButton>
           </div>
         </section>
 

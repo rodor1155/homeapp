@@ -3,14 +3,18 @@ import { FilePlus2 } from "lucide-react";
 import DocumentsUploader from "./DocumentsUploader";
 import DocumentsList from "./DocumentsList";
 import AppShell from "@/components/AppShell";
+import ExportButton from "@/components/ExportButton";
 import { Card, SectionHeading } from "@/components/ui";
+import { getEntitlements, isBillingConfigured } from "@/lib/billing";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded } from "@/lib/household";
 
 export const metadata = { title: "Documents · homeapp" };
 
 export default async function DocumentsPage() {
-  const { supabase, user, property } = await requireOnboarded();
+  const { supabase, user, property, household } = await requireOnboarded();
+  const billingConfigured = isBillingConfigured();
+  const entitlements = await getEntitlements(household.id);
 
   const { data } = await supabase
     .from("documents")
@@ -31,9 +35,14 @@ export default async function DocumentsPage() {
               {property.address.split("\n")[0]}
             </p>
           </div>
-          <a href="/api/export" className="btn-ghost shrink-0">
+          <ExportButton
+            canExport={entitlements.canExport}
+            billingConfigured={billingConfigured}
+            variant="ghost"
+            className="shrink-0"
+          >
             Export
-          </a>
+          </ExportButton>
         </div>
 
         <Card>
