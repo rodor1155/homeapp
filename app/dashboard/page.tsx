@@ -6,6 +6,7 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
+  ShoppingBasket,
   Sparkles,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -47,6 +48,11 @@ import {
   type UpcomingDate,
 } from "@/lib/home-overview";
 import { summariseHome } from "@/lib/home-summary";
+import {
+  loadOutstandingCounts,
+  loadShoppingLists,
+  type ShoppingList,
+} from "@/lib/shopping";
 
 export const metadata = { title: "Home overview · homeapp" };
 
@@ -68,12 +74,15 @@ export default async function DashboardPage() {
   const documents = (data as DocumentRow[] | null) ?? [];
   const invites = await loadPendingInvites(supabase);
   const reminded = await remindedEntries(supabase, household.id, documents);
-  const [people, events, schools, schoolDates] = await Promise.all([
-    loadHouseholdPeople(supabase, household.id),
-    loadHouseholdEvents(supabase, household.id),
-    loadSchools(supabase, household.id),
-    loadSchoolCalendarEvents(supabase, household.id),
-  ]);
+  const [people, events, schools, schoolDates, shoppingLists, shoppingCounts] =
+    await Promise.all([
+      loadHouseholdPeople(supabase, household.id),
+      loadHouseholdEvents(supabase, household.id),
+      loadSchools(supabase, household.id),
+      loadSchoolCalendarEvents(supabase, household.id),
+      loadShoppingLists(supabase, household.id),
+      loadOutstandingCounts(supabase, household.id),
+    ]);
 
   const detail = [
     property.type,
@@ -159,6 +168,8 @@ export default async function DashboardPage() {
           locale={locale}
           hasPeople={people.length > 0}
         />
+
+        <Shopping lists={shoppingLists} counts={shoppingCounts} />
 
         {documents.length === 0 ? (
           <Card className="text-center">
@@ -422,6 +433,52 @@ function ComingUp({
           })}
         </ul>
       )}
+    </Card>
+  );
+}
+
+/* --- the shopping: one line, and only when there is something to get ----- */
+
+/** How many list names are spelled out before the line is cut short. */
+const SHOPPING_NAMES = 3;
+
+function Shopping({
+  lists,
+  counts,
+}: {
+  lists: readonly ShoppingList[];
+  counts: Map<string, number>;
+}) {
+  const outstanding = lists
+    .map((list) => ({ list, count: counts.get(list.id) ?? 0 }))
+    .filter(({ count }) => count > 0);
+  if (outstanding.length === 0) return null;
+
+  const total = outstanding.reduce((sum, { count }) => sum + count, 0);
+  const named = outstanding
+    .slice(0, SHOPPING_NAMES)
+    .map(({ list, count }) => `${list.name} (${count})`)
+    .join(" · ");
+  const rest = outstanding.length - SHOPPING_NAMES;
+
+  return (
+    <Card padding="none">
+      <Link href="/lists" className="flex items-center gap-3 px-4 py-3.5">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-sage-tint text-sage"
+        >
+          <ShoppingBasket size={17} strokeWidth={1.9} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-ink">
+            {total} {total === 1 ? "thing" : "things"} to get
+          </span>
+          <span className="block truncate text-xs text-ink-faint">
+            {rest > 0 ? `${named} and ${rest} more` : named}
+          </span>
+        </span>
+      </Link>
     </Card>
   );
 }

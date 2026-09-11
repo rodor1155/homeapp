@@ -20,11 +20,13 @@ agent (or human) picking up the repo has the same context.
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
 | 7 | Home solution slice 1 — household people + schools + key dates, birthdays on the dashboard, property hub redesigned off the radial layout. | done — **`household_people` / `schools` / `household_events` migration not yet applied** |
 | 7b | School calendar (ICS) linking — a feed per school, fetched and cached server-side, term dates on the dashboard and `/family`. | done — **`school_calendars` migration not yet applied** |
+| 8 | Shopping lists — several lists per household, checklist items, tick/untick, on `/lists` as a fourth tab. | done — **`shopping_lists` migration not yet applied** |
 | later | The real dashboard. | not started |
 
 Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
-the people who live in the house are first-class, not just the paperwork. Still
-explicitly out: shopping lists, RAG.
+the people who live in the house are first-class, not just the paperwork. Phase 8
+follows it: the shopping is the thing a household touches every week. Still
+explicitly out: RAG.
 
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
@@ -96,6 +98,9 @@ app/
   family/               who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
                         EventsPanel — all client, inline add/edit/remove); a school
                         carries its ICS calendar, its last-read line and Refresh
+  lists/                the shopping — the household's lists (ListsPanel), and
+                        `[listId]/` for one of them (ItemsPanel quick-add + tick,
+                        ListSettings rename/delete); both client, optimistic
   invite/               pending invites, accept/decline (InviteList); works signed out
   settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
                         sign-in members and sent invites (PeoplePanel — the *account*
@@ -105,10 +110,10 @@ app/
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
-                        settings.ts, account.ts, family.ts
+                        settings.ts, account.ts, family.ts, lists.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
                  AppShell.tsx (top bar: sign out + gear to /settings),
-                 BottomTabBar.tsx (Home / Family / Documents),
+                 BottomTabBar.tsx (Home / Family / Lists / Documents),
                  PropertyHub.tsx (the house file), category-icons.ts (icon + short
                  label per category)
 lib/
@@ -137,6 +142,10 @@ lib/
                        and their labels, the four load*(client, householdId) helpers (all
                        return [] on error, so an unapplied migration reads as "nobody"),
                        and nextBirthday() / daysUntil() / calendarEventDate() arithmetic
+  shopping.ts          client-safe: ShoppingList / ShoppingItem shapes, the
+                       load*(client, householdId) helpers (all soft-fail to empty, so
+                       an unapplied migration reads as "no lists"),
+                       loadOutstandingCounts() and splitItems() / outstandingLabel()
   school-calendar.ts   server-only: normaliseCalendarUrl / parseCalendar (node-ical) /
                        syncSchoolCalendar(schoolId) — fetch an ICS feed and rebuild the
                        school_calendar_events cache on the admin client
@@ -190,6 +199,17 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   these tables is written by a worker.
   `20260911180000_household_people_schools_events.sql` is **written but not applied** —
   until it is, `/family` and the dashboard's birthdays read as empty rather than erroring.
+- `shopping_lists(id, household_id, name, notes null, sort_order, created_at, updated_at)`
+  and `shopping_list_items(id, list_id cascade, household_id, title, checked default false,
+  sort_order, created_at, checked_at null)` — the shared shopping. Plain member read/write
+  on both, like `household_events`. `household_id` on an item is **denormalised** off its
+  list so RLS is one member check rather than a join on every read; the insert and update
+  policies also require the parent list to be in the same household, so the two can't be
+  stitched across. `updated_at` on a list tracks the *list* (a rename), not its items —
+  ticking something off would otherwise be a write on every tap for no reader. Indexed on
+  `(list_id, sort_order)` (the list screen) and `(household_id, checked)` (the counts).
+  `20260911210000_shopping_lists.sql` is **written but not applied** — until it is,
+  `/lists` shows no lists rather than erroring.
 - `household_invites(id, household_id, email, invited_by, status, created_at)` — created
   during onboarding from the partner email. Members-only select, so the invitee reaches
   their own row through `public.pending_invites_for_me()` /
@@ -453,6 +473,35 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
 - Nothing emails a school date, and nothing re-reads a feed on a schedule: a calendar is
   only as fresh as the last save or Refresh. A cron over `syncSchoolCalendar()` is the
   obvious next step.
+
+## Shopping lists (phase 8)
+
+- **`/lists`** (fourth tab, between Family and Documents) is the household's lists; a
+  row opens **`/lists/[listId]`**, which is the list itself. Both are inside `AppShell`
+  and `requireOnboarded`, and `/lists` is in `proxy.ts`'s protected prefixes.
+- **A checklist, not a pantry.** An item is a line of text that is either still to get
+  or in the basket — no quantities, units or stock. Ticked things sink to the bottom of
+  the list under "In the basket" rather than vanishing, so a mis-tap is one tap to undo,
+  and "Clear ticked" (two-step, like every other destructive thing here) empties them.
+- **`app/actions/lists.ts`** is two shapes on purpose: the forms (`createList`,
+  `renameList`, `deleteList`, `addItem`, `renameItem`) are `useActionState` actions
+  taking `FormData`, and the taps (`setItemChecked`, `deleteItem`, `clearChecked`,
+  `moveItem`) take plain arguments so a row can call them straight from a transition.
+  All on the cookie client, all resolving the caller's oldest membership and scoping
+  every write with `.eq("household_id", …)` the way `family.ts` does. `deleteList`
+  redirects to `/lists`; everything else revalidates `/lists`, the list, and `/dashboard`.
+- **`ItemsPanel` is optimistic** (`useOptimistic` + one `run(patch, action)` helper): a
+  tick, an add, a delete and a move all show immediately and are confirmed by the
+  action's revalidation. A row that hasn't come back yet has a `pending-` id and can't
+  be tapped. This is the one screen where a round trip would be felt — you are standing
+  in a shop.
+- **`moveItem`** swaps a line with its neighbour *in the same group* (ticked rows sit
+  below un-ticked ones, so crossing that line would look like nothing happened) and
+  renumbers `sort_order` from the top as it goes, which also clears the ties left by the
+  column's default of 0. There is no drag and drop — it is Move up / Move down inside
+  the row's editor.
+- **Dashboard**: one line, `Shopping`, naming up to three lists with something
+  outstanding, and only rendered when there is something to get.
 
 ## Conventions
 

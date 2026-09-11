@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, House, Users, type LucideIcon } from "lucide-react";
+import {
+  FileText,
+  House,
+  ShoppingBasket,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 type Tab = {
   href: string;
@@ -14,6 +20,7 @@ type Tab = {
 const TABS: Tab[] = [
   { href: "/dashboard", label: "Home", icon: House },
   { href: "/family", label: "Family", icon: Users },
+  { href: "/lists", label: "Lists", icon: ShoppingBasket },
   { href: "/documents", label: "Documents", icon: FileText },
 ];
 
