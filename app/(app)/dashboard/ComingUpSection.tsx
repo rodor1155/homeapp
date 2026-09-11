@@ -49,7 +49,7 @@ type ReminderRow = {
 };
 
 const KIND_LABEL: Record<string, string> = {
-  renewal: "Renewal",
+  renewal: "Renews",
   end: "Ends",
 };
 

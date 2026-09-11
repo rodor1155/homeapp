@@ -97,7 +97,7 @@ app/
     layout.tsx          requireOnboarded() once + AppShell round `{children}` — the
                         chrome is owned here, pages must NOT re-wrap it
     loading.tsx         the skeleton a tab shows between the tap and the page
-    dashboard/          home overview + property hub, gated on completed onboarding
+    dashboard/          home overview + property hub (sections stream behind Suspense), gated on completed onboarding
     documents/          list + uploader + per-doc extraction review/confirm (DocumentsList);
                         reads `?category=` (filter + preselected bucket) and `?upload=1`
     family/             who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
