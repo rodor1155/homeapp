@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Cake, CalendarDays, FileText, Sparkles } from "lucide-react";
+import {
+  Cake,
+  CalendarDays,
+  FileText,
+  GraduationCap,
+  Sparkles,
+} from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ExportButton from "@/components/ExportButton";
 import PropertyHub from "@/components/PropertyHub";
@@ -13,12 +19,18 @@ import {
   documentEntries,
   eventEntries,
   mergeComingUp,
+  schoolEntries,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
 import { formatDate, intlLocale, relativeWhen } from "@/lib/dates";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
-import { loadHouseholdEvents, loadHouseholdPeople } from "@/lib/family";
+import {
+  loadHouseholdEvents,
+  loadHouseholdPeople,
+  loadSchoolCalendarEvents,
+  loadSchools,
+} from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import {
@@ -56,9 +68,11 @@ export default async function DashboardPage() {
   const documents = (data as DocumentRow[] | null) ?? [];
   const invites = await loadPendingInvites(supabase);
   const reminded = await remindedEntries(supabase, household.id, documents);
-  const [people, events] = await Promise.all([
+  const [people, events, schools, schoolDates] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadHouseholdEvents(supabase, household.id),
+    loadSchools(supabase, household.id),
+    loadSchoolCalendarEvents(supabase, household.id),
   ]);
 
   const detail = [
@@ -73,7 +87,8 @@ export default async function DashboardPage() {
       reminded.has(entryKey(entry))
     ),
     birthdayEntries(people),
-    eventEntries(events, people)
+    eventEntries(events, people),
+    schoolEntries(schoolDates, schools)
   );
   const categories = groupByCategory(documents);
   const counts = countByCategory(documents);
@@ -331,6 +346,7 @@ const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   document: FileText,
   birthday: Cake,
   event: CalendarDays,
+  school: GraduationCap,
 };
 
 function ComingUp({

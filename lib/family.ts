@@ -65,9 +65,17 @@ export type School = {
   name: string;
   address: string | null;
   notes: string | null;
+  /** The ICS feed, if the school publishes one. */
+  calendar_url: string | null;
+  calendar_title: string | null;
+  calendar_last_synced_at: string | null;
+  calendar_last_error: string | null;
 };
 
-export const SCHOOLS_SELECT = "id, name, address, notes";
+// One literal string: the client parses it to type the row, so it can't be
+// assembled from pieces.
+export const SCHOOLS_SELECT =
+  "id, name, address, notes, calendar_url, calendar_title, calendar_last_synced_at, calendar_last_error";
 
 export async function loadSchools(
   supabase: SupabaseClient,
@@ -80,6 +88,65 @@ export async function loadSchools(
     .order("created_at", { ascending: true });
   if (error) return [];
   return (data as School[] | null) ?? [];
+}
+
+// --- school calendars ----------------------------------------------------
+
+/**
+ * How far ahead a school's feed is read, and read back. The sync caches this
+ * far and no further, so the loader asking for more would only ever get the
+ * same rows.
+ */
+export const SCHOOL_CALENDAR_WINDOW_DAYS = 120;
+
+/** More than any school prints in four months, and enough to never truncate one. */
+const SCHOOL_CALENDAR_ROW_CAP = 500;
+
+/** A cached occurrence from a school's ICS feed. Never typed in by hand. */
+export type SchoolCalendarEvent = {
+  id: string;
+  school_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  location: string | null;
+};
+
+export const SCHOOL_CALENDAR_SELECT =
+  "id, school_id, title, starts_at, ends_at, all_day, location";
+
+/**
+ * The calendar date an occurrence falls on, as YYYY-MM-DD. All-day rows are
+ * stored at UTC midnight, so this is exact for them; a timed row is read in
+ * UTC, which is the same day for anything that isn't late in the evening.
+ */
+export function calendarEventDate(startsAt: string): string | null {
+  const at = new Date(startsAt);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString().slice(0, 10);
+}
+
+/**
+ * Every cached school date from today to the end of the window, soonest
+ * first. A failure — including the table not being deployed yet — reads as
+ * "no school dates", so no page falls over on a calendar.
+ */
+export async function loadSchoolCalendarEvents(
+  supabase: SupabaseClient,
+  householdId: string,
+  { now = new Date(), withinDays = SCHOOL_CALENDAR_WINDOW_DAYS } = {}
+): Promise<SchoolCalendarEvent[]> {
+  const from = startOfUtcDay(now);
+  const { data, error } = await supabase
+    .from("school_calendar_events")
+    .select(SCHOOL_CALENDAR_SELECT)
+    .eq("household_id", householdId)
+    .gte("starts_at", new Date(from).toISOString())
+    .lte("starts_at", new Date(from + withinDays * DAY_MS).toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(SCHOOL_CALENDAR_ROW_CAP);
+  if (error) return [];
+  return (data as SchoolCalendarEvent[] | null) ?? [];
 }
 
 // --- key dates -----------------------------------------------------------

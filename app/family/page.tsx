@@ -3,6 +3,7 @@ import { Card } from "@/components/ui";
 import {
   loadHouseholdEvents,
   loadHouseholdPeople,
+  loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
@@ -16,10 +17,11 @@ export default async function FamilyPage() {
   const { supabase, user, household } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
-  const [people, schools, events] = await Promise.all([
+  const [people, schools, events, calendarEvents] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
     loadHouseholdEvents(supabase, household.id),
+    loadSchoolCalendarEvents(supabase, household.id),
   ]);
 
   const children = people.filter((person) => person.kind === "child");
@@ -56,7 +58,12 @@ export default async function FamilyPage() {
             ) : undefined
           }
         >
-          <SchoolsPanel schools={schools} people={people} />
+          <SchoolsPanel
+            schools={schools}
+            people={people}
+            calendarEvents={calendarEvents}
+            locale={locale}
+          />
         </Card>
 
         <Card title="Key dates">
@@ -65,7 +72,8 @@ export default async function FamilyPage() {
 
         <p className="px-1 pt-2 text-center text-xs text-ink-faint">
           Birthdays come from the people above, so you only ever type one in
-          once. Everything here is shared with everyone in the household.
+          once, and a school&rsquo;s term dates come from its own calendar.
+          Everything here is shared with everyone in the household.
         </p>
       </div>
     </AppShell>

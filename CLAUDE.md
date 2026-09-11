@@ -19,11 +19,12 @@ agent (or human) picking up the repo has the same context.
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
 | 7 | Home solution slice 1 — household people + schools + key dates, birthdays on the dashboard, property hub redesigned off the radial layout. | done — **`household_people` / `schools` / `household_events` migration not yet applied** |
+| 7b | School calendar (ICS) linking — a feed per school, fetched and cached server-side, term dates on the dashboard and `/family`. | done — **`school_calendars` migration not yet applied** |
 | later | The real dashboard. | not started |
 
 Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
 the people who live in the house are first-class, not just the paperwork. Still
-explicitly out: school calendar (ICS) linking, shopping lists, RAG.
+explicitly out: shopping lists, RAG.
 
 Do not build the next phase's work until this table says so. Reminders, the
 dashboard proper, and RAG are explicitly out until then.
@@ -76,6 +77,7 @@ One visual system, defined once, used by every screen. **Build new screens
   `app/globals.css`, with `tailwind.config.js` referenced via `@config`)
 - ESLint flat config via `eslint-config-next`
 - Supabase: `@supabase/ssr` (cookie-based sessions) + `@supabase/supabase-js`
+- `node-ical` for school calendar feeds (server-only; ships its own types)
 
 ## Structure
 
@@ -92,7 +94,8 @@ app/
   documents/            list + uploader + per-doc extraction review/confirm (DocumentsList);
                         reads `?category=` (filter + preselected bucket) and `?upload=1`
   family/               who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
-                        EventsPanel — all client, inline add/edit/remove)
+                        EventsPanel — all client, inline add/edit/remove); a school
+                        carries its ICS calendar, its last-read line and Refresh
   invite/               pending invites, accept/decline (InviteList); works signed out
   settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
                         sign-in members and sent invites (PeoplePanel — the *account*
@@ -129,13 +132,17 @@ lib/
                        createStripeClient / priceIdFor + the `subscriptions` read+write
                        helpers. Unconfigured = paid entitlements, so gates are inert
   property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
-  family.ts            client-safe: HouseholdPerson / School / HouseholdEvent shapes,
-                       PERSON_KINDS + EVENT_TYPES picklists and their labels, the three
-                       load*(client, householdId) helpers (all return [] on error, so an
-                       unapplied migration reads as "nobody"), and nextBirthday() /
-                       daysUntil() date arithmetic
+  family.ts            client-safe: HouseholdPerson / School / HouseholdEvent /
+                       SchoolCalendarEvent shapes, PERSON_KINDS + EVENT_TYPES picklists
+                       and their labels, the four load*(client, householdId) helpers (all
+                       return [] on error, so an unapplied migration reads as "nobody"),
+                       and nextBirthday() / daysUntil() / calendarEventDate() arithmetic
+  school-calendar.ts   server-only: normaliseCalendarUrl / parseCalendar (node-ical) /
+                       syncSchoolCalendar(schoolId) — fetch an ICS feed and rebuild the
+                       school_calendar_events cache on the admin client
   coming-up.ts         server-only: ComingUpEntry + documentEntries / birthdayEntries /
-                       eventEntries / mergeComingUp — the one dated list the dashboard shows
+                       eventEntries / schoolEntries / mergeComingUp — the one dated list
+                       the dashboard shows
   dates.ts             client-safe formatDate() / relativeWhen() / intlLocale()
   safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
 supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
@@ -157,8 +164,22 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   who can sign in (`household_members`). `user_id` is only set if this person also has an
   account. School is a column pair rather than a join table: one school at a time, no
   history — promote it to `person_schools` if that changes.
-- `schools(id, household_id, name, address null, notes null, created_at)` — deleting one
-  leaves the children in place, the FK just nulls their `school_id`.
+- `schools(id, household_id, name, address null, notes null, created_at, calendar_url null,
+  calendar_title null, calendar_last_synced_at null, calendar_last_error null)` — deleting
+  one leaves the children in place, the FK just nulls their `school_id`. The four
+  `calendar_*` columns are phase 7b and come from
+  `20260911193000_school_calendars.sql`, **written but not applied**; `SCHOOLS_SELECT`
+  names them, so until it is applied `loadSchools()` soft-fails to `[]` and `/family`
+  shows no schools at all.
+- `school_calendar_events(id, school_id cascade, household_id cascade, uid null, title,
+  starts_at, ends_at null, all_day default true, location null, created_at,
+  unique(school_id, uid))` — the **cache** of a school's ICS feed for today → +120 days,
+  dropped and rebuilt on every sync, never the source of truth. Members select;
+  **no insert/update/delete policy**, rows come from `syncSchoolCalendar()` on the
+  service role. Indexed on `(household_id, starts_at)` — the one query both the
+  dashboard and `/family` make. `uid` carries the feed's UID with the occurrence
+  appended for a recurring event, which is what makes the unique constraint meaningful.
+  Same unapplied migration as the columns above.
 - `household_events(id, household_id, title, event_date, event_type check
   birthday|school|home|other, person_id null, school_id null, notes null, created_at)` —
   dates someone typed in (term starts, the boiler service). **Birthdays are not mirrored
@@ -393,6 +414,45 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   outside the "nothing filed yet" branch, so a household with no documents still sees
   its family dates.
 - Reminder emails still only cover documents — nothing nudges you about a birthday yet.
+
+## School calendars (phase 7b)
+
+- **One feed per school**, pasted into the school's form on `/family` (`calendar_url`,
+  plus an optional `calendar_title` for what to call it). `webcal://` is rewritten to
+  `https://`; **HTTPS only**, and anything that looks like our own network is refused.
+- **`lib/school-calendar.ts`** (server-only) is the whole surface:
+  `normaliseCalendarUrl()` (returns `{ url }` or `{ error }` — a sentence fit for the
+  page), `parseCalendar()` and `syncSchoolCalendar(schoolId)`.
+  - **Fetch**: 10s timeout, 2 MB cap enforced while reading the stream (not just off
+    `content-length`), `redirect: "manual"` with each hop re-validated and at most
+    three of them, and a `BEGIN:VCALENDAR` sniff before parsing. `dns.lookup()` checks
+    the resolved address against the private ranges — best-effort, not a boundary.
+  - **Parse**: `node-ical` (`sync.parseICS` + `expandRecurringEvent`), window today →
+    `SCHOOL_CALENDAR_WINDOW_DAYS` (120), capped at `MAX_EVENTS_PER_SCHOOL` (200),
+    `STATUS:CANCELLED` skipped, one unreadable event skipped rather than losing the
+    feed. **All-day occurrences come back as local midnight**, so the day is read off
+    the local components and re-pinned to UTC midnight — a bare `toISOString()` would
+    shift the date west of UTC.
+  - **Sync**: deletes the school's cached rows and inserts the new ones on the admin
+    client, then stamps `calendar_last_synced_at` and clears `calendar_last_error`. A
+    failure leaves the old rows *and* the old "last synced" alone and records the
+    reason, so the page can say what happened instead of pretending the feed is empty.
+    Clearing the URL runs the sync too — that is what drops the cache. The feed's
+    `X-WR-CALNAME` only fills `calendar_title` when nobody has typed one.
+- **Actions** (`app/actions/family.ts`): `saveSchool` validates the link and syncs when
+  it has *changed* (best-effort, never fails the save); `refreshSchoolCalendar` is the
+  Refresh button — it looks the school up on the cookie client first, so RLS decides
+  whether this household may sync it, and only then runs the service-role sync.
+- **Reading it back**: `loadSchoolCalendarEvents(client, householdId)` in `lib/family.ts`
+  (client-safe, soft-fails to `[]`), and `calendarEventDate()` for the YYYY-MM-DD an
+  occurrence falls on. `/family` shows the calendar's name, when it was last read (or
+  the error), Refresh, and the next three dates under each school.
+- **Dashboard "Coming up"** takes `schoolEntries()` from `lib/coming-up.ts` — kind
+  `"school"`, a graduation-cap mark, `SCHOOL_HORIZON_DAYS` (45) and at most
+  `SCHOOL_ENTRY_LIMIT` (8) rows, so one busy feed can't drown the household's own dates.
+- Nothing emails a school date, and nothing re-reads a feed on a schedule: a calendar is
+  only as fresh as the last save or Refresh. A cron over `syncSchoolCalendar()` is the
+  obvious next step.
 
 ## Conventions
 

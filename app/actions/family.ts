@@ -8,6 +8,10 @@ import {
   asPersonKind,
   parseDateParts,
 } from "@/lib/family";
+import {
+  normaliseCalendarUrl,
+  syncSchoolCalendar,
+} from "@/lib/school-calendar";
 import { createClient } from "@/lib/supabase-server";
 
 /* People, schools and key dates. Everything here runs on the cookie client,
@@ -160,29 +164,110 @@ export async function saveSchool(
   const name = text(formData, "name");
   const address = optional(formData, "address");
   const notes = optional(formData, "notes");
+  const calendarTitle = optional(formData, "calendar_title");
+  const calendarRaw = text(formData, "calendar_url");
 
   if (!name) return { error: "Give the school a name." };
+
+  let calendarUrl: string | null = null;
+  if (calendarRaw) {
+    const normalised = normaliseCalendarUrl(calendarRaw);
+    if ("error" in normalised) return { error: normalised.error };
+    calendarUrl = normalised.url;
+  }
 
   const supabase = await createClient();
   const caller = await resolveCaller(supabase);
   if (!caller.ok) return { error: caller.error };
 
+  const values = {
+    name,
+    address,
+    notes,
+    calendar_url: calendarUrl,
+    calendar_title: calendarTitle,
+  };
+
+  let savedId = schoolId;
+  let previousUrl: string | null = null;
+
   if (schoolId) {
+    const { data: existing } = await supabase
+      .from("schools")
+      .select("calendar_url")
+      .eq("id", schoolId)
+      .eq("household_id", caller.householdId)
+      .maybeSingle();
+    previousUrl = (existing?.calendar_url as string | null) ?? null;
+
     const { error } = await supabase
       .from("schools")
-      .update({ name, address, notes })
+      .update(values)
       .eq("id", schoolId)
       .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("schools")
-      .insert({ household_id: caller.householdId, name, address, notes });
+      .insert({ household_id: caller.householdId, ...values })
+      .select("id")
+      .single();
     if (error) return { error: error.message };
+    savedId = data.id as string;
+  }
+
+  // A changed link is fetched straight away so the household sees dates (or
+  // the reason there are none) without pressing Refresh. Clearing it runs too:
+  // that is what drops the cached rows. Never allowed to fail the save.
+  if (savedId && calendarUrl !== previousUrl) {
+    try {
+      await syncSchoolCalendar(savedId);
+    } catch (error) {
+      console.error("[family] calendar sync failed", savedId, error);
+    }
   }
 
   refresh();
   return { ok: true };
+}
+
+/**
+ * Re-read a school's feed now. The school is looked up on the cookie client
+ * first, so RLS is what decides whether this household may sync it — the sync
+ * itself runs on the service role.
+ */
+export async function refreshSchoolCalendar(
+  _prev: FamilyState,
+  formData: FormData
+): Promise<FamilyState> {
+  const schoolId = text(formData, "school_id");
+  if (!schoolId) return { error: "Missing school." };
+
+  const supabase = await createClient();
+  const caller = await resolveCaller(supabase);
+  if (!caller.ok) return { error: caller.error };
+
+  const { data: school } = await supabase
+    .from("schools")
+    .select("id, calendar_url")
+    .eq("id", schoolId)
+    .eq("household_id", caller.householdId)
+    .maybeSingle();
+  if (!school) return { error: "We couldn’t find that school." };
+  if (!(school.calendar_url as string | null)?.trim()) {
+    return { error: "Add a calendar link first." };
+  }
+
+  let result;
+  try {
+    result = await syncSchoolCalendar(schoolId);
+  } catch (error) {
+    console.error("[family] calendar refresh failed", schoolId, error);
+    return { error: "We couldn’t read that calendar just now." };
+  }
+
+  refresh();
+  return result.error ? { error: result.error } : { ok: true };
 }
 
 /**

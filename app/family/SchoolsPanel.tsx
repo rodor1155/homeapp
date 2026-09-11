@@ -3,16 +3,29 @@
 import { useActionState, useCallback, useEffect, useState } from "react";
 import {
   deleteSchool,
+  refreshSchoolCalendar,
   saveSchool,
   type FamilyState,
 } from "@/app/actions/family";
 import { Button, Field } from "@/components/ui";
-import type { HouseholdPerson, School } from "@/lib/family";
+import { formatDate } from "@/lib/dates";
+import {
+  calendarEventDate,
+  type HouseholdPerson,
+  type School,
+  type SchoolCalendarEvent,
+} from "@/lib/family";
+import type { Locale } from "@/lib/household";
 
 type Props = {
   schools: School[];
   people: HouseholdPerson[];
+  calendarEvents: SchoolCalendarEvent[];
+  locale: Locale;
 };
+
+/** How many of a school's own dates are worth showing on the row. */
+const PREVIEW_DATES = 3;
 
 /** "Ada", "Ada and Sam", "Ada, Sam and Ida". */
 function listNames(names: string[]): string {
@@ -20,7 +33,12 @@ function listNames(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-export default function SchoolsPanel({ schools, people }: Props) {
+export default function SchoolsPanel({
+  schools,
+  people,
+  calendarEvents,
+  locale,
+}: Props) {
   const [adding, setAdding] = useState(false);
   const stopAdding = useCallback(() => setAdding(false), []);
 
@@ -39,6 +57,10 @@ export default function SchoolsPanel({ schools, people }: Props) {
               attending={people.filter(
                 (person) => person.school_id === school.id
               )}
+              dates={calendarEvents
+                .filter((event) => event.school_id === school.id)
+                .slice(0, PREVIEW_DATES)}
+              locale={locale}
             />
           ))}
         </ul>
@@ -60,9 +82,13 @@ export default function SchoolsPanel({ schools, people }: Props) {
 function SchoolRow({
   school,
   attending,
+  dates,
+  locale,
 }: {
   school: School;
   attending: HouseholdPerson[];
+  dates: SchoolCalendarEvent[];
+  locale: Locale;
 }) {
   const [editing, setEditing] = useState(false);
   const stopEditing = useCallback(() => setEditing(false), []);
@@ -96,6 +122,10 @@ function SchoolRow({
         </button>
       </div>
 
+      {school.calendar_url ? (
+        <SchoolCalendar school={school} dates={dates} locale={locale} />
+      ) : null}
+
       {editing ? (
         <div className="mt-3 rounded-lg bg-paper-sunk p-3">
           <SchoolForm school={school} onDone={stopEditing} />
@@ -103,6 +133,79 @@ function SchoolRow({
         </div>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * What the school's own calendar says, and how the last read of it went. The
+ * error kept on the school is shown as-is — it is already a sentence.
+ */
+function SchoolCalendar({
+  school,
+  dates,
+  locale,
+}: {
+  school: School;
+  dates: SchoolCalendarEvent[];
+  locale: Locale;
+}) {
+  const [state, submit, pending] = useActionState<FamilyState, FormData>(
+    refreshSchoolCalendar,
+    undefined
+  );
+
+  const label = school.calendar_title?.trim() || "School calendar";
+  const trouble = state?.error ?? school.calendar_last_error;
+  const syncedOn = school.calendar_last_synced_at?.slice(0, 10);
+
+  return (
+    <div className="mt-2.5 rounded bg-paper-sunk px-3 py-2.5">
+      <form action={submit} className="flex items-baseline justify-between gap-3">
+        <input type="hidden" name="school_id" value={school.id} />
+        <p className="min-w-0 truncate text-xs font-medium text-ink">{label}</p>
+        <button
+          type="submit"
+          disabled={pending}
+          className="text-action shrink-0 text-xs"
+        >
+          {pending ? "Reading…" : "Refresh"}
+        </button>
+      </form>
+
+      <p
+        className={`tnum mt-0.5 text-xs ${
+          trouble ? "mark-fault" : "text-ink-faint"
+        }`}
+      >
+        {trouble ??
+          (syncedOn
+            ? `Last read ${formatDate(syncedOn, locale)}`
+            : "Not read yet")}
+      </p>
+
+      {dates.length > 0 ? (
+        <ul className="mt-2 flex flex-col gap-1">
+          {dates.map((event) => {
+            const on = calendarEventDate(event.starts_at);
+            return (
+              <li
+                key={event.id}
+                className="flex items-baseline justify-between gap-3 text-xs"
+              >
+                <span className="min-w-0 truncate text-ink">{event.title}</span>
+                <span className="tnum shrink-0 text-ink-faint">
+                  {on ? formatDate(on, locale) : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : trouble ? null : (
+        <p className="mt-1 text-xs text-ink-faint">
+          Nothing in the next few months.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -156,6 +259,31 @@ function SchoolForm({
           defaultValue={school?.notes ?? ""}
           className="field-input"
           placeholder="Office hours, who to ring about absences"
+        />
+      </Field>
+
+      <Field
+        label="Calendar link"
+        hint="optional"
+        note="The school's term-dates calendar — the “subscribe” or iCal link off its website. We read it, we never write to it."
+      >
+        <input
+          name="calendar_url"
+          type="url"
+          inputMode="url"
+          defaultValue={school?.calendar_url ?? ""}
+          className="field-input"
+          placeholder="https://school.example/calendar.ics"
+        />
+      </Field>
+
+      <Field label="What to call that calendar" hint="optional">
+        <input
+          name="calendar_title"
+          type="text"
+          defaultValue={school?.calendar_title ?? ""}
+          className="field-input"
+          placeholder="Term dates"
         />
       </Field>
 
