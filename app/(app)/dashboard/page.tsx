@@ -9,7 +9,6 @@ import {
   ShoppingBasket,
   Sparkles,
 } from "lucide-react";
-import AppShell from "@/components/AppShell";
 import ExportButton from "@/components/ExportButton";
 import PropertyHub from "@/components/PropertyHub";
 import { CATEGORY_ICON } from "@/components/category-icons";
@@ -62,27 +61,40 @@ export default async function DashboardPage() {
   const { supabase, user, household, property } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
   const billingConfigured = isBillingConfigured();
-  const entitlements = await getEntitlements(household.id);
 
-  const { data } = await supabase
-    .from("documents")
-    .select(DOCUMENTS_SELECT)
-    .eq("household_id", household.id)
-    .in("extraction_status", [...OVERVIEW_STATUSES])
-    .order("created_at", { ascending: false });
+  // Nothing here needs anything else here, so it all goes out at once — this
+  // page is the slowest tab and the round trips were adding up.
+  const [
+    entitlements,
+    { data },
+    invites,
+    scheduled,
+    people,
+    events,
+    schools,
+    schoolDates,
+    shoppingLists,
+    shoppingCounts,
+  ] = await Promise.all([
+    getEntitlements(household.id),
+    supabase
+      .from("documents")
+      .select(DOCUMENTS_SELECT)
+      .eq("household_id", household.id)
+      .in("extraction_status", [...OVERVIEW_STATUSES])
+      .order("created_at", { ascending: false }),
+    loadPendingInvites(supabase),
+    scheduledReminders(supabase, household.id),
+    loadHouseholdPeople(supabase, household.id),
+    loadHouseholdEvents(supabase, household.id),
+    loadSchools(supabase, household.id),
+    loadSchoolCalendarEvents(supabase, household.id),
+    loadShoppingLists(supabase, household.id),
+    loadOutstandingCounts(supabase, household.id),
+  ]);
 
   const documents = (data as DocumentRow[] | null) ?? [];
-  const invites = await loadPendingInvites(supabase);
-  const reminded = await remindedEntries(supabase, household.id, documents);
-  const [people, events, schools, schoolDates, shoppingLists, shoppingCounts] =
-    await Promise.all([
-      loadHouseholdPeople(supabase, household.id),
-      loadHouseholdEvents(supabase, household.id),
-      loadSchools(supabase, household.id),
-      loadSchoolCalendarEvents(supabase, household.id),
-      loadShoppingLists(supabase, household.id),
-      loadOutstandingCounts(supabase, household.id),
-    ]);
+  const reminded = remindedEntries(scheduled, documents);
 
   const detail = [
     property.type,
@@ -105,209 +117,207 @@ export default async function DashboardPage() {
   const keyContacts = contacts(documents);
 
   return (
-    <AppShell user={user}>
-      <div className="flex flex-col gap-4">
-        {invites.length > 0 ? (
-          <Card tone="accent">
-            <h2 className="text-base font-semibold text-ink">
-              {invites.length === 1
-                ? `You’ve been invited to join ${invites[0].household_name}`
-                : `You’ve been invited to join ${invites.length} households`}
-            </h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              Accepting shares that household’s documents, dates and contacts
-              with you.
+    <div className="flex flex-col gap-4">
+      {invites.length > 0 ? (
+        <Card tone="accent">
+          <h2 className="text-base font-semibold text-ink">
+            {invites.length === 1
+              ? `You’ve been invited to join ${invites[0].household_name}`
+              : `You’ve been invited to join ${invites.length} households`}
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Accepting shares that household’s documents, dates and contacts
+            with you.
+          </p>
+          <Link href="/invite" className="btn mt-4">
+            See the invitation
+          </Link>
+        </Card>
+      ) : null}
+
+      <section className="home-hero card overflow-hidden p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sage">
+              Your home
             </p>
-            <Link href="/invite" className="btn mt-4">
-              See the invitation
-            </Link>
-          </Card>
-        ) : null}
-
-        <section className="home-hero card overflow-hidden p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-sage">
-                Your home
-              </p>
-              <h1 className="mt-1 text-2xl">{household.name}</h1>
-              <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">
-                {property.address}
-              </p>
-              {detail ? (
-                <p className="mt-0.5 text-sm text-ink-faint">{detail}</p>
-              ) : null}
-            </div>
-            <HouseIllustration className="h-16 w-24" />
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link href="/documents" className="btn">
-              Open the documents file
-            </Link>
-            <ExportButton
-              canExport={entitlements.canExport}
-              billingConfigured={billingConfigured}
-              variant="quiet"
-              align="start"
-            >
-              Export everything
-            </ExportButton>
-          </div>
-        </section>
-
-        <PropertyHub counts={counts} />
-
-        {documents.length > 0 ? (
-          <Suspense fallback={<GlanceFallback />}>
-            <AtAGlance documents={documents} locale={locale} />
-          </Suspense>
-        ) : null}
-
-        <ComingUp
-          entries={coming}
-          locale={locale}
-          hasPeople={people.length > 0}
-        />
-
-        <Shopping lists={shoppingLists} counts={shoppingCounts} />
-
-        {documents.length === 0 ? (
-          <Card className="text-center">
-            <HouseIllustration className="mx-auto h-24 w-32" />
-            <h2 className="mt-3 text-lg">Nothing filed yet</h2>
-            <p className="mx-auto mt-2 max-w-xs text-sm text-ink-soft">
-              Once a document has been read, this page fills in with what is
-              coming up, what it costs and who to call.
+            <h1 className="mt-1 text-2xl">{household.name}</h1>
+            <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">
+              {property.address}
             </p>
-            <Link href="/documents?upload=1#upload" className="btn mt-5">
-              Add a document
-            </Link>
-          </Card>
-        ) : (
-          <>
-            {categories.map((group) => {
-              const Icon = CATEGORY_ICON[group.category];
-              return (
-                <Card key={group.category} padding="none">
-                  <Link
-                    href={`/documents?category=${encodeURIComponent(
-                      group.category
-                    )}`}
-                    className="flex items-center gap-2.5 px-4 pb-2.5 pt-4"
-                  >
-                    <span aria-hidden className="text-sage">
-                      <Icon size={16} strokeWidth={2} />
-                    </span>
-                    <h3 className="text-sm font-semibold text-ink">
-                      {group.category}
-                    </h3>
-                    <span className="tnum ml-auto text-xs text-ink-faint">
-                      {group.documents.length}
-                    </span>
-                  </Link>
-                  <ul className="border-t border-rule">
-                    {group.documents.map((doc) => (
-                      <li
-                        key={doc.id}
-                        className={`entry px-4 py-3 ${statusEdgeClass(
-                          doc.extraction_status
-                        )}`}
-                      >
-                        <p className="text-sm font-medium text-ink">
-                          {documentLabel(doc)}
-                        </p>
-                        {doc.doc_type ? (
-                          <p className="text-xs text-ink-faint">
-                            {doc.doc_type}
-                          </p>
-                        ) : null}
-                        <RowMeta doc={doc} locale={locale} />
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              );
-            })}
+            {detail ? (
+              <p className="mt-0.5 text-sm text-ink-faint">{detail}</p>
+            ) : null}
+          </div>
+          <HouseIllustration className="h-16 w-24" />
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link href="/documents" className="btn">
+            Open the documents file
+          </Link>
+          <ExportButton
+            canExport={entitlements.canExport}
+            billingConfigured={billingConfigured}
+            variant="quiet"
+            align="start"
+          >
+            Export everything
+          </ExportButton>
+        </div>
+      </section>
 
-            <Card title="The numbers">
-              {totals.length === 0 ? (
-                <p className="text-sm text-ink-faint">
-                  No amounts have been picked up yet.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {totals.map((total) => (
-                    <div
-                      key={total.currency}
-                      className="rounded-lg bg-paper-sunk px-3.5 py-3"
-                    >
-                      <p className="tnum text-lg font-semibold text-ink">
-                        {formatMoney(total.total, total.currency, locale)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-ink-faint">
-                        {total.documents}{" "}
-                        {total.documents === 1 ? "document" : "documents"} in{" "}
-                        {total.currency}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="mt-3 text-xs text-ink-faint">
-                This only counts amounts read off the documents so far, so it is
-                not the whole picture.
-              </p>
-            </Card>
+      <PropertyHub counts={counts} />
 
-            <Card title="Key contacts">
-              {keyContacts.length === 0 ? (
-                <p className="text-sm text-ink-faint">
-                  No names or numbers have turned up yet.
-                </p>
-              ) : (
-                <ul className="divide-y divide-rule">
-                  {keyContacts.map((contact, i) => (
+      {documents.length > 0 ? (
+        <Suspense fallback={<GlanceFallback />}>
+          <AtAGlance documents={documents} locale={locale} />
+        </Suspense>
+      ) : null}
+
+      <ComingUp
+        entries={coming}
+        locale={locale}
+        hasPeople={people.length > 0}
+      />
+
+      <Shopping lists={shoppingLists} counts={shoppingCounts} />
+
+      {documents.length === 0 ? (
+        <Card className="text-center">
+          <HouseIllustration className="mx-auto h-24 w-32" />
+          <h2 className="mt-3 text-lg">Nothing filed yet</h2>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-ink-soft">
+            Once a document has been read, this page fills in with what is
+            coming up, what it costs and who to call.
+          </p>
+          <Link href="/documents?upload=1#upload" className="btn mt-5">
+            Add a document
+          </Link>
+        </Card>
+      ) : (
+        <>
+          {categories.map((group) => {
+            const Icon = CATEGORY_ICON[group.category];
+            return (
+              <Card key={group.category} padding="none">
+                <Link
+                  href={`/documents?category=${encodeURIComponent(
+                    group.category
+                  )}`}
+                  className="flex items-center gap-2.5 px-4 pb-2.5 pt-4"
+                >
+                  <span aria-hidden className="text-sage">
+                    <Icon size={16} strokeWidth={2} />
+                  </span>
+                  <h3 className="text-sm font-semibold text-ink">
+                    {group.category}
+                  </h3>
+                  <span className="tnum ml-auto text-xs text-ink-faint">
+                    {group.documents.length}
+                  </span>
+                </Link>
+                <ul className="border-t border-rule">
+                  {group.documents.map((doc) => (
                     <li
-                      key={`${contact.name ?? ""}-${contact.phone ?? ""}-${i}`}
-                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                      key={doc.id}
+                      className={`entry px-4 py-3 ${statusEdgeClass(
+                        doc.extraction_status
+                      )}`}
                     >
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <span
-                          aria-hidden
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage-tint text-xs font-semibold text-sage"
-                        >
-                          {contactInitial(contact.name ?? contact.sourceDocument)}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-ink">
-                            {contact.name ?? contact.sourceDocument}
-                          </span>
-                          <span className="block truncate text-xs text-ink-faint">
-                            {contact.sourceDocument}
-                          </span>
-                        </span>
-                      </span>
-                      {contact.phone ? (
-                        <a
-                          href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
-                          className="tnum shrink-0 rounded-pill bg-paper-sunk px-3 py-1.5 text-xs font-medium text-ink"
-                        >
-                          {contact.phone}
-                        </a>
+                      <p className="text-sm font-medium text-ink">
+                        {documentLabel(doc)}
+                      </p>
+                      {doc.doc_type ? (
+                        <p className="text-xs text-ink-faint">
+                          {doc.doc_type}
+                        </p>
                       ) : null}
+                      <RowMeta doc={doc} locale={locale} />
                     </li>
                   ))}
                 </ul>
-              )}
-            </Card>
-          </>
-        )}
+              </Card>
+            );
+          })}
 
-        <p className="px-1 pt-2 text-center text-xs text-ink-faint">
-          Signed in as {user.email}. Renewal reminders come by email.
-        </p>
-      </div>
-    </AppShell>
+          <Card title="The numbers">
+            {totals.length === 0 ? (
+              <p className="text-sm text-ink-faint">
+                No amounts have been picked up yet.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {totals.map((total) => (
+                  <div
+                    key={total.currency}
+                    className="rounded-lg bg-paper-sunk px-3.5 py-3"
+                  >
+                    <p className="tnum text-lg font-semibold text-ink">
+                      {formatMoney(total.total, total.currency, locale)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-ink-faint">
+                      {total.documents}{" "}
+                      {total.documents === 1 ? "document" : "documents"} in{" "}
+                      {total.currency}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-xs text-ink-faint">
+              This only counts amounts read off the documents so far, so it is
+              not the whole picture.
+            </p>
+          </Card>
+
+          <Card title="Key contacts">
+            {keyContacts.length === 0 ? (
+              <p className="text-sm text-ink-faint">
+                No names or numbers have turned up yet.
+              </p>
+            ) : (
+              <ul className="divide-y divide-rule">
+                {keyContacts.map((contact, i) => (
+                  <li
+                    key={`${contact.name ?? ""}-${contact.phone ?? ""}-${i}`}
+                    className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        aria-hidden
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage-tint text-xs font-semibold text-sage"
+                      >
+                        {contactInitial(contact.name ?? contact.sourceDocument)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {contact.name ?? contact.sourceDocument}
+                        </span>
+                        <span className="block truncate text-xs text-ink-faint">
+                          {contact.sourceDocument}
+                        </span>
+                      </span>
+                    </span>
+                    {contact.phone ? (
+                      <a
+                        href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
+                        className="tnum shrink-0 rounded-pill bg-paper-sunk px-3 py-1.5 text-xs font-medium text-ink"
+                      >
+                        {contact.phone}
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
+
+      <p className="px-1 pt-2 text-center text-xs text-ink-faint">
+        Signed in as {user.email}. Renewal reminders come by email.
+      </p>
+    </div>
   );
 }
 
@@ -321,28 +331,38 @@ function entryKey(entry: Pick<UpcomingDate, "provider" | "date" | "label">) {
 
 const KIND_LABEL: Record<string, string> = { renewal: "Renews", end: "Ends" };
 
-async function remindedEntries(
+type ReminderRow = { document_id: string; kind: string; due_date: string };
+
+// Fetched on its own so it can go out with everything else; the documents are
+// only needed to turn the rows into keys, which happens once they are back.
+async function scheduledReminders(
   supabase: SupabaseClient,
-  householdId: string,
-  documents: readonly OverviewDocument[]
-): Promise<Set<string>> {
+  householdId: string
+): Promise<ReminderRow[]> {
   const { data } = await supabase
     .from("reminders")
     .select("document_id, kind, due_date")
     .eq("household_id", householdId)
     .eq("status", "scheduled");
 
+  return (data as ReminderRow[] | null) ?? [];
+}
+
+function remindedEntries(
+  reminders: readonly ReminderRow[],
+  documents: readonly OverviewDocument[]
+): Set<string> {
   const byId = new Map(documents.map((doc) => [doc.id, doc]));
   const keys = new Set<string>();
 
-  for (const row of data ?? []) {
-    const doc = byId.get(row.document_id as string);
-    const label = KIND_LABEL[row.kind as string];
+  for (const row of reminders) {
+    const doc = byId.get(row.document_id);
+    const label = KIND_LABEL[row.kind];
     if (!doc || !label) continue;
     keys.add(
       entryKey({
         provider: documentLabel(doc),
-        date: row.due_date as string,
+        date: row.due_date,
         label,
       })
     );

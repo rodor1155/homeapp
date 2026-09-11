@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 
@@ -20,11 +21,27 @@ export type Property = {
 
 export type HouseholdContext = Awaited<ReturnType<typeof loadHouseholdContext>>;
 
+/** The one row the membership query comes back with, household and all. */
+type MembershipRow = {
+  households: {
+    id: string;
+    name: string;
+    locale: Locale | null;
+    properties: (Property & { created_at: string })[] | null;
+  } | null;
+};
+
+const MEMBERSHIP_SELECT =
+  "households(id, name, locale, properties(id, address, type, year_built, created_at))";
+
 /**
  * Loads the signed-in user together with their (first) household and property.
  * Returns nulls rather than redirecting so callers can decide what to do.
+ *
+ * Memoised for the length of a request, so a layout and the page inside it
+ * share one load instead of each making the round trip.
  */
-export async function loadHouseholdContext() {
+export const loadHouseholdContext = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,38 +51,43 @@ export async function loadHouseholdContext() {
     return { supabase, user: null, household: null, property: null };
   }
 
-  const { data: membership } = await supabase
+  // Membership, household and property in one round trip. RLS on the embedded
+  // tables is the same member check the separate queries went through, so this
+  // sees exactly what they did.
+  const { data } = await supabase
     .from("household_members")
-    .select("household_id")
+    .select(MEMBERSHIP_SELECT)
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  let household: Household | null = null;
-  let property: Property | null = null;
+  const row = (data as MembershipRow | null) ?? null;
+  const h = row?.households ?? null;
 
-  if (membership) {
-    const { data: h } = await supabase
-      .from("households")
-      .select("id, name, locale")
-      .eq("id", membership.household_id)
-      .maybeSingle();
-    household = (h as Household | null) ?? null;
+  const household: Household | null = h
+    ? { id: h.id, name: h.name, locale: h.locale }
+    : null;
 
-    if (household) {
-      const { data: p } = await supabase
-        .from("properties")
-        .select("id, address, type, year_built")
-        .eq("household_id", household.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      property = (p as Property | null) ?? null;
-    }
+  return { supabase, user, household, property: oldestProperty(h?.properties) };
+});
+
+// An embed two levels down can't be ordered in the query, so the oldest
+// property is picked here — the same rule the query it replaced used.
+function oldestProperty(
+  properties: (Property & { created_at: string })[] | null | undefined
+): Property | null {
+  let oldest: (Property & { created_at: string }) | null = null;
+  for (const p of properties ?? []) {
+    if (!oldest || p.created_at < oldest.created_at) oldest = p;
   }
-
-  return { supabase, user, household, property };
+  if (!oldest) return null;
+  return {
+    id: oldest.id,
+    address: oldest.address,
+    type: oldest.type,
+    year_built: oldest.year_built,
+  };
 }
 
 export function isOnboarded(ctx: {

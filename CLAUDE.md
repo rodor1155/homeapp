@@ -92,27 +92,33 @@ app/
   auth/callback/        PKCE code exchange (magic link, OAuth, email confirm)
   auth/sign-out/        POST route handler
   onboarding/           3-step wizard (locale -> property -> partner invite)
-  dashboard/            home overview + property hub, gated on completed onboarding
-  documents/            list + uploader + per-doc extraction review/confirm (DocumentsList);
+  (app)/                the signed-in tabs. A route group, so the URLs are unchanged
+                        (/dashboard, not /app/dashboard).
+    layout.tsx          requireOnboarded() once + AppShell round `{children}` — the
+                        chrome is owned here, pages must NOT re-wrap it
+    loading.tsx         the skeleton a tab shows between the tap and the page
+    dashboard/          home overview + property hub, gated on completed onboarding
+    documents/          list + uploader + per-doc extraction review/confirm (DocumentsList);
                         reads `?category=` (filter + preselected bucket) and `?upload=1`
-  family/               who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
+    family/             who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
                         EventsPanel — all client, inline add/edit/remove); a school
                         carries its ICS calendar, its last-read line and Refresh
-  lists/                the shopping — the household's lists (ListsPanel), and
+    lists/              the shopping — the household's lists (ListsPanel), and
                         `[listId]/` for one of them (ItemsPanel quick-add + tick,
                         ListSettings rename/delete); both client, optimistic
-  invite/               pending invites, accept/decline (InviteList); works signed out
-  settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
+    settings/           household + property + locale (HouseholdForm), plan (PlanPanel),
                         sign-in members and sent invites (PeoplePanel — the *account*
                         people, not the family), sign out, account deletion
                         (DeleteAccountPanel)
+  invite/               pending invites, accept/decline (InviteList); works signed out
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
                         settings.ts, account.ts, family.ts, lists.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
-                 AppShell.tsx (top bar: sign out + gear to /settings),
+                 AppShell.tsx (top bar: sign out + gear to /settings) — rendered
+                 once, by `app/(app)/layout.tsx`, never by a page,
                  BottomTabBar.tsx (Home / Family / Lists / Documents),
                  PropertyHub.tsx (the house file), category-icons.ts (icon + short
                  label per category)
@@ -123,7 +129,10 @@ lib/
   supabase-server.ts   server client with cookie bridge (server-only)
   supabase-admin.ts    service-role client (server-only, bypasses RLS)
   supabase.ts          deprecated re-export of supabase-client
-  household.ts         server-only: loadHouseholdContext / isOnboarded / requireOnboarded
+  household.ts         server-only: loadHouseholdContext / isOnboarded / requireOnboarded.
+                       loadHouseholdContext is wrapped in React `cache()` and gets the
+                       membership, household and property in one embedded query, so the
+                       (app) layout and the page inside it share a single round trip
   extraction.ts        server-only: extractDocument() (pure Claude call) +
                        runExtractionForDocument() (download → extract → persist) + chunkText()
   document-types.ts    client-safe row/confidence shapes + REVIEW_FIELDS + DOCUMENTS_SELECT
@@ -512,6 +521,27 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   the row's editor.
 - **Dashboard**: one line, `Shopping`, naming up to three lists with something
   outstanding, and only rendered when there is something to get.
+
+## How a tab switch is kept quick
+
+- **`app/(app)/` is one shared layout for all five tabbed screens.** It calls
+  `requireOnboarded()` and renders `AppShell` round `{children}`. Because the layout
+  is shared, moving between tabs re-renders only the page below it — the greeting bar
+  and the tab bar are never rebuilt. A page inside the group renders a bare
+  `<div className="flex flex-col gap-4">`; **it must not wrap itself in `AppShell`**,
+  or the chrome comes back twice and the navigation is a full remount again.
+- **`app/(app)/loading.tsx`** is the Suspense fallback for that children slot, so a tap
+  lands on a skeleton inside the real chrome rather than on the old page. It is one
+  heading and three cards' worth of `bg-paper-sunk` bars — deliberately not shaped like
+  any particular tab.
+- **`loadHouseholdContext()` is `cache()`d**, so the layout's `requireOnboarded()` and
+  the page's own share one load, and it fetches the membership, the household and its
+  properties in a single embedded query. The oldest property is picked in JS because an
+  embed two levels down can't be ordered in the query.
+- **Pages fan out.** Every screen in the group fires its independent reads in one
+  `Promise.all`. On the dashboard that includes the scheduled reminders — the query only
+  needs the household id, so `scheduledReminders()` fetches and `remindedEntries()`
+  matches the rows to documents afterwards.
 
 ## Conventions
 
