@@ -38,17 +38,6 @@ export default async function FamilyPage() {
       </div>
 
       <Card
-        title="Who lives here"
-        action={
-          <span className="tnum text-xs text-ink-faint">
-            {people.length} {people.length === 1 ? "person" : "people"}
-          </span>
-        }
-      >
-        <PeoplePanel people={people} schools={schools} locale={locale} />
-      </Card>
-
-      <Card
         title="Schools"
         action={
           children.length > 0 ? (
@@ -64,6 +53,17 @@ export default async function FamilyPage() {
           calendarEvents={calendarEvents}
           locale={locale}
         />
+      </Card>
+
+      <Card
+        title="Who lives here"
+        action={
+          <span className="tnum text-xs text-ink-faint">
+            {people.length} {people.length === 1 ? "person" : "people"}
+          </span>
+        }
+      >
+        <PeoplePanel people={people} schools={schools} locale={locale} />
       </Card>
 
       <Card title="Key dates">

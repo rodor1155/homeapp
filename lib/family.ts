@@ -194,7 +194,10 @@ export async function loadSchools(
     .select(SCHOOLS_SELECT)
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
-  if (error) return [];
+  if (error) {
+    console.error("[family] loadSchools", error.message);
+    return [];
+  }
   return (data as School[] | null) ?? [];
 }
 

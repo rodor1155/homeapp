@@ -93,7 +93,8 @@ export async function savePerson(
   // refusing the save over one would be out of proportion.
   const relation = asPersonRelation(text(formData, "relation"));
   const birthday = optional(formData, "birthday");
-  const schoolId = optional(formData, "school_id");
+  let schoolId = optional(formData, "school_id");
+  const newSchoolName = optional(formData, "new_school_name");
   const yearGroup = optional(formData, "year_group");
   const notes = optional(formData, "notes");
 
@@ -116,13 +117,25 @@ export async function savePerson(
   const caller = await resolveCaller(supabase);
   if (!caller.ok) return { error: caller.error };
 
+  // Child form can mint a school in the same save when the list is empty (or
+  // when the household types a new name instead of picking). Adults ignore it.
+  if (kind === "child" && newSchoolName && !schoolId) {
+    const { data: created, error: schoolError } = await supabase
+      .from("schools")
+      .insert({ household_id: caller.householdId, name: newSchoolName })
+      .select("id")
+      .single();
+    if (schoolError) return { error: schoolError.message };
+    schoolId = created.id as string;
+  }
+
   const values = {
     name,
     kind,
     relation,
     birthday,
-    school_id: schoolId,
-    year_group: yearGroup,
+    school_id: kind === "child" ? schoolId : null,
+    year_group: kind === "child" ? yearGroup : null,
     notes,
   };
 

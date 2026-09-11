@@ -140,6 +140,11 @@ function PersonForm({
     undefined
   );
   const [kind, setKind] = useState<PersonKind>(person?.kind ?? "adult");
+  // "__new__" shows a name field so a child can get a school without leaving
+  // this form — the empty-list case that used to dead-end on "Not at school".
+  const [schoolChoice, setSchoolChoice] = useState<string>(
+    person?.school_id ?? (schools.length === 0 ? "__new__" : "")
+  );
 
   useEffect(() => {
     if (state?.ok) onDone();
@@ -215,15 +220,16 @@ function PersonForm({
             label="School"
             hint="optional"
             note={
-              schools.length === 0
-                ? "Add a school further down the page and it will show up here."
+              schoolChoice === "__new__"
+                ? "Saved with this child. You can add the address under Schools anytime."
                 : undefined
             }
           >
             <select
-              name="school_id"
-              defaultValue={person?.school_id ?? ""}
+              value={schoolChoice}
+              onChange={(e) => setSchoolChoice(e.target.value)}
               className="field-input"
+              aria-label="School"
             >
               <option value="">Not at school</option>
               {schools.map((school) => (
@@ -231,8 +237,26 @@ function PersonForm({
                   {school.name}
                 </option>
               ))}
+              <option value="__new__">Add a new school…</option>
             </select>
+            <input
+              type="hidden"
+              name="school_id"
+              value={schoolChoice === "__new__" ? "" : schoolChoice}
+            />
           </Field>
+
+          {schoolChoice === "__new__" ? (
+            <Field label="New school name">
+              <input
+                name="new_school_name"
+                type="text"
+                required
+                className="field-input"
+                placeholder="St Mary’s Primary"
+              />
+            </Field>
+          ) : null}
 
           <Field label="School year" hint="optional">
             <select

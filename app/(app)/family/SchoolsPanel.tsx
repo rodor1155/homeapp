@@ -300,8 +300,9 @@ function SchoolForm({
       >
         <input
           name="calendar_url"
-          type="url"
+          type="text"
           inputMode="url"
+          autoComplete="off"
           defaultValue={school?.calendar_url ?? ""}
           className="field-input"
           placeholder="https://school.example/calendar.ics"
