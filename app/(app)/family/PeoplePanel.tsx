@@ -9,9 +9,14 @@ import {
 import { Button, Field } from "@/components/ui";
 import { formatDate, relativeWhen } from "@/lib/dates";
 import {
+  isSchoolYear,
   nextBirthday,
+  personSummary,
   PERSON_KINDS,
   PERSON_KIND_LABEL,
+  PERSON_RELATIONS,
+  PERSON_RELATION_LABEL,
+  SCHOOL_YEARS,
   type HouseholdPerson,
   type PersonKind,
   type School,
@@ -75,14 +80,9 @@ function PersonRow({
 
   const school = schools.find((s) => s.id === person.school_id) ?? null;
   const birthday = nextBirthday(person.birthday);
-
-  const meta = [
-    PERSON_KIND_LABEL[person.kind],
-    school?.name,
-    person.year_group,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // "Daughter · St Mary’s · Year 5" — the relation stands in for the kind
+  // whenever there is one.
+  const meta = personSummary(person, school?.name);
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -178,6 +178,25 @@ function PersonForm({
       </Field>
 
       <Field
+        label="How they’re related"
+        hint="optional"
+        note="Just what you'd call them. Nothing depends on it."
+      >
+        <select
+          name="relation"
+          defaultValue={person?.relation ?? ""}
+          className="field-input"
+        >
+          <option value="">Not saying</option>
+          {PERSON_RELATIONS.map((option) => (
+            <option key={option} value={option}>
+              {PERSON_RELATION_LABEL[option]}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
         label="Birthday"
         hint="optional"
         note="This is what puts their birthday on your home screen."
@@ -215,14 +234,24 @@ function PersonForm({
             </select>
           </Field>
 
-          <Field label="Year or class" hint="optional">
-            <input
+          <Field label="School year" hint="optional">
+            <select
               name="year_group"
-              type="text"
               defaultValue={person?.year_group ?? ""}
               className="field-input"
-              placeholder="Year 4"
-            />
+            >
+              <option value="">Not saying</option>
+              {/* A value typed in before this was a picker keeps an option of
+                  its own, so opening the form can't quietly drop it. */}
+              {person?.year_group && !isSchoolYear(person.year_group) ? (
+                <option value={person.year_group}>{person.year_group}</option>
+              ) : null}
+              {SCHOOL_YEARS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </Field>
         </>
       ) : null}

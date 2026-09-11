@@ -5,26 +5,32 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
+  Share2,
 } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   birthdayEntries,
+  COMING_UP_TONE,
   documentEntries,
   eventEntries,
   groupByMonth,
   mergeComingUp,
   schoolEntries,
+  sharedEntries,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import {
+  loadHouseholdCalendarEvents,
+  loadHouseholdCalendars,
   loadHouseholdEvents,
   loadHouseholdPeople,
   loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
 import type { Locale } from "@/lib/household";
+import { TONE_PILL } from "@/lib/tones";
 import {
   documentLabel,
   upcomingDates,
@@ -48,6 +54,7 @@ const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,
+  shared: Share2,
 };
 
 type ReminderRow = {
@@ -69,15 +76,25 @@ export default async function ComingUpSection({
   locale: Locale;
 }) {
   const supabase = await createClient();
-  const [documents, scheduled, people, events, schools, schoolDates] =
-    await Promise.all([
-      loadOverviewDocuments(householdId),
-      scheduledReminders(supabase, householdId),
-      loadHouseholdPeople(supabase, householdId),
-      loadHouseholdEvents(supabase, householdId),
-      loadSchools(supabase, householdId),
-      loadSchoolCalendarEvents(supabase, householdId),
-    ]);
+  const [
+    documents,
+    scheduled,
+    people,
+    events,
+    schools,
+    schoolDates,
+    calendars,
+    sharedDates,
+  ] = await Promise.all([
+    loadOverviewDocuments(householdId),
+    scheduledReminders(supabase, householdId),
+    loadHouseholdPeople(supabase, householdId),
+    loadHouseholdEvents(supabase, householdId),
+    loadSchools(supabase, householdId),
+    loadSchoolCalendarEvents(supabase, householdId),
+    loadHouseholdCalendars(supabase, householdId),
+    loadHouseholdCalendarEvents(supabase, householdId),
+  ]);
 
   const reminded = remindedEntries(scheduled, documents);
   const entries = mergeComingUp(
@@ -86,7 +103,8 @@ export default async function ComingUpSection({
     ),
     birthdayEntries(people),
     eventEntries(events, people),
-    schoolEntries(schoolDates, schools)
+    schoolEntries(schoolDates, schools),
+    sharedEntries(sharedDates, calendars)
   );
 
   return (
@@ -180,10 +198,14 @@ function Entry({
 
       <div className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2.5">
+          {/* The next thing wears ochre whatever it is — that is attention,
+              not a kind. Everything below it keeps its own colour. */}
           <span
             aria-hidden
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
-              headline ? "bg-ochre-tint text-ochre" : "bg-sage-tint text-sage"
+              headline
+                ? "bg-ochre-tint text-ochre"
+                : TONE_PILL[COMING_UP_TONE[entry.kind]]
             }`}
           >
             <Icon size={17} strokeWidth={1.9} />

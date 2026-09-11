@@ -3,20 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalisePostcode } from "@/lib/address-lookup";
 import {
   asEventType,
   asPersonKind,
+  asPersonRelation,
   parseDateParts,
 } from "@/lib/family";
-import {
-  normaliseCalendarUrl,
-  syncSchoolCalendar,
-} from "@/lib/school-calendar";
+import { syncHouseholdCalendar } from "@/lib/household-calendar";
+import { normaliseCalendarUrl } from "@/lib/ics";
+import { syncSchoolCalendar } from "@/lib/school-calendar";
 import { createClient } from "@/lib/supabase-server";
 
-/* People, schools and key dates. Everything here runs on the cookie client,
-   so RLS decides what the caller can touch; the household is resolved the
-   same way the rest of the app resolves it — the oldest membership. */
+/* People, schools, key dates and the household's own linked calendars.
+   Everything here runs on the cookie client, so RLS decides what the caller
+   can touch; the household is resolved the same way the rest of the app
+   resolves it — the oldest membership. */
 
 export type FamilyState = { error?: string; ok?: boolean } | undefined;
 
@@ -66,8 +68,14 @@ function isRealDate(value: string): boolean {
   );
 }
 
+/**
+ * The three screens any of this shows up on. /calendar is in here because a
+ * date can now be added from it as well as from /family, and a month that
+ * still showed the old list would be the one thing you'd notice.
+ */
 function refresh() {
   revalidatePath("/family");
+  revalidatePath("/calendar");
   revalidatePath("/dashboard");
 }
 
@@ -81,6 +89,9 @@ export async function savePerson(
   const personId = text(formData, "person_id");
   const name = text(formData, "name");
   const kind = asPersonKind(text(formData, "kind") || "adult");
+  // Off-list or blank is stored as null: the relation is a nicety, and
+  // refusing the save over one would be out of proportion.
+  const relation = asPersonRelation(text(formData, "relation"));
   const birthday = optional(formData, "birthday");
   const schoolId = optional(formData, "school_id");
   const yearGroup = optional(formData, "year_group");
@@ -108,6 +119,7 @@ export async function savePerson(
   const values = {
     name,
     kind,
+    relation,
     birthday,
     school_id: schoolId,
     year_group: yearGroup,
@@ -163,11 +175,18 @@ export async function saveSchool(
   const schoolId = text(formData, "school_id");
   const name = text(formData, "name");
   const address = optional(formData, "address");
+  const postcodeRaw = optional(formData, "postcode");
   const notes = optional(formData, "notes");
   const calendarTitle = optional(formData, "calendar_title");
   const calendarRaw = text(formData, "calendar_url");
 
   if (!name) return { error: "Give the school a name." };
+
+  // Tidied to "SW1A 1AA" when it is one, kept as typed when it isn't — a
+  // school outside the UK still has something worth writing in the box.
+  const postcode = postcodeRaw
+    ? normalisePostcode(postcodeRaw) ?? postcodeRaw
+    : null;
 
   let calendarUrl: string | null = null;
   if (calendarRaw) {
@@ -183,6 +202,7 @@ export async function saveSchool(
   const values = {
     name,
     address,
+    postcode,
     notes,
     calendar_url: calendarUrl,
     calendar_title: calendarTitle,
@@ -289,6 +309,146 @@ export async function deleteSchool(
     .from("schools")
     .delete()
     .eq("id", schoolId)
+    .eq("household_id", caller.householdId);
+  if (error) return { error: error.message };
+
+  refresh();
+  return { ok: true };
+}
+
+// --- the household's own shared calendars --------------------------------
+
+/**
+ * Link a calendar the household shares, or save the edits to one. The same
+ * rules a school's feed gets: the link is validated before it is stored, and
+ * a changed one is read straight away so the page can show dates (or say why
+ * there are none) without anybody pressing Refresh.
+ */
+export async function saveHouseholdCalendar(
+  _prev: FamilyState,
+  formData: FormData
+): Promise<FamilyState> {
+  const calendarId = text(formData, "calendar_id");
+  const name = text(formData, "name");
+  const calendarTitle = optional(formData, "calendar_title");
+  const calendarRaw = text(formData, "calendar_url");
+
+  if (!name) return { error: "Give the calendar a name." };
+
+  let calendarUrl: string | null = null;
+  if (calendarRaw) {
+    const normalised = normaliseCalendarUrl(calendarRaw);
+    if ("error" in normalised) return { error: normalised.error };
+    calendarUrl = normalised.url;
+  }
+
+  const supabase = await createClient();
+  const caller = await resolveCaller(supabase);
+  if (!caller.ok) return { error: caller.error };
+
+  const values = {
+    name,
+    calendar_url: calendarUrl,
+    calendar_title: calendarTitle,
+  };
+
+  let savedId = calendarId;
+  let previousUrl: string | null = null;
+
+  if (calendarId) {
+    const { data: existing } = await supabase
+      .from("household_calendars")
+      .select("calendar_url")
+      .eq("id", calendarId)
+      .eq("household_id", caller.householdId)
+      .maybeSingle();
+    previousUrl = (existing?.calendar_url as string | null) ?? null;
+
+    const { error } = await supabase
+      .from("household_calendars")
+      .update(values)
+      .eq("id", calendarId)
+      .eq("household_id", caller.householdId);
+    if (error) return { error: error.message };
+  } else {
+    const { data, error } = await supabase
+      .from("household_calendars")
+      .insert({ household_id: caller.householdId, ...values })
+      .select("id")
+      .single();
+    if (error) return { error: error.message };
+    savedId = data.id as string;
+  }
+
+  // Clearing the link runs the sync too — that is what drops the cached
+  // occurrences. Never allowed to fail the save.
+  if (savedId && calendarUrl !== previousUrl) {
+    try {
+      await syncHouseholdCalendar(savedId);
+    } catch (error) {
+      console.error("[family] household calendar sync failed", savedId, error);
+    }
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Re-read one of the household's feeds now. Looked up on the cookie client
+ * first, so RLS decides whether this household may sync it — the sync itself
+ * runs on the service role.
+ */
+export async function refreshHouseholdCalendar(
+  _prev: FamilyState,
+  formData: FormData
+): Promise<FamilyState> {
+  const calendarId = text(formData, "calendar_id");
+  if (!calendarId) return { error: "Missing calendar." };
+
+  const supabase = await createClient();
+  const caller = await resolveCaller(supabase);
+  if (!caller.ok) return { error: caller.error };
+
+  const { data: calendar } = await supabase
+    .from("household_calendars")
+    .select("id, calendar_url")
+    .eq("id", calendarId)
+    .eq("household_id", caller.householdId)
+    .maybeSingle();
+  if (!calendar) return { error: "We couldn’t find that calendar." };
+  if (!(calendar.calendar_url as string | null)?.trim()) {
+    return { error: "Add a calendar link first." };
+  }
+
+  let result;
+  try {
+    result = await syncHouseholdCalendar(calendarId);
+  } catch (error) {
+    console.error("[family] household calendar refresh failed", calendarId, error);
+    return { error: "We couldn’t read that calendar just now." };
+  }
+
+  refresh();
+  return result.error ? { error: result.error } : { ok: true };
+}
+
+/** Unlink a shared calendar. Its cached occurrences cascade away with it. */
+export async function deleteHouseholdCalendar(
+  _prev: FamilyState,
+  formData: FormData
+): Promise<FamilyState> {
+  const calendarId = text(formData, "calendar_id");
+  if (!calendarId) return { error: "Missing calendar." };
+
+  const supabase = await createClient();
+  const caller = await resolveCaller(supabase);
+  if (!caller.ok) return { error: caller.error };
+
+  const { error } = await supabase
+    .from("household_calendars")
+    .delete()
+    .eq("id", calendarId)
     .eq("household_id", caller.householdId);
   if (error) return { error: error.message };
 

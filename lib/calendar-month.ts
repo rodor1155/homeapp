@@ -6,11 +6,14 @@ import {
   calendarEventDate,
   EVENT_TYPE_LABEL,
   parseDateParts,
+  type HouseholdCalendar,
+  type HouseholdCalendarEvent,
   type HouseholdEvent,
   type HouseholdPerson,
   type School,
   type SchoolCalendarEvent,
 } from "@/lib/family";
+import type { Tone } from "@/lib/tones";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,7 +24,34 @@ const MAX_YEAR = 2999;
 /** A month as the URL carries it. `month` is 1–12, not a Date's 0–11. */
 export type MonthKey = { year: number; month: number };
 
-export type CalendarKind = "birthday" | "event" | "school";
+export type CalendarKind = "birthday" | "event" | "school" | "shared";
+
+/** The order the legend reads and the dots sit in on a day. */
+export const CALENDAR_KINDS: readonly CalendarKind[] = [
+  "birthday",
+  "event",
+  "school",
+  "shared",
+];
+
+export const CALENDAR_KIND_LABEL: Record<CalendarKind, string> = {
+  birthday: "Birthdays",
+  event: "Key dates",
+  school: "School",
+  shared: "Shared",
+};
+
+/**
+ * Which colour each kind wears, here rather than on the page so the month
+ * grid, the list under it and the dashboard's "Coming up" agree. Birthdays
+ * keep the house green; the three feeds and typed-in dates take a pastel each.
+ */
+export const CALENDAR_KIND_TONE: Record<CalendarKind, Tone> = {
+  birthday: "sage",
+  event: "lilac",
+  school: "peach",
+  shared: "sky",
+};
 
 /** One thing on one day. Documents are deliberately not in here — a renewal
  *  is a reminder, not somewhere the household has to be. */
@@ -188,6 +218,37 @@ export function schoolItems(
       kind: "school",
       title: event.title,
       note: labelById.get(event.school_id) ?? "School calendar",
+      date,
+    });
+  }
+
+  return items;
+}
+
+/** What the household's own linked feeds say about this month. */
+export function sharedItems(
+  calendarEvents: readonly HouseholdCalendarEvent[],
+  calendars: readonly HouseholdCalendar[],
+  key: MonthKey
+): CalendarItem[] {
+  const prefix = monthParam(key);
+  const labelById = new Map(
+    calendars.map((calendar) => [
+      calendar.id,
+      calendar.name.trim() || calendar.calendar_title?.trim() || "Shared calendar",
+    ])
+  );
+  const items: CalendarItem[] = [];
+
+  for (const event of calendarEvents) {
+    const date = calendarEventDate(event.starts_at);
+    if (!date || !date.startsWith(prefix)) continue;
+
+    items.push({
+      key: `shared-${event.id}`,
+      kind: "shared",
+      title: event.title,
+      note: labelById.get(event.calendar_id) ?? "Shared calendar",
       date,
     });
   }

@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Category } from "@/lib/categories";
+import type { Tone } from "@/lib/tones";
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   Insurance: ShieldCheck,

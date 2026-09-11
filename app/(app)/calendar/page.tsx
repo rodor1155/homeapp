@@ -5,11 +5,15 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  Share2,
   type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   birthdayItems,
+  CALENDAR_KIND_LABEL,
+  CALENDAR_KIND_TONE,
+  CALENDAR_KINDS,
   currentMonth,
   eventItems,
   itemsByDate,
@@ -19,6 +23,7 @@ import {
   parseMonthKey,
   sameMonth,
   schoolItems,
+  sharedItems,
   shiftMonth,
   sortItems,
   type CalendarItem,
@@ -32,45 +37,33 @@ import {
   weekStartsOn,
 } from "@/lib/dates";
 import {
+  loadHouseholdCalendarEventsBetween,
+  loadHouseholdCalendars,
   loadHouseholdEvents,
   loadHouseholdPeople,
   loadSchoolCalendarEventsBetween,
   loadSchools,
 } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
+import { TONE_DOT, TONE_PILL, TONE_WASH } from "@/lib/tones";
+import AddDateCard from "./AddDateCard";
+import SharedCalendarsPanel from "./SharedCalendarsPanel";
 
 export const metadata = { title: "Calendar · homeapp" };
 
-/* The household's month: the birthdays it derives, the dates someone typed in
-   and whatever the schools' feeds say, on one grid. Everything here is a
-   server render and a link — a month is a URL (`?ym=2026-10`), so the back
-   button works and a month can be shared. */
+/* The household's month: the birthdays it derives, the dates someone typed in,
+   whatever the schools' feeds say and whatever the household's own linked
+   calendars do, on one grid. A month is a URL (`?ym=2026-10`), so the back
+   button works and a month can be shared.
 
-const KINDS: readonly CalendarKind[] = ["birthday", "event", "school"];
-
-const KIND_LABEL: Record<CalendarKind, string> = {
-  birthday: "Birthdays",
-  event: "Key dates",
-  school: "School",
-};
+   Colour is the only thing telling the four apart, and it comes from
+   lib/tones.ts through each kind's tone — never a class written here. */
 
 const KIND_ICON: Record<CalendarKind, LucideIcon> = {
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,
-};
-
-/** The dot on a day, and the icon pill in the list under the grid. */
-const KIND_DOT: Record<CalendarKind, string> = {
-  birthday: "bg-sage-soft",
-  event: "bg-navy",
-  school: "bg-ochre",
-};
-
-const KIND_PILL: Record<CalendarKind, string> = {
-  birthday: "bg-sage-tint text-sage",
-  event: "bg-navy-tint text-ink",
-  school: "bg-ochre-tint text-ochre",
+  shared: Share2,
 };
 
 function first(value: string | string[] | undefined): string | null {
@@ -88,22 +81,30 @@ export default async function CalendarPage({
   const month = parseMonthKey(first((await searchParams).ym));
   const bounds = monthBounds(month);
 
-  const [people, schools, events, calendarEvents] = await Promise.all([
+  const fromIso = `${bounds.from}T00:00:00.000Z`;
+  const toIso = `${bounds.to}T23:59:59.999Z`;
+
+  const [
+    people,
+    schools,
+    events,
+    schoolDates,
+    calendars,
+    sharedDates,
+  ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
     loadHouseholdEvents(supabase, household.id),
-    loadSchoolCalendarEventsBetween(
-      supabase,
-      household.id,
-      `${bounds.from}T00:00:00.000Z`,
-      `${bounds.to}T23:59:59.999Z`
-    ),
+    loadSchoolCalendarEventsBetween(supabase, household.id, fromIso, toIso),
+    loadHouseholdCalendars(supabase, household.id),
+    loadHouseholdCalendarEventsBetween(supabase, household.id, fromIso, toIso),
   ]);
 
   const items = sortItems([
     ...birthdayItems(people, month),
     ...eventItems(events, people, month),
-    ...schoolItems(calendarEvents, schools, month),
+    ...schoolItems(schoolDates, schools, month),
+    ...sharedItems(sharedDates, calendars, month),
   ]);
 
   const byDate = itemsByDate(items);
@@ -116,8 +117,8 @@ export default async function CalendarPage({
         <div className="min-w-0">
           <h1 className="text-2xl">Calendar</h1>
           <p className="mt-0.5 text-sm text-ink-soft">
-            Birthdays, the dates you typed in and the schools&rsquo; own terms,
-            all on one month.
+            Birthdays, the dates you typed in, the schools&rsquo; own terms and
+            any calendar you share, all on one month.
           </p>
         </div>
         {sameMonth(month, currentMonth()) ? null : (
@@ -136,13 +137,15 @@ export default async function CalendarPage({
           locale={locale}
         />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-rule px-4 py-3 text-xs text-ink-faint">
-          {KINDS.map((kind) => (
+          {CALENDAR_KINDS.map((kind) => (
             <span key={kind} className="flex items-center gap-1.5">
               <span
                 aria-hidden
-                className={`h-1.5 w-1.5 rounded-pill ${KIND_DOT[kind]}`}
+                className={`h-1.5 w-1.5 rounded-pill ${
+                  TONE_DOT[CALENDAR_KIND_TONE[kind]]
+                }`}
               />
-              {KIND_LABEL[kind]}
+              {CALENDAR_KIND_LABEL[kind]}
             </span>
           ))}
         </div>
@@ -182,12 +185,36 @@ export default async function CalendarPage({
         )}
       </Card>
 
+      <AddDateCard
+        people={people}
+        defaultDate={bounds.from}
+        monthLabel={label}
+      />
+
+      <Card
+        title="Shared calendars"
+        action={
+          calendars.length > 0 ? (
+            <span className="tnum text-xs text-ink-faint">
+              {calendars.length}{" "}
+              {calendars.length === 1 ? "calendar" : "calendars"}
+            </span>
+          ) : undefined
+        }
+      >
+        <SharedCalendarsPanel
+          calendars={calendars}
+          events={sharedDates}
+          locale={locale}
+        />
+      </Card>
+
       <p className="px-1 pt-2 text-center text-xs text-ink-faint">
-        Add a birthday or a key date on{" "}
+        Birthdays come from the people on{" "}
         <Link href="/family" className="text-action text-xs">
           Family
         </Link>
-        . Term dates are read from each school&rsquo;s calendar link, about
+        . Term dates and shared calendars are read from their own links, about
         four months ahead.
       </p>
     </div>
@@ -266,18 +293,20 @@ function Grid({
 
       <div className="grid grid-cols-7 gap-0.5">
         {days.map((day) => {
-          const kinds = KINDS.filter((kind) =>
+          const kinds = CALENDAR_KINDS.filter((kind) =>
             (byDate.get(day.date) ?? []).some((item) => item.kind === kind)
           );
           const marked = kinds.length > 0 && day.inMonth;
+          // A busy day takes the wash of its first kind, so the month reads
+          // as colour from arm's length and the dots say the rest.
+          const wash = marked ? TONE_WASH[CALENDAR_KIND_TONE[kinds[0]]] : "";
+
           return (
             <div
               key={day.date}
-              className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm ${
-                marked ? "bg-sage-wash" : ""
-              } ${day.inMonth ? "text-ink" : "text-ink-faint opacity-60"} ${
-                day.date === today ? "ring-1 ring-inset ring-navy" : ""
-              }`}
+              className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm ${wash} ${
+                day.inMonth ? "text-ink" : "text-ink-faint opacity-60"
+              } ${day.date === today ? "ring-1 ring-inset ring-navy" : ""}`}
             >
               <span
                 className={`tnum ${day.date === today ? "font-semibold" : ""}`}
@@ -289,7 +318,9 @@ function Grid({
                   ? kinds.map((kind) => (
                       <span
                         key={kind}
-                        className={`h-1.5 w-1.5 rounded-pill ${KIND_DOT[kind]}`}
+                        className={`h-1.5 w-1.5 rounded-pill ${
+                          TONE_DOT[CALENDAR_KIND_TONE[kind]]
+                        }`}
                       />
                     ))
                   : null}
@@ -313,7 +344,7 @@ function Row({ item, today }: { item: CalendarItem; today: boolean }) {
       <span
         aria-hidden
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
-          KIND_PILL[item.kind]
+          TONE_PILL[CALENDAR_KIND_TONE[item.kind]]
         }`}
       >
         <Icon size={17} strokeWidth={1.9} />

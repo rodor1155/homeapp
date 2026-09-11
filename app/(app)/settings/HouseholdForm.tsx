@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/settings";
 import type { Locale } from "@/lib/household";
 import { PROPERTY_TYPES } from "@/lib/property";
+import AddressPicker from "@/components/AddressPicker";
 import { Button, Field } from "@/components/ui";
 
 type Props = {
@@ -38,6 +39,10 @@ export default function HouseholdForm({
   const [yearBuilt, setYearBuilt] = useState(
     defaultYearBuilt ? String(defaultYearBuilt) : ""
   );
+  // The picker's own field. `properties` has no postcode column — the
+  // postcode belongs inside the address here, which is the form that has
+  // always held it, so this is only ever the way in to the lookup.
+  const [postcode, setPostcode] = useState("");
 
   const complete =
     name.trim().length > 0 &&
@@ -61,6 +66,13 @@ export default function HouseholdForm({
           placeholder="Our household"
         />
       </Field>
+
+      <AddressPicker
+        label="Find by postcode"
+        postcode={postcode}
+        onPostcodeChange={setPostcode}
+        onPick={(lines) => setAddress(lines.join("\n"))}
+      />
 
       <Field label="Property address">
         <textarea

@@ -2,10 +2,17 @@
 // Setup gaps only — a date that is nearly here is already in "Coming up", and
 // saying it twice is noise. Pure shaping, so the caller does the reading.
 
-import type { HouseholdPerson, School } from "@/lib/family";
+import type { HouseholdCalendar, HouseholdPerson, School } from "@/lib/family";
+import type { Tone } from "@/lib/tones";
 
 /** Which soft icon a hint wears. Named, not imported, so this stays data. */
-export type HintIcon = "people" | "school" | "calendar" | "basket" | "file";
+export type HintIcon =
+  | "people"
+  | "school"
+  | "calendar"
+  | "shared"
+  | "basket"
+  | "file";
 
 export type HelpfulHint = {
   key: string;
@@ -13,12 +20,15 @@ export type HelpfulHint = {
   body: string;
   href: string;
   icon: HintIcon;
+  /** The colour the row sits in, so three hints read as three things. */
+  tone: Tone;
 };
 
 /** What the home screen already knows, reduced to what a hint turns on. */
 export type HintFacts = {
   people: readonly HouseholdPerson[];
   schools: readonly School[];
+  calendars: readonly HouseholdCalendar[];
   listCount: number;
   documentCount: number;
 };
@@ -31,13 +41,14 @@ export const MAX_HINTS = 3;
  * the household is set up — the section renders nothing at all.
  */
 export function helpfulHints(facts: HintFacts): HelpfulHint[] {
-  const { people, schools, listCount, documentCount } = facts;
+  const { people, schools, calendars, listCount, documentCount } = facts;
   const hints: HelpfulHint[] = [];
 
   if (people.length === 0) {
     hints.push({
       key: "people",
       icon: "people",
+      tone: "lilac",
       href: "/family",
       title: "Say who lives here",
       body: "Add the family and their birthdays come round on their own.",
@@ -47,6 +58,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
       hints.push({
         key: "birthdays",
         icon: "calendar",
+        tone: "sage",
         href: "/family",
         title: "Add a birthday or two",
         body: "Nobody has one yet, so the calendar has none of yours on it.",
@@ -61,6 +73,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
       hints.push({
         key: "school-link",
         icon: "school",
+        tone: "peach",
         href: "/family",
         title:
           unplaced.length === 1
@@ -77,6 +90,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "school-calendar",
       icon: "calendar",
+      tone: "peach",
       href: "/family",
       title:
         withoutFeed.length === 1
@@ -86,10 +100,22 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     });
   }
 
+  if (calendars.length === 0) {
+    hints.push({
+      key: "shared-calendar",
+      icon: "shared",
+      tone: "sky",
+      href: "/calendar",
+      title: "Link the family calendar",
+      body: "Paste the iCal link from a Google or Apple calendar and its dates join this month.",
+    });
+  }
+
   if (listCount === 0) {
     hints.push({
       key: "lists",
       icon: "basket",
+      tone: "sage",
       href: "/lists",
       title: "Start a shopping list",
       body: "Everyone here sees the same one, and can tick things off in the shop.",
@@ -100,6 +126,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "documents",
       icon: "file",
+      tone: "lilac",
       href: "/documents?upload=1#upload",
       title: "File your first document",
       body: "A photo of a policy or a bill is read and sorted for you, renewal date and all.",

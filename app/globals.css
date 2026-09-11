@@ -16,6 +16,14 @@
      sage     #7c9b7e   the accent: "filed", good news, illustration
      ochre    #9a6b1c   attention: "needs a look"
      oxblood  #a94a41   faults: "couldn't read it"
+     lilac    #a79ed6   pastel: key dates, the vehicle drawer
+     peach    #e3a985   pastel: school dates, the appliance drawer
+     sky      #8cb4d4   pastel: shared calendars, the insurance drawer
+
+   The three pastels carry no status — they tell one *kind* of thing from
+   another (which calendar a date came from, which drawer of the house file
+   you are looking at). Status stays sage / ochre / oxblood, and the map from
+   a kind to one of these lives in lib/tones.ts.
 
    Token names are unchanged from the previous system so every existing
    utility (bg-paper, text-ink, mark-filed, …) keeps working; only the values
@@ -44,6 +52,7 @@
   --color-navy: #1f2a44;
   --color-navy-soft: #33405f;
   --color-navy-tint: #eceef3;
+  --color-navy-wash: #f4f5f9;
 
   /* Sage — the accent. `sage` is the legible text weight, `sage-soft` the
      brand green for fills, dots and illustration. */
@@ -56,6 +65,26 @@
   --color-ochre: #9a6b1c;
   --color-ochre-tint: #f7efe0;
   --color-ochre-wash: #fbf6ec;
+
+  /* The pastels. Not statuses — they tell one kind of thing from another (a
+     filing drawer, a kind of date, a hint), so a screen reads as colour before
+     it reads as words. Each one has the four weights sage has: a legible text
+     colour, a `soft` fill for dots and illustration, a `tint` for icon pills,
+     and a paler `wash` for a whole row's background. */
+  --color-lilac: #645a96;
+  --color-lilac-soft: #a79ed6;
+  --color-lilac-tint: #ebe9f7;
+  --color-lilac-wash: #f5f4fb;
+
+  --color-peach: #a96a43;
+  --color-peach-soft: #e3a985;
+  --color-peach-tint: #fae9dd;
+  --color-peach-wash: #fdf4ee;
+
+  --color-sky: #3d6a90;
+  --color-sky-soft: #8cb4d4;
+  --color-sky-tint: #e3edf6;
+  --color-sky-wash: #f1f6fa;
 
   --color-oxblood: #a94a41;
   --color-oxblood-tint: #fbeceb;
@@ -105,6 +134,7 @@
     --color-navy: #c9d2e6;
     --color-navy-soft: #dbe2f0;
     --color-navy-tint: #232a3a;
+    --color-navy-wash: #1b202b;
 
     --color-sage: #9dbb9f;
     --color-sage-soft: #7c9b7e;
@@ -114,6 +144,25 @@
     --color-ochre: #d5a860;
     --color-ochre-tint: #2c2417;
     --color-ochre-wash: #241e14;
+
+    /* The pastels invert the same way the rest does: the text weight becomes
+       the light tone, and the tint and wash become dark grounds the soft fill
+       still reads on. The wash is the quieter of the two, as it is in the
+       light theme — barely off the card. */
+    --color-lilac: #b9b0e6;
+    --color-lilac-soft: #a79ed6;
+    --color-lilac-tint: #262239;
+    --color-lilac-wash: #1e1c2a;
+
+    --color-peach: #e4ab86;
+    --color-peach-soft: #e3a985;
+    --color-peach-tint: #33251b;
+    --color-peach-wash: #251c15;
+
+    --color-sky: #9dc2e0;
+    --color-sky-soft: #8cb4d4;
+    --color-sky-tint: #1d2835;
+    --color-sky-wash: #171f28;
 
     --color-oxblood: #de8880;
     --color-oxblood-tint: #2e1d1c;

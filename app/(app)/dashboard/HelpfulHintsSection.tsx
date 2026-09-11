@@ -4,13 +4,18 @@ import {
   ChevronRight,
   FilePlus2,
   GraduationCap,
+  Share2,
   ShoppingBasket,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { Card } from "@/components/ui";
 import { formatWeekdayDate } from "@/lib/dates";
-import { loadHouseholdPeople, loadSchools } from "@/lib/family";
+import {
+  loadHouseholdCalendars,
+  loadHouseholdPeople,
+  loadSchools,
+} from "@/lib/family";
 import type { Locale } from "@/lib/household";
 import {
   helpfulHints,
@@ -19,6 +24,7 @@ import {
 } from "@/lib/helpful-hints";
 import { loadShoppingLists } from "@/lib/shopping";
 import { createClient } from "@/lib/supabase-server";
+import { TONE_PILL, TONE_WASH, TONE_WASH_HOVER } from "@/lib/tones";
 import { loadOverviewDocuments } from "./overview-data";
 
 /* The morning's two or three suggestions. Everything it reads is either a
@@ -30,6 +36,7 @@ const HINT_ICON: Record<HintIcon, LucideIcon> = {
   people: Users,
   school: GraduationCap,
   calendar: CalendarDays,
+  shared: Share2,
   basket: ShoppingBasket,
   file: FilePlus2,
 };
@@ -42,9 +49,10 @@ export default async function HelpfulHintsSection({
   locale: Locale;
 }) {
   const supabase = await createClient();
-  const [people, schools, lists, documents] = await Promise.all([
+  const [people, schools, calendars, lists, documents] = await Promise.all([
     loadHouseholdPeople(supabase, householdId),
     loadSchools(supabase, householdId),
+    loadHouseholdCalendars(supabase, householdId),
     loadShoppingLists(supabase, householdId),
     loadOverviewDocuments(householdId),
   ]);
@@ -52,6 +60,7 @@ export default async function HelpfulHintsSection({
   const hints = helpfulHints({
     people,
     schools,
+    calendars,
     listCount: lists.length,
     documentCount: documents.length,
   });
@@ -85,11 +94,15 @@ function HelpfulHints({
             <li key={hint.key}>
               <Link
                 href={hint.href}
-                className="flex items-center gap-3 rounded-lg bg-sage-wash px-3 py-2.5 transition-colors hover:bg-sage-tint"
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                  TONE_WASH[hint.tone]
+                } ${TONE_WASH_HOVER[hint.tone]}`}
               >
                 <span
                   aria-hidden
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-sage-tint text-sage"
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
+                    TONE_PILL[hint.tone]
+                  }`}
                 >
                   <Icon size={17} strokeWidth={1.9} />
                 </span>

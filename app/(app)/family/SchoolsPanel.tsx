@@ -7,6 +7,7 @@ import {
   saveSchool,
   type FamilyState,
 } from "@/app/actions/family";
+import AddressPicker from "@/components/AddressPicker";
 import { Button, Field } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import {
@@ -93,9 +94,11 @@ function SchoolRow({
   const [editing, setEditing] = useState(false);
   const stopEditing = useCallback(() => setEditing(false), []);
 
+  // "Ada (Year 5) and Sam (Year 3)" — the year in brackets rather than after
+  // a comma, so two children don't read as four names.
   const who = listNames(
     attending.map((person) =>
-      [person.name, person.year_group].filter(Boolean).join(", ")
+      person.year_group ? `${person.name} (${person.year_group})` : person.name
     )
   );
 
@@ -111,6 +114,8 @@ function SchoolRow({
             <p className="mt-0.5 whitespace-pre-line text-xs text-ink-soft">
               {school.address}
             </p>
+          ) : school.postcode ? (
+            <p className="mt-0.5 text-xs text-ink-soft">{school.postcode}</p>
           ) : null}
         </div>
         <button
@@ -220,6 +225,10 @@ function SchoolForm({
     saveSchool,
     undefined
   );
+  // The address is controlled only so the postcode picker can fill it in.
+  // Typing over it afterwards is the point, not an edge case.
+  const [postcode, setPostcode] = useState(school?.postcode ?? "");
+  const [address, setAddress] = useState(school?.address ?? "");
 
   useEffect(() => {
     if (state?.ok) onDone();
@@ -242,11 +251,19 @@ function SchoolForm({
         />
       </Field>
 
+      <AddressPicker
+        name="postcode"
+        postcode={postcode}
+        onPostcodeChange={setPostcode}
+        onPick={(lines) => setAddress(lines.join("\n"))}
+      />
+
       <Field label="Address" hint="optional">
         <textarea
           name="address"
-          rows={2}
-          defaultValue={school?.address ?? ""}
+          rows={3}
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
           className="field-input"
           placeholder="School Lane, Town"
         />

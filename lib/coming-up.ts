@@ -5,19 +5,40 @@ import {
   daysUntil,
   EVENT_TYPE_LABEL,
   nextBirthday,
+  type HouseholdCalendar,
+  type HouseholdCalendarEvent,
   type HouseholdEvent,
   type HouseholdPerson,
   type School,
   type SchoolCalendarEvent,
 } from "@/lib/family";
 import type { UpcomingDate } from "@/lib/home-overview";
+import type { Tone } from "@/lib/tones";
 
 /* One list for everything with a date on it: renewals read off documents,
    birthdays derived from the household's people, the dates someone typed in
-   by hand, and what the schools' own calendars say. Pure shaping — the caller
-   loads the rows. */
+   by hand, what the schools' own calendars say and what the household's own
+   linked feeds do. Pure shaping — the caller loads the rows. */
 
-export type ComingUpKind = "document" | "birthday" | "event" | "school";
+export type ComingUpKind =
+  | "document"
+  | "birthday"
+  | "event"
+  | "school"
+  | "shared";
+
+/**
+ * The colour each kind wears in the list. The same assignment the calendar
+ * uses (lib/calendar-month.ts), plus the neutral navy for a document — a
+ * renewal is paperwork, not somewhere to be.
+ */
+export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
+  document: "navy",
+  birthday: "sage",
+  event: "lilac",
+  school: "peach",
+  shared: "sky",
+};
 
 export type ComingUpEntry = {
   key: string;
@@ -39,6 +60,14 @@ export const BIRTHDAY_HORIZON_DAYS = 60;
  */
 export const SCHOOL_HORIZON_DAYS = 45;
 export const SCHOOL_ENTRY_LIMIT = 8;
+
+/**
+ * A household's own shared feed is the busiest thing here — a family Google
+ * calendar has something on most days — so it gets a shorter horizon and a
+ * tighter cap than the schools. The whole window is on /calendar.
+ */
+export const SHARED_HORIZON_DAYS = 21;
+export const SHARED_ENTRY_LIMIT = 6;
 
 export function documentEntries(
   dates: readonly UpcomingDate[],
@@ -133,6 +162,46 @@ export function schoolEntries(
       kind: "school",
       title: event.title,
       note: labelById.get(event.school_id) ?? "School calendar",
+      date,
+      daysAway,
+    });
+    if (entries.length >= limit) break;
+  }
+
+  return entries;
+}
+
+/**
+ * What the household's own linked calendars say, inside the shortest horizon
+ * of the lot. The note names the calendar, so a family diary and a fixtures
+ * feed don't read as the same thing.
+ */
+export function sharedEntries(
+  events: readonly HouseholdCalendarEvent[],
+  calendars: readonly HouseholdCalendar[] = [],
+  now: Date = new Date(),
+  withinDays: number = SHARED_HORIZON_DAYS,
+  limit: number = SHARED_ENTRY_LIMIT
+): ComingUpEntry[] {
+  const labelById = new Map(
+    calendars.map((calendar) => [
+      calendar.id,
+      calendar.name.trim() || calendar.calendar_title?.trim() || "Shared calendar",
+    ])
+  );
+  const entries: ComingUpEntry[] = [];
+
+  for (const event of events) {
+    const date = calendarEventDate(event.starts_at);
+    if (!date) continue;
+    const daysAway = daysUntil(date, now);
+    if (daysAway === null || daysAway < 0 || daysAway > withinDays) continue;
+
+    entries.push({
+      key: `shared-${event.id}`,
+      kind: "shared",
+      title: event.title,
+      note: labelById.get(event.calendar_id) ?? "Shared calendar",
       date,
       daysAway,
     });
