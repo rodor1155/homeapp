@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Backpack,
   Cake,
   CalendarDays,
   ChevronLeft,
@@ -26,6 +27,7 @@ import {
   sharedItems,
   shiftMonth,
   sortItems,
+  timetableItems,
   type CalendarItem,
   type CalendarKind,
   type MonthKey,
@@ -46,6 +48,7 @@ import {
   loadSchoolCalendarEventsBetween,
   loadSchools,
 } from "@/lib/family";
+import { loadPersonTimetableSlots } from "@/lib/timetable";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { TONE_DOT, TONE_PILL, TONE_WASH } from "@/lib/tones";
 import AddDateCard from "./AddDateCard";
@@ -58,7 +61,7 @@ export const metadata = { title: "Calendar · homeapp" };
    calendars do, on one grid. A month is a URL (`?ym=2026-10`), and a day is
    too (`?day=2026-10-14`), so the back button works and a day can be shared.
 
-   Colour is the only thing telling the four apart, and it comes from
+   Colour is the only thing telling the kinds apart, and it comes from
    lib/tones.ts through each kind's tone — never a class written here. */
 
 const KIND_ICON: Record<CalendarKind, LucideIcon> = {
@@ -66,6 +69,7 @@ const KIND_ICON: Record<CalendarKind, LucideIcon> = {
   event: CalendarDays,
   school: GraduationCap,
   shared: Share2,
+  timetable: Backpack,
 };
 
 const DAY_PARAM = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -137,6 +141,7 @@ export default async function CalendarPage({
     schoolDatesLoad,
     calendarsLoad,
     sharedDatesLoad,
+    timetableLoad,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -144,6 +149,7 @@ export default async function CalendarPage({
     loadSchoolCalendarEventsBetween(supabase, household.id, fromIso, toIso),
     loadHouseholdCalendars(supabase, household.id),
     loadHouseholdCalendarEventsBetween(supabase, household.id, fromIso, toIso),
+    loadPersonTimetableSlots(supabase, household.id),
   ]);
 
   const people = peopleLoad.items;
@@ -152,13 +158,15 @@ export default async function CalendarPage({
   const schoolDates = schoolDatesLoad.items;
   const calendars = calendarsLoad.items;
   const sharedDates = sharedDatesLoad.items;
+  const timetableSlots = timetableLoad.items;
   const loadFault = firstFault(
     peopleLoad,
     schoolsLoad,
     eventsLoad,
     schoolDatesLoad,
     calendarsLoad,
-    sharedDatesLoad
+    sharedDatesLoad,
+    timetableLoad
   );
 
   const items = sortItems([
@@ -166,6 +174,7 @@ export default async function CalendarPage({
     ...eventItems(events, people, month),
     ...schoolItems(schoolDates, schools, month, people),
     ...sharedItems(sharedDates, calendars, month),
+    ...timetableItems(timetableSlots, people, month),
   ]);
 
   const byDate = itemsByDate(items);

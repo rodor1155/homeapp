@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  Backpack,
   Cake,
   CalendarDays,
   FileText,
@@ -17,6 +18,7 @@ import {
   mergeComingUp,
   schoolEntries,
   sharedEntries,
+  timetableEntries,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
@@ -30,6 +32,7 @@ import {
   loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
+import { loadPersonTimetableSlots } from "@/lib/timetable";
 import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
 import {
@@ -56,6 +59,7 @@ const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   event: CalendarDays,
   school: GraduationCap,
   shared: Share2,
+  timetable: Backpack,
 };
 
 type ReminderRow = {
@@ -86,6 +90,7 @@ export default async function ComingUpSection({
     schoolDatesLoad,
     calendarsLoad,
     sharedDatesLoad,
+    timetableLoad,
   ] = await Promise.all([
     loadOverviewDocuments(householdId),
     scheduledReminders(supabase, householdId),
@@ -95,6 +100,7 @@ export default async function ComingUpSection({
     loadSchoolCalendarEvents(supabase, householdId),
     loadHouseholdCalendars(supabase, householdId),
     loadHouseholdCalendarEvents(supabase, householdId),
+    loadPersonTimetableSlots(supabase, householdId),
   ]);
 
   const people = peopleLoad.items;
@@ -103,13 +109,15 @@ export default async function ComingUpSection({
   const schoolDates = schoolDatesLoad.items;
   const calendars = calendarsLoad.items;
   const sharedDates = sharedDatesLoad.items;
+  const timetableSlots = timetableLoad.items;
   const loadFault = firstFault(
     peopleLoad,
     eventsLoad,
     schoolsLoad,
     schoolDatesLoad,
     calendarsLoad,
-    sharedDatesLoad
+    sharedDatesLoad,
+    timetableLoad
   );
 
   const reminded = remindedEntries(scheduled, documents);
@@ -120,7 +128,8 @@ export default async function ComingUpSection({
     birthdayEntries(people),
     eventEntries(events, people),
     schoolEntries(schoolDates, schools, people),
-    sharedEntries(sharedDates, calendars)
+    sharedEntries(sharedDates, calendars),
+    timetableEntries(timetableSlots, people)
   );
 
   return (

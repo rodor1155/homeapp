@@ -9,9 +9,11 @@ import {
   loadSchools,
 } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
+import { loadPersonTimetableSlots } from "@/lib/timetable";
 import EventsPanel from "./EventsPanel";
 import PeoplePanel from "./PeoplePanel";
 import SchoolsPanel from "./SchoolsPanel";
+import TimetablePanel from "./TimetablePanel";
 
 export const metadata = { title: "Family · homeapp" };
 
@@ -19,18 +21,27 @@ export default async function FamilyPage() {
   const { supabase, household } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
-  const [peopleLoad, schoolsLoad, eventsLoad, calendarLoad] = await Promise.all([
-    loadHouseholdPeople(supabase, household.id),
-    loadSchools(supabase, household.id),
-    loadHouseholdEvents(supabase, household.id),
-    loadSchoolCalendarEvents(supabase, household.id),
-  ]);
+  const [peopleLoad, schoolsLoad, eventsLoad, calendarLoad, timetableLoad] =
+    await Promise.all([
+      loadHouseholdPeople(supabase, household.id),
+      loadSchools(supabase, household.id),
+      loadHouseholdEvents(supabase, household.id),
+      loadSchoolCalendarEvents(supabase, household.id),
+      loadPersonTimetableSlots(supabase, household.id),
+    ]);
 
   const people = peopleLoad.items;
   const schools = schoolsLoad.items;
   const events = eventsLoad.items;
   const calendarEvents = calendarLoad.items;
-  const loadFault = firstFault(peopleLoad, schoolsLoad, eventsLoad, calendarLoad);
+  const timetableSlots = timetableLoad.items;
+  const loadFault = firstFault(
+    peopleLoad,
+    schoolsLoad,
+    eventsLoad,
+    calendarLoad,
+    timetableLoad
+  );
 
   const children = people.filter((person) => person.kind === "child");
 
@@ -80,6 +91,24 @@ export default async function FamilyPage() {
         }
       >
         <PeoplePanel people={people} schools={schools} locale={locale} />
+      </Card>
+
+      <Card
+        title="School timetable"
+        action={
+          children.length > 0 ? (
+            <span className="tnum text-xs text-ink-faint">
+              {timetableSlots.length}{" "}
+              {timetableSlots.length === 1 ? "lesson" : "lessons"}
+            </span>
+          ) : undefined
+        }
+      >
+        <TimetablePanel
+          people={people}
+          slots={timetableSlots}
+          fault={timetableLoad.fault}
+        />
       </Card>
 
       <Card title="Key dates">

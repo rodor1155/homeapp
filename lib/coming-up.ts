@@ -19,6 +19,8 @@ import {
   householdChildYears,
 } from "@/lib/school-year-match";
 import type { Tone } from "@/lib/tones";
+import type { PersonTimetableSlot } from "@/lib/timetable";
+import { timetableComingUpEntries } from "@/lib/timetable";
 
 /* One list for everything with a date on it: renewals read off documents,
    birthdays derived from the household's people, the dates someone typed in
@@ -30,7 +32,8 @@ export type ComingUpKind =
   | "birthday"
   | "event"
   | "school"
-  | "shared";
+  | "shared"
+  | "timetable";
 
 /**
  * The colour each kind wears in the list. The same assignment the calendar
@@ -43,6 +46,7 @@ export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
   event: "lilac",
   school: "peach",
   shared: "sky",
+  timetable: "ochre",
 };
 
 export type ComingUpEntry = {
@@ -226,6 +230,25 @@ export function sharedEntries(
   }
 
   return entries;
+}
+
+/**
+ * Kit / ingredients cues (and plain lessons on the day) from each child's
+ * confirmed week. Europe/London day arithmetic lives in lib/timetable.
+ */
+export function timetableEntries(
+  slots: readonly PersonTimetableSlot[],
+  people: readonly HouseholdPerson[],
+  now: Date = new Date()
+): ComingUpEntry[] {
+  return timetableComingUpEntries(slots, people, now).map((entry) => ({
+    key: entry.key,
+    kind: "timetable" as const,
+    title: entry.title,
+    note: entry.note,
+    date: entry.date,
+    daysAway: entry.daysAway,
+  }));
 }
 
 /** Soonest first, then alphabetically so the order never wobbles. */

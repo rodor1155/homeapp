@@ -20,6 +20,10 @@ import {
   householdChildYears,
 } from "@/lib/school-year-match";
 import type { Tone } from "@/lib/tones";
+import {
+  timetableCalendarItems,
+  type PersonTimetableSlot,
+} from "@/lib/timetable";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,7 +34,7 @@ const MAX_YEAR = 2999;
 /** A month as the URL carries it. `month` is 1–12, not a Date's 0–11. */
 export type MonthKey = { year: number; month: number };
 
-export type CalendarKind = "birthday" | "event" | "school" | "shared";
+export type CalendarKind = "birthday" | "event" | "school" | "shared" | "timetable";
 
 /** The order the legend reads and the dots sit in on a day. */
 export const CALENDAR_KINDS: readonly CalendarKind[] = [
@@ -38,6 +42,7 @@ export const CALENDAR_KINDS: readonly CalendarKind[] = [
   "event",
   "school",
   "shared",
+  "timetable",
 ];
 
 export const CALENDAR_KIND_LABEL: Record<CalendarKind, string> = {
@@ -45,6 +50,7 @@ export const CALENDAR_KIND_LABEL: Record<CalendarKind, string> = {
   event: "Key dates",
   school: "School",
   shared: "Shared",
+  timetable: "Lessons",
 };
 
 /**
@@ -57,6 +63,7 @@ export const CALENDAR_KIND_TONE: Record<CalendarKind, Tone> = {
   event: "lilac",
   school: "peach",
   shared: "sky",
+  timetable: "ochre",
 };
 
 /** One thing on one day. Documents are deliberately not in here — a renewal
@@ -299,4 +306,21 @@ export function itemsByDate(
 
 function isoDate(at: Date): string {
   return at.toISOString().slice(0, 10);
+}
+
+
+/** Lessons from each child's confirmed weekly timetable in this month. */
+export function timetableItems(
+  slots: readonly PersonTimetableSlot[],
+  people: readonly HouseholdPerson[],
+  key: MonthKey
+): CalendarItem[] {
+  const { from, to } = monthBounds(key);
+  return timetableCalendarItems(slots, people, from, to).map((item) => ({
+    key: item.key,
+    kind: "timetable" as const,
+    date: item.date,
+    title: item.title,
+    note: item.note,
+  }));
 }
