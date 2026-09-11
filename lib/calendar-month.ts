@@ -3,6 +3,7 @@
 // decides where they land.
 
 import {
+  calendarDayParts,
   calendarEventDate,
   EVENT_TYPE_LABEL,
   parseDateParts,
@@ -73,7 +74,8 @@ export type CalendarDay = {
 };
 
 export function currentMonth(now: Date = new Date()): MonthKey {
-  return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+  const parts = calendarDayParts(now);
+  return { year: parts.year, month: parts.month };
 }
 
 /** A `?ym=2026-10` value, or this month if it is missing or nonsense. */

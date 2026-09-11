@@ -1,12 +1,14 @@
 import "server-only";
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 import { normalisePostcode } from "@/lib/address-lookup";
 
 /* Soft street-map underlay for the home hero. Geocode from the UK postcode
    sitting in the property address (postcodes.io, no key), then point the
-   browser at /api/home-map which stitches calm Carto Voyager tiles. If we
-   cannot place the home, the hero keeps its sage wash and nobody notices. */
+   browser at /api/home-map with a short-lived signed token so the stitch
+   route never has to be left open. If we cannot place the home, the hero
+   keeps its sage wash and nobody notices. */
 
 export type HomeMapPoint = {
   latitude: number;
@@ -16,6 +18,10 @@ export type HomeMapPoint = {
 };
 
 const FETCH_TIMEOUT_MS = 5_000;
+/** Token lifetime — long enough for a tab to stay open, short enough to blunt reuse. */
+const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
+/** Round coords so nearby homes share a stitch cache bucket. */
+export const HOME_MAP_COORD_DECIMALS = 3;
 
 /**
  * Where the home sits on a map, or null when the address has no UK postcode
@@ -30,11 +36,71 @@ export const resolveHomeMap = cache(
     const point = await geocodePostcode(postcode);
     if (!point) return null;
 
-    const { latitude, longitude } = point;
-    const imagePath = `/api/home-map?lat=${latitude.toFixed(5)}&lng=${longitude.toFixed(5)}`;
+    const latitude = roundCoord(point.latitude);
+    const longitude = roundCoord(point.longitude);
+    const token = mintHomeMapToken(latitude, longitude);
+    const imagePath =
+      `/api/home-map?lat=${latitude.toFixed(HOME_MAP_COORD_DECIMALS)}` +
+      `&lng=${longitude.toFixed(HOME_MAP_COORD_DECIMALS)}` +
+      `&t=${encodeURIComponent(token)}`;
     return { latitude, longitude, imagePath };
   }
 );
+
+export function roundCoord(value: number): number {
+  const factor = 10 ** HOME_MAP_COORD_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
+/** Signing material: prefer an explicit secret, else the service-role key. */
+function signingSecret(): string | null {
+  return (
+    process.env.HOME_MAP_SIGNING_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    null
+  );
+}
+
+/**
+ * Short-lived HMAC over rounded lat/lng. The API accepts this *or* a signed-in
+ * session, so the hero can load without a second round trip while anonymous
+ * stitch abuse stays closed.
+ */
+export function mintHomeMapToken(lat: number, lng: number, now = Date.now()): string {
+  const secret = signingSecret();
+  if (!secret) {
+    // Without a secret the route falls back to session auth only.
+    return "";
+  }
+  const exp = Math.floor((now + TOKEN_TTL_MS) / 1000);
+  const payload = `${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}:${exp}`;
+  const sig = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${exp}.${sig}`;
+}
+
+export function verifyHomeMapToken(
+  token: string,
+  lat: number,
+  lng: number,
+  now = Date.now()
+): boolean {
+  const secret = signingSecret();
+  if (!secret || !token) return false;
+  const [expRaw, sig] = token.split(".");
+  const exp = Number(expRaw);
+  if (!expRaw || !sig || !Number.isFinite(exp)) return false;
+  if (exp * 1000 < now) return false;
+
+  const payload = `${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}:${exp}`;
+  const expected = createHmac("sha256", secret).update(payload).digest("base64url");
+  try {
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 /** Pull the UK postcode out of a free-text address (often the last line). */
 function extractUkPostcode(address: string): string | null {

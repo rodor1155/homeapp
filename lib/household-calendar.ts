@@ -5,6 +5,7 @@ import {
   normaliseCalendarUrl,
   readCalendarFeed,
   type ParsedCalendar,
+  type ParsedCalendarEvent,
 } from "@/lib/ics";
 import { createAdminClient } from "@/lib/supabase-admin";
 
@@ -25,19 +26,31 @@ export type HouseholdCalendarSync = {
   error: string | null;
 };
 
+/** One in-flight sync per calendar so a double-tap on Refresh can't race. */
+const inflight = new Map<string, Promise<HouseholdCalendarSync>>();
+
 /**
- * Fetches one of the household's feeds and replaces its cached occurrences.
- * Safe to call as often as somebody presses Refresh: the cache is rebuilt
- * from scratch every time, so an event dropped from the feed disappears here
- * too, and clearing the link is what empties it.
- *
- * A failure leaves the previous rows and the previous "last read" alone and
- * records the reason on the calendar, so /calendar can say what happened
- * instead of pretending the feed is empty.
+ * Fetches one of the household's feeds and refreshes its cached occurrences
+ * without wiping first. Upserts by uid, then drops orphans — a failed insert
+ * leaves the previous rows alone.
  */
 export async function syncHouseholdCalendar(
   calendarId: string,
   now: Date = new Date()
+): Promise<HouseholdCalendarSync> {
+  const existing = inflight.get(calendarId);
+  if (existing) return existing;
+
+  const run = syncHouseholdCalendarInner(calendarId, now).finally(() => {
+    if (inflight.get(calendarId) === run) inflight.delete(calendarId);
+  });
+  inflight.set(calendarId, run);
+  return run;
+}
+
+async function syncHouseholdCalendarInner(
+  calendarId: string,
+  now: Date
 ): Promise<HouseholdCalendarSync> {
   const supabase = createAdminClient();
 
@@ -89,34 +102,14 @@ export async function syncHouseholdCalendar(
     return recordFailure(supabase, calendarId, message);
   }
 
-  const { error: clearErr } = await supabase
-    .from("household_calendar_events")
-    .delete()
-    .eq("calendar_id", calendarId);
-  if (clearErr) {
-    console.error("[household-calendar] clear failed", calendarId, clearErr);
+  const replaced = await replaceHouseholdEvents(
+    supabase,
+    calendarId,
+    householdId,
+    parsed.events
+  );
+  if (!replaced.ok) {
     return recordFailure(supabase, calendarId, "We couldn’t save that calendar.");
-  }
-
-  if (parsed.events.length > 0) {
-    const { error: insertErr } = await supabase
-      .from("household_calendar_events")
-      .insert(
-        parsed.events.map((event) => ({
-          calendar_id: calendarId,
-          household_id: householdId,
-          uid: event.uid,
-          title: event.title,
-          starts_at: event.startsAt,
-          ends_at: event.endsAt,
-          all_day: event.allDay,
-          location: event.location,
-        }))
-      );
-    if (insertErr) {
-      console.error("[household-calendar] insert failed", calendarId, insertErr);
-      return recordFailure(supabase, calendarId, "We couldn’t save that calendar.");
-    }
   }
 
   // The feed's own name only fills `calendar_title`, never `name` — the
@@ -131,6 +124,64 @@ export async function syncHouseholdCalendar(
   await supabase.from("household_calendars").update(patch).eq("id", calendarId);
 
   return { calendarId, count: parsed.events.length, error: null };
+}
+
+async function replaceHouseholdEvents(
+  supabase: AdminClient,
+  calendarId: string,
+  householdId: string,
+  events: ParsedCalendarEvent[]
+): Promise<{ ok: boolean }> {
+  const rows = events.map((event) => ({
+    calendar_id: calendarId,
+    household_id: householdId,
+    uid: stableEventUid(event),
+    title: event.title,
+    starts_at: event.startsAt,
+    ends_at: event.endsAt,
+    all_day: event.allDay,
+    location: event.location,
+  }));
+  const keep = new Set(rows.map((row) => row.uid));
+
+  if (rows.length > 0) {
+    const { error: upsertErr } = await supabase
+      .from("household_calendar_events")
+      .upsert(rows, { onConflict: "calendar_id,uid" });
+    if (upsertErr) {
+      console.error("[household-calendar] upsert failed", calendarId, upsertErr);
+      return { ok: false };
+    }
+  }
+
+  const { data: existing, error: listErr } = await supabase
+    .from("household_calendar_events")
+    .select("id, uid")
+    .eq("calendar_id", calendarId);
+  if (listErr) {
+    console.error("[household-calendar] list for prune failed", calendarId, listErr);
+    return { ok: true };
+  }
+
+  const toDelete = (existing ?? [])
+    .filter((row) => !keep.has(row.uid as string))
+    .map((row) => row.id as string);
+  if (toDelete.length > 0) {
+    const { error: deleteErr } = await supabase
+      .from("household_calendar_events")
+      .delete()
+      .in("id", toDelete);
+    if (deleteErr) {
+      console.error("[household-calendar] prune failed", calendarId, deleteErr);
+    }
+  }
+
+  return { ok: true };
+}
+
+function stableEventUid(event: ParsedCalendarEvent): string {
+  if (event.uid?.trim()) return event.uid.trim().slice(0, 500);
+  return `~${event.startsAt}|${event.title}|${event.location ?? ""}`.slice(0, 500);
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>;

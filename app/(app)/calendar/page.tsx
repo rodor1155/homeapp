@@ -37,6 +37,8 @@ import {
   weekStartsOn,
 } from "@/lib/dates";
 import {
+  calendarDayParts,
+  firstFault,
   loadHouseholdCalendarEventsBetween,
   loadHouseholdCalendars,
   loadHouseholdEvents,
@@ -85,12 +87,12 @@ export default async function CalendarPage({
   const toIso = `${bounds.to}T23:59:59.999Z`;
 
   const [
-    people,
-    schools,
-    events,
-    schoolDates,
-    calendars,
-    sharedDates,
+    peopleLoad,
+    schoolsLoad,
+    eventsLoad,
+    schoolDatesLoad,
+    calendarsLoad,
+    sharedDatesLoad,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -100,6 +102,21 @@ export default async function CalendarPage({
     loadHouseholdCalendarEventsBetween(supabase, household.id, fromIso, toIso),
   ]);
 
+  const people = peopleLoad.items;
+  const schools = schoolsLoad.items;
+  const events = eventsLoad.items;
+  const schoolDates = schoolDatesLoad.items;
+  const calendars = calendarsLoad.items;
+  const sharedDates = sharedDatesLoad.items;
+  const loadFault = firstFault(
+    peopleLoad,
+    schoolsLoad,
+    eventsLoad,
+    schoolDatesLoad,
+    calendarsLoad,
+    sharedDatesLoad
+  );
+
   const items = sortItems([
     ...birthdayItems(people, month),
     ...eventItems(events, people, month),
@@ -108,11 +125,20 @@ export default async function CalendarPage({
   ]);
 
   const byDate = itemsByDate(items);
-  const today = new Date().toISOString().slice(0, 10);
+  const todayParts = calendarDayParts();
+  const today = `${todayParts.year}-${String(todayParts.month).padStart(2, "0")}-${String(todayParts.day).padStart(2, "0")}`;
   const label = formatMonth(monthParam(month), locale);
 
   return (
     <div className="flex flex-col gap-4">
+      {loadFault ? (
+        <p
+          role="status"
+          className="rounded border border-oxblood/30 bg-oxblood-tint px-3 py-2 text-sm text-oxblood"
+        >
+          {loadFault}
+        </p>
+      ) : null}
       <div className="flex items-end justify-between gap-3 px-1">
         <div className="min-w-0">
           <h1 className="text-2xl">Calendar</h1>

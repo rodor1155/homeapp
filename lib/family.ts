@@ -145,23 +145,43 @@ export function personSummary(
     .join(" · ");
 }
 
+/** A list load: rows when it worked, plus a fault sentence the UI can show. */
+export type FamilyList<T> = {
+  items: T[];
+  /** Plain sentence when the load failed; null when it was fine (incl. empty). */
+  fault: string | null;
+};
+
+function listOk<T>(items: T[]): FamilyList<T> {
+  return { items, fault: null };
+}
+
+function listFault<T>(label: string, message: string): FamilyList<T> {
+  console.error(`[family] ${label}`, message);
+  return {
+    items: [],
+    fault: "We couldn’t load this just now. Try refreshing the page.",
+  };
+}
+
 /**
  * Everyone in the household, in the order they should be shown. A failure —
- * including the table not being deployed yet — reads as "nobody", so a page
- * never falls over on the family list.
+ * including the table not being deployed yet — comes back as an empty list
+ * plus a fault the page can surface, so a page never falls over on the family
+ * list.
  */
 export async function loadHouseholdPeople(
   supabase: SupabaseClient,
   householdId: string
-): Promise<HouseholdPerson[]> {
+): Promise<FamilyList<HouseholdPerson>> {
   const { data, error } = await supabase
     .from("household_people")
     .select(PEOPLE_SELECT)
     .eq("household_id", householdId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
-  if (error) return [];
-  return (data as HouseholdPerson[] | null) ?? [];
+  if (error) return listFault("loadHouseholdPeople", error.message);
+  return listOk((data as HouseholdPerson[] | null) ?? []);
 }
 
 // --- schools -------------------------------------------------------------
@@ -188,17 +208,14 @@ export const SCHOOLS_SELECT =
 export async function loadSchools(
   supabase: SupabaseClient,
   householdId: string
-): Promise<School[]> {
+): Promise<FamilyList<School>> {
   const { data, error } = await supabase
     .from("schools")
     .select(SCHOOLS_SELECT)
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
-  if (error) {
-    console.error("[family] loadSchools", error.message);
-    return [];
-  }
-  return (data as School[] | null) ?? [];
+  if (error) return listFault("loadSchools", error.message);
+  return listOk((data as School[] | null) ?? []);
 }
 
 // --- linked calendars ----------------------------------------------------
@@ -232,13 +249,15 @@ export const SCHOOL_CALENDAR_SELECT =
   "id, school_id, title, starts_at, ends_at, all_day, location";
 
 /**
- * The calendar date an occurrence falls on, as YYYY-MM-DD. All-day rows are
- * stored at UTC midnight, so this is exact for them; a timed row is read in
- * UTC, which is the same day for anything that isn't late in the evening.
+ * The calendar date an occurrence falls on, as YYYY-MM-DD, in Europe/London.
+ * All-day rows are stored at UTC midnight of that civil day; timed rows use
+ * the London wall clock so an evening fixture doesn't slip into tomorrow.
  */
 export function calendarEventDate(startsAt: string): string | null {
   const at = new Date(startsAt);
-  return Number.isNaN(at.getTime()) ? null : at.toISOString().slice(0, 10);
+  if (Number.isNaN(at.getTime())) return null;
+  const parts = calendarDayParts(at);
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
 /**
@@ -250,8 +269,8 @@ export async function loadSchoolCalendarEvents(
   supabase: SupabaseClient,
   householdId: string,
   { now = new Date(), withinDays = CALENDAR_WINDOW_DAYS } = {}
-): Promise<SchoolCalendarEvent[]> {
-  const from = startOfUtcDay(now);
+): Promise<FamilyList<SchoolCalendarEvent>> {
+  const from = startOfCalendarDay(now);
   return loadSchoolCalendarEventsBetween(
     supabase,
     householdId,
@@ -270,7 +289,7 @@ export async function loadSchoolCalendarEventsBetween(
   householdId: string,
   fromIso: string,
   toIso: string
-): Promise<SchoolCalendarEvent[]> {
+): Promise<FamilyList<SchoolCalendarEvent>> {
   const { data, error } = await supabase
     .from("school_calendar_events")
     .select(SCHOOL_CALENDAR_SELECT)
@@ -279,8 +298,8 @@ export async function loadSchoolCalendarEventsBetween(
     .lte("starts_at", toIso)
     .order("starts_at", { ascending: true })
     .limit(CALENDAR_ROW_CAP);
-  if (error) return [];
-  return (data as SchoolCalendarEvent[] | null) ?? [];
+  if (error) return listFault("loadSchoolCalendarEvents", error.message);
+  return listOk((data as SchoolCalendarEvent[] | null) ?? []);
 }
 
 // --- the household's own shared calendars --------------------------------
@@ -325,14 +344,14 @@ export const HOUSEHOLD_CALENDAR_EVENTS_SELECT =
 export async function loadHouseholdCalendars(
   supabase: SupabaseClient,
   householdId: string
-): Promise<HouseholdCalendar[]> {
+): Promise<FamilyList<HouseholdCalendar>> {
   const { data, error } = await supabase
     .from("household_calendars")
     .select(HOUSEHOLD_CALENDARS_SELECT)
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
-  if (error) return [];
-  return (data as HouseholdCalendar[] | null) ?? [];
+  if (error) return listFault("loadHouseholdCalendars", error.message);
+  return listOk((data as HouseholdCalendar[] | null) ?? []);
 }
 
 /** Every cached shared date from today to the end of the window. */
@@ -340,8 +359,8 @@ export async function loadHouseholdCalendarEvents(
   supabase: SupabaseClient,
   householdId: string,
   { now = new Date(), withinDays = CALENDAR_WINDOW_DAYS } = {}
-): Promise<HouseholdCalendarEvent[]> {
-  const from = startOfUtcDay(now);
+): Promise<FamilyList<HouseholdCalendarEvent>> {
+  const from = startOfCalendarDay(now);
   return loadHouseholdCalendarEventsBetween(
     supabase,
     householdId,
@@ -356,7 +375,7 @@ export async function loadHouseholdCalendarEventsBetween(
   householdId: string,
   fromIso: string,
   toIso: string
-): Promise<HouseholdCalendarEvent[]> {
+): Promise<FamilyList<HouseholdCalendarEvent>> {
   const { data, error } = await supabase
     .from("household_calendar_events")
     .select(HOUSEHOLD_CALENDAR_EVENTS_SELECT)
@@ -365,8 +384,8 @@ export async function loadHouseholdCalendarEventsBetween(
     .lte("starts_at", toIso)
     .order("starts_at", { ascending: true })
     .limit(CALENDAR_ROW_CAP);
-  if (error) return [];
-  return (data as HouseholdCalendarEvent[] | null) ?? [];
+  if (error) return listFault("loadHouseholdCalendarEvents", error.message);
+  return listOk((data as HouseholdCalendarEvent[] | null) ?? []);
 }
 
 // --- key dates -----------------------------------------------------------
@@ -409,19 +428,22 @@ export const EVENTS_SELECT =
 export async function loadHouseholdEvents(
   supabase: SupabaseClient,
   householdId: string
-): Promise<HouseholdEvent[]> {
+): Promise<FamilyList<HouseholdEvent>> {
   const { data, error } = await supabase
     .from("household_events")
     .select(EVENTS_SELECT)
     .eq("household_id", householdId)
     .order("event_date", { ascending: true });
-  if (error) return [];
-  return (data as HouseholdEvent[] | null) ?? [];
+  if (error) return listFault("loadHouseholdEvents", error.message);
+  return listOk((data as HouseholdEvent[] | null) ?? []);
 }
 
 // --- dates ---------------------------------------------------------------
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Civil calendar for birthdays / Coming up / month chrome. UK households. */
+export const APP_CALENDAR_TZ = "Europe/London";
 
 type DateParts = { year: number; month: number; day: number };
 
@@ -440,16 +462,43 @@ export function parseDateParts(value: string | null): DateParts | null {
     : null;
 }
 
-export function startOfUtcDay(now: Date): number {
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+/** Year/month/day on the Europe/London wall clock for `now`. */
+export function calendarDayParts(
+  now: Date = new Date(),
+  timeZone: string = APP_CALENDAR_TZ
+): DateParts {
+  const bits = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  const num = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(bits.find((part) => part.type === type)?.value);
+  return { year: num("year"), month: num("month"), day: num("day") };
 }
 
-/** Whole days from today to a stored date. Negative once it is behind us. */
+/**
+ * UTC millisecond instant for midnight of today's London calendar date.
+ * Stored YYYY-MM-DD values are compared against this, so "today" means the
+ * UK local day rather than the UTC day.
+ */
+export function startOfCalendarDay(now: Date = new Date()): number {
+  const { year, month, day } = calendarDayParts(now);
+  return Date.UTC(year, month - 1, day);
+}
+
+/** @deprecated Prefer startOfCalendarDay — kept for any stray imports. */
+export function startOfUtcDay(now: Date): number {
+  return startOfCalendarDay(now);
+}
+
+/** Whole days from today (London) to a stored date. Negative once behind us. */
 export function daysUntil(date: string | null, now: Date = new Date()): number | null {
   const parts = parseDateParts(date);
   if (!parts) return null;
   const at = Date.UTC(parts.year, parts.month - 1, parts.day);
-  return Math.round((at - startOfUtcDay(now)) / DAY_MS);
+  return Math.round((at - startOfCalendarDay(now)) / DAY_MS);
 }
 
 export type BirthdayInfo = {
@@ -461,8 +510,9 @@ export type BirthdayInfo = {
 };
 
 /**
- * The next time a birthday comes round. A 29 February birthday lands on
- * 1 March in the years that don't have one, which is how Date.UTC rolls it.
+ * The next time a birthday comes round, relative to the London calendar day.
+ * A 29 February birthday lands on 1 March in the years that don't have one,
+ * which is how Date.UTC rolls it.
  */
 export function nextBirthday(
   birthday: string | null,
@@ -471,8 +521,8 @@ export function nextBirthday(
   const parts = parseDateParts(birthday);
   if (!parts) return null;
 
-  const today = startOfUtcDay(now);
-  const thisYear = new Date(today).getUTCFullYear();
+  const today = startOfCalendarDay(now);
+  const thisYear = calendarDayParts(now).year;
 
   let at = Date.UTC(thisYear, parts.month - 1, parts.day);
   if (at < today) at = Date.UTC(thisYear + 1, parts.month - 1, parts.day);
@@ -483,4 +533,14 @@ export function nextBirthday(
     daysAway: Math.round((at - today) / DAY_MS),
     turning: occurrence.getUTCFullYear() - parts.year,
   };
+}
+
+/** First non-null fault from a batch of family list loads. */
+export function firstFault(
+  ...lists: readonly { fault: string | null }[]
+): string | null {
+  for (const list of lists) {
+    if (list.fault) return list.fault;
+  }
+  return null;
 }

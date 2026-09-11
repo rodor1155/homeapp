@@ -12,6 +12,7 @@ import {
 import { Card } from "@/components/ui";
 import { formatWeekdayDate } from "@/lib/dates";
 import {
+  calendarDayParts,
   loadHouseholdCalendars,
   loadHouseholdPeople,
   loadSchools,
@@ -49,13 +50,18 @@ export default async function HelpfulHintsSection({
   locale: Locale;
 }) {
   const supabase = await createClient();
-  const [people, schools, calendars, lists, documents] = await Promise.all([
-    loadHouseholdPeople(supabase, householdId),
-    loadSchools(supabase, householdId),
-    loadHouseholdCalendars(supabase, householdId),
-    loadShoppingLists(supabase, householdId),
-    loadOverviewDocuments(householdId),
-  ]);
+  const [peopleLoad, schoolsLoad, calendarsLoad, lists, documents] =
+    await Promise.all([
+      loadHouseholdPeople(supabase, householdId),
+      loadSchools(supabase, householdId),
+      loadHouseholdCalendars(supabase, householdId),
+      loadShoppingLists(supabase, householdId),
+      loadOverviewDocuments(householdId),
+    ]);
+
+  const people = peopleLoad.items;
+  const schools = schoolsLoad.items;
+  const calendars = calendarsLoad.items;
 
   const hints = helpfulHints({
     people,
@@ -76,7 +82,8 @@ function HelpfulHints({
   locale: Locale;
 }) {
   if (hints.length === 0) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const day = calendarDayParts();
+  const today = `${day.year}-${String(day.month).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
 
   return (
     <Card

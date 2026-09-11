@@ -1,8 +1,9 @@
 import "server-only";
 
 import { promises as dns } from "node:dns";
+import * as https from "node:https";
 import { expandRecurringEvent, sync as ical, type VEvent } from "node-ical";
-import { CALENDAR_WINDOW_DAYS } from "@/lib/family";
+import { CALENDAR_WINDOW_DAYS, startOfCalendarDay } from "@/lib/family";
 
 /* Reading somebody else's ICS feed: the URL we are willing to store, the
  * fetch, and the parse. Feed-agnostic on purpose — a school's term dates
@@ -90,9 +91,8 @@ function isIpLiteral(host: string): boolean {
 }
 
 /**
- * Best-effort "this is not on our own network". Not a security boundary on
- * its own — it can't see a DNS record that changes between this check and the
- * connection — but it turns the obvious attempts away.
+ * Best-effort "this is not on our own network". Paired with the pinned
+ * connect in fetchCalendar so a rebind between resolve and dial is refused.
  */
 function isPrivateAddress(address: string): boolean {
   const ip = address.toLowerCase();
@@ -117,115 +117,210 @@ function isPrivateAddress(address: string): boolean {
   return /^(f[cd]|fe[89ab]|ff)/.test(ip);
 }
 
-/** Refuses the request if the name resolves onto a private network. */
-async function assertPublicHost(url: URL): Promise<void> {
-  const host = url.hostname.replace(/^\[|\]$/g, "");
+type PinnedHost = {
+  /** Hostname for the TLS SNI / Host header. */
+  hostname: string;
+  /** Public A/AAAA answers we will allow the socket to dial. */
+  addresses: { address: string; family: 4 | 6 }[];
+};
 
-  if (isIpLiteral(host)) {
-    if (isPrivateAddress(host)) {
+/**
+ * Resolve the host and refuse private answers. Returns the public addresses
+ * so the connect can pin them — closing the DNS-rebinding window between
+ * lookup and dial as far as Node lets us.
+ */
+async function resolvePublicHost(url: URL): Promise<PinnedHost> {
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+
+  if (isIpLiteral(hostname)) {
+    if (isPrivateAddress(hostname)) {
       throw new CalendarError("That link points somewhere we can’t reach.");
     }
-    return;
+    const family: 4 | 6 = hostname.includes(":") ? 6 : 4;
+    return { hostname, addresses: [{ address: hostname, family }] };
   }
 
-  let addresses: { address: string }[];
+  let answers: { address: string; family: number }[];
   try {
-    addresses = await dns.lookup(host, { all: true });
+    answers = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch {
     throw new CalendarError("We couldn’t find that calendar address.");
   }
 
-  if (addresses.some((entry) => isPrivateAddress(entry.address))) {
+  const addresses = answers
+    .filter((entry) => entry.family === 4 || entry.family === 6)
+    .map((entry) => ({
+      address: entry.address,
+      family: (entry.family === 6 ? 6 : 4) as 4 | 6,
+    }))
+    .filter((entry) => !isPrivateAddress(entry.address));
+
+  if (addresses.length === 0) {
     throw new CalendarError("That link points somewhere we can’t reach.");
   }
+
+  return { hostname, addresses };
 }
 
 // --- the fetch ------------------------------------------------------------
 
 /**
- * The feed's text, with a timeout, a size cap, and every redirect hop checked
- * the same way the first URL was.
+ * The feed's text, with a timeout, a size cap, every redirect hop checked the
+ * same way the first URL was, and the dial pinned to the public addresses we
+ * resolved up front (so a DNS rebind between lookup and connect can't sneak
+ * us onto a private network).
  */
 export async function fetchCalendar(startUrl: string): Promise<string> {
   let url = new URL(startUrl);
 
   for (let hop = 0; ; hop++) {
-    await assertPublicHost(url);
+    const pinned = await resolvePublicHost(url);
+    const response = await pinnedHttpsGet(url, pinned);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const location = response.headers.location;
+    if (response.statusCode >= 300 && response.statusCode < 400 && location) {
+      if (hop >= MAX_REDIRECTS) {
+        throw new CalendarError("That calendar link redirects too many times.");
+      }
+      const next = normaliseCalendarUrl(new URL(location, url).toString());
+      if ("error" in next) throw new CalendarError(next.error);
+      url = new URL(next.url);
+      continue;
+    }
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        signal: controller.signal,
-        redirect: "manual",
-        headers: { accept: "text/calendar, text/plain, */*" },
-      });
-    } catch (error) {
-      clearTimeout(timer);
+    if (response.statusCode !== 200) {
       throw new CalendarError(
-        (error as Error)?.name === "AbortError"
-          ? "The calendar took too long to answer."
-          : "We couldn’t reach that calendar."
+        response.statusCode === 401 || response.statusCode === 403
+          ? "That calendar needs a password, so we can’t read it."
+          : response.statusCode === 404
+            ? "That calendar link doesn’t exist any more."
+            : "The calendar didn’t give us anything."
       );
     }
 
-    try {
-      const location = response.headers.get("location");
-      if (response.status >= 300 && response.status < 400 && location) {
-        if (hop >= MAX_REDIRECTS) {
-          throw new CalendarError("That calendar link redirects too many times.");
-        }
-        const next = normaliseCalendarUrl(new URL(location, url).toString());
-        if ("error" in next) throw new CalendarError(next.error);
-        url = new URL(next.url);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new CalendarError(
-          response.status === 401 || response.status === 403
-            ? "That calendar needs a password, so we can’t read it."
-            : response.status === 404
-              ? "That calendar link doesn’t exist any more."
-              : "The calendar didn’t give us anything."
-        );
-      }
-
-      const declared = Number(response.headers.get("content-length") ?? "");
-      if (Number.isFinite(declared) && declared > MAX_BYTES) {
-        throw new CalendarError("That calendar is too big for us to read.");
-      }
-
-      return await readCapped(response);
-    } finally {
-      clearTimeout(timer);
+    const declared = Number(response.headers["content-length"] ?? "");
+    if (Number.isFinite(declared) && declared > MAX_BYTES) {
+      throw new CalendarError("That calendar is too big for us to read.");
     }
+
+    return readCapped(response.body);
   }
 }
 
-/** The body, read a chunk at a time so an unbounded feed is dropped early. */
-async function readCapped(response: Response): Promise<string> {
-  const reader = response.body?.getReader();
-  if (!reader) throw new CalendarError("The calendar didn’t give us anything.");
+type PinnedResponse = {
+  statusCode: number;
+  headers: { location?: string; "content-length"?: string };
+  body: Buffer;
+};
 
-  const chunks: Uint8Array[] = [];
-  let size = 0;
+/**
+ * HTTPS GET that dials only the pre-resolved public addresses. The TLS SNI
+ * and Host header still use the original hostname so legitimate school ICS
+ * hosts keep working.
+ */
+function pinnedHttpsGet(url: URL, pinned: PinnedHost): Promise<PinnedResponse> {
+  const addresses = pinned.addresses;
+  let attempt = 0;
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-    size += value.byteLength;
-    if (size > MAX_BYTES) {
-      await reader.cancel();
-      throw new CalendarError("That calendar is too big for us to read.");
-    }
-    chunks.push(value);
-  }
+  return new Promise((resolve, reject) => {
+    const tryNext = () => {
+      const target = addresses[attempt];
+      if (!target) {
+        reject(new CalendarError("We couldn’t reach that calendar."));
+        return;
+      }
+      attempt += 1;
 
-  const text = Buffer.concat(chunks).toString("utf8");
+      const request = https.request(
+        {
+          protocol: "https:",
+          hostname: target.address,
+          servername: pinned.hostname,
+          port: url.port || 443,
+          path: `${url.pathname}${url.search}`,
+          method: "GET",
+          headers: {
+            host: pinned.hostname,
+            accept: "text/calendar, text/plain, */*",
+          },
+          // Pin: ignore the runtime's own DNS and only dial what we vetted.
+          lookup(
+            _hostname: string,
+            options: unknown,
+            callback: (
+              err: Error | null,
+              address: string,
+              family: number
+            ) => void
+          ) {
+            const familyOpt =
+              typeof options === "object" && options && "family" in options
+                ? (options as { family?: number }).family
+                : undefined;
+            const match =
+              familyOpt === 4 || familyOpt === 6
+                ? addresses.find((entry) => entry.family === familyOpt) ??
+                  target
+                : target;
+            callback(null, match.address, match.family);
+          },
+          timeout: FETCH_TIMEOUT_MS,
+        },
+        (response) => {
+          const chunks: Buffer[] = [];
+          let size = 0;
+          let rejected = false;
+          response.on("data", (chunk: Buffer) => {
+            size += chunk.byteLength;
+            if (size > MAX_BYTES) {
+              rejected = true;
+              response.destroy();
+              reject(
+                new CalendarError("That calendar is too big for us to read.")
+              );
+              return;
+            }
+            chunks.push(chunk);
+          });
+          response.on("end", () => {
+            if (rejected) return;
+            resolve({
+              statusCode: response.statusCode ?? 0,
+              headers: {
+                location: headerValue(response.headers.location),
+                "content-length": headerValue(
+                  response.headers["content-length"]
+                ),
+              },
+              body: Buffer.concat(chunks),
+            });
+          });
+          response.on("error", () => {
+            if (!rejected) tryNext();
+          });
+        }
+      );
+
+      request.on("timeout", () => {
+        request.destroy();
+        reject(new CalendarError("The calendar took too long to answer."));
+      });
+      request.on("error", () => tryNext());
+      request.end();
+    };
+
+    tryNext();
+  });
+}
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+/** The body as text, once we already capped it on the wire. */
+function readCapped(body: Buffer): string {
+  const text = body.toString("utf8");
   if (!text.includes("BEGIN:VCALENDAR")) {
     throw new CalendarError("That link isn’t a calendar file.");
   }
@@ -283,9 +378,7 @@ export function parseCalendar(
   windowDays: number = CALENDAR_WINDOW_DAYS
 ): ParsedCalendar {
   const parsed = ical.parseICS(ics);
-  const from = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
+  const from = new Date(startOfCalendarDay(now));
   const to = new Date(from.getTime() + windowDays * DAY_MS);
 
   const byKey = new Map<string, ParsedCalendarEvent>();

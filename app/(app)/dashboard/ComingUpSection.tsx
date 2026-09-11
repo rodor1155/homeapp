@@ -22,6 +22,7 @@ import {
 } from "@/lib/coming-up";
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import {
+  firstFault,
   loadHouseholdCalendarEvents,
   loadHouseholdCalendars,
   loadHouseholdEvents,
@@ -79,12 +80,12 @@ export default async function ComingUpSection({
   const [
     documents,
     scheduled,
-    people,
-    events,
-    schools,
-    schoolDates,
-    calendars,
-    sharedDates,
+    peopleLoad,
+    eventsLoad,
+    schoolsLoad,
+    schoolDatesLoad,
+    calendarsLoad,
+    sharedDatesLoad,
   ] = await Promise.all([
     loadOverviewDocuments(householdId),
     scheduledReminders(supabase, householdId),
@@ -95,6 +96,21 @@ export default async function ComingUpSection({
     loadHouseholdCalendars(supabase, householdId),
     loadHouseholdCalendarEvents(supabase, householdId),
   ]);
+
+  const people = peopleLoad.items;
+  const events = eventsLoad.items;
+  const schools = schoolsLoad.items;
+  const schoolDates = schoolDatesLoad.items;
+  const calendars = calendarsLoad.items;
+  const sharedDates = sharedDatesLoad.items;
+  const loadFault = firstFault(
+    peopleLoad,
+    eventsLoad,
+    schoolsLoad,
+    schoolDatesLoad,
+    calendarsLoad,
+    sharedDatesLoad
+  );
 
   const reminded = remindedEntries(scheduled, documents);
   const entries = mergeComingUp(
@@ -112,6 +128,7 @@ export default async function ComingUpSection({
       entries={entries}
       locale={locale}
       hasPeople={people.length > 0}
+      loadFault={loadFault}
     />
   );
 }
@@ -120,10 +137,12 @@ function ComingUp({
   entries,
   locale,
   hasPeople,
+  loadFault,
 }: {
   entries: readonly ComingUpEntry[];
   locale: Locale;
   hasPeople: boolean;
+  loadFault: string | null;
 }) {
   const months = groupByMonth(entries);
   // Only worth writing the month out when the list actually crosses one.
@@ -141,6 +160,11 @@ function ComingUp({
         </Link>
       }
     >
+      {loadFault ? (
+        <p role="status" className="mb-3 text-sm text-oxblood">
+          {loadFault}
+        </p>
+      ) : null}
       {entries.length === 0 ? (
         <p className="text-sm text-ink-faint">
           {hasPeople
