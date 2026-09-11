@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import BottomTabBar from "@/components/BottomTabBar";
+import PrefetchAppRoutes from "@/components/PrefetchAppRoutes";
 import PullToRefresh from "@/components/PullToRefresh";
 import SignOutButton from "@/components/SignOutButton";
 import { Wordmark } from "@/components/ui";
@@ -59,6 +60,7 @@ export default function AppShell({
 
   return (
     <div className="min-h-screen bg-paper">
+      <PrefetchAppRoutes />
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[32rem] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">

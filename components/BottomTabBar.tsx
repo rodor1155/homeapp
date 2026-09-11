@@ -10,20 +10,28 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { APP_TAB_HREFS } from "@/lib/app-routes";
 
 type Tab = {
-  href: string;
+  href: (typeof APP_TAB_HREFS)[number];
   label: string;
   icon: LucideIcon;
 };
 
-/* Add a tab by adding a row here — the bar sizes itself. */
-const TABS: Tab[] = [
-  { href: "/dashboard", label: "Home", icon: House },
-  { href: "/family", label: "Family", icon: Users },
-  { href: "/lists", label: "Lists", icon: ShoppingBasket },
-  { href: "/documents", label: "Documents", icon: FileText },
-];
+const TAB_META: Record<
+  (typeof APP_TAB_HREFS)[number],
+  { label: string; icon: LucideIcon }
+> = {
+  "/dashboard": { label: "Home", icon: House },
+  "/family": { label: "Family", icon: Users },
+  "/lists": { label: "Lists", icon: ShoppingBasket },
+  "/documents": { label: "Documents", icon: FileText },
+};
+
+const TABS: Tab[] = APP_TAB_HREFS.map((href) => ({
+  href,
+  ...TAB_META[href],
+}));
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -495,7 +495,7 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
 
 ## Tab navigation cache
 
-- **Tab Client Cache**: `experimental.staleTimes` keeps recently visited signed-in tabs in the Next Client Cache (`dynamic` 120s, `static` 300s with `prefetch={true}` on the tab bar). Pull-to-refresh on the shell calls `router.refresh()` when fresh data is needed.
+- **Tab Client Cache**: `experimental.staleTimes` keeps recently visited signed-in tabs in the Next Client Cache (`dynamic` 120s, `static` 300s with `prefetch={true}` on the tab bar). `PrefetchAppRoutes` warms every tab plus settings as soon as the shell mounts (and again on visibility). Pull-to-refresh on the shell calls `router.refresh()` when fresh data is needed.
 
 ## Shopping lists (phase 8)
 
