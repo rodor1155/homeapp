@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { asCategory, isCategory } from "@/lib/categories";
 import { createClient } from "@/lib/supabase-server";
 import { runExtractionForDocument } from "@/lib/extraction";
 import { syncRemindersForDocument } from "@/lib/reminders";
@@ -84,13 +85,18 @@ export async function createUploadTarget(input: {
   return { documentId, path: data.path, token: data.token };
 }
 
-/** Step 2: record the uploaded file. Extraction happens in a later session. */
+/**
+ * Step 2: record the uploaded file. Extraction happens in a later session.
+ * `category` is the hub bucket the upload came from; anything not in our fixed
+ * set is dropped rather than stored, and a null leaves the row to the guess.
+ */
 export async function recordDocument(input: {
   documentId: string;
   propertyId: string;
   path: string;
   filename: string;
   mime: string | null;
+  category?: string | null;
 }): Promise<RecordResult> {
   const supabase = await createClient();
   const resolved = await resolveHousehold(supabase);
@@ -103,6 +109,7 @@ export async function recordDocument(input: {
     storage_path: input.path,
     original_filename: input.filename.slice(0, 300),
     mime: input.mime,
+    category: asCategory(input.category),
     extraction_status: "pending",
   });
   if (error) return { error: error.message };
@@ -150,6 +157,16 @@ export async function confirmExtraction(
   patch.key_contact_name = text("key_contact_name");
   patch.key_contact_phone = text("key_contact_phone");
 
+  // Only touched when the form offered the picker, so an older form can never
+  // clear a category the upload set.
+  if (formData.has("category")) {
+    const category = String(formData.get("category") ?? "").trim();
+    if (category && !isCategory(category)) {
+      return { error: "Pick a category from the list." };
+    }
+    patch.category = category || null;
+  }
+
   for (const key of DATE_KEYS) {
     const parsed = parseDateInput(String(formData.get(key) ?? ""));
     if (parsed === "invalid") {
@@ -189,6 +206,7 @@ export async function confirmExtraction(
   }
 
   revalidatePath("/documents");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

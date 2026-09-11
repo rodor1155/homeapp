@@ -24,6 +24,9 @@ export type DocumentRow = {
   original_filename: string;
   created_at: string;
   extraction_status: string;
+  /** The filing category chosen at upload. Null on legacy rows — see
+   *  `effectiveCategory` in lib/categories.ts for the fallback. */
+  category: string | null;
   doc_type: string | null;
   provider: string | null;
   reference: string | null;
@@ -38,7 +41,7 @@ export type DocumentRow = {
 };
 
 export const DOCUMENTS_SELECT =
-  "id, original_filename, created_at, extraction_status, doc_type, provider, reference, start_date, end_date, renewal_date, amount, currency, key_contact_name, key_contact_phone, extraction_confidence";
+  "id, original_filename, created_at, extraction_status, category, doc_type, provider, reference, start_date, end_date, renewal_date, amount, currency, key_contact_name, key_contact_phone, extraction_confidence";
 
 // Column name in `documents` <- extraction field key. Order is the review-form order.
 export const REVIEW_FIELDS: {

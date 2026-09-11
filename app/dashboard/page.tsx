@@ -1,26 +1,19 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  Car,
-  ClipboardCheck,
-  Folder,
-  RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Wrench,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import ExportButton from "@/components/ExportButton";
-import { Card, SectionHeading, statusEdgeClass } from "@/components/ui";
+import PropertyHub from "@/components/PropertyHub";
+import { CATEGORY_ICON } from "@/components/category-icons";
+import { Card, statusEdgeClass } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import {
   contacts,
+  countByCategory,
   documentLabel,
   groupByCategory,
   nextDate,
@@ -28,7 +21,6 @@ import {
   parseAmount,
   spendByCurrency,
   upcomingDates,
-  type Category,
   type OverviewDocument,
   type UpcomingDate,
 } from "@/lib/home-overview";
@@ -37,16 +29,6 @@ import { summariseHome } from "@/lib/home-summary";
 export const metadata = { title: "Home overview · homeapp" };
 
 const SOON_DAYS = 30;
-
-const CATEGORY_ICON: Record<Category, LucideIcon> = {
-  Insurance: ShieldCheck,
-  "Utilities & bills": Zap,
-  Vehicle: Car,
-  "Property & compliance": ClipboardCheck,
-  "Warranties & appliances": Wrench,
-  "Subscriptions & services": RefreshCw,
-  Other: Folder,
-};
 
 export default async function DashboardPage() {
   const { supabase, user, household, property } = await requireOnboarded();
@@ -74,6 +56,7 @@ export default async function DashboardPage() {
 
   const coming = upcomingDates(documents);
   const categories = groupByCategory(documents);
+  const counts = countByCategory(documents);
   const totals = spendByCurrency(documents);
   const people = contacts(documents);
 
@@ -127,6 +110,8 @@ export default async function DashboardPage() {
             </ExportButton>
           </div>
         </section>
+
+        <PropertyHub counts={counts} />
 
         {documents.length === 0 ? (
           <Card className="text-center">
@@ -207,46 +192,16 @@ export default async function DashboardPage() {
               )}
             </Card>
 
-            <div>
-              <SectionHeading
-                aside={`${documents.length} ${
-                  documents.length === 1 ? "document" : "documents"
-                }`}
-              >
-                By category
-              </SectionHeading>
-              <div className="grid grid-cols-2 gap-3">
-                {categories.map((group) => {
-                  const Icon = CATEGORY_ICON[group.category];
-                  const n = group.documents.length;
-                  return (
-                    <div
-                      key={group.category}
-                      className="card flex flex-col gap-2 p-3.5"
-                    >
-                      <span
-                        aria-hidden
-                        className="flex h-9 w-9 items-center justify-center rounded-pill bg-sage-tint text-sage"
-                      >
-                        <Icon size={18} strokeWidth={1.9} />
-                      </span>
-                      <span className="text-sm font-medium leading-snug text-ink">
-                        {group.category}
-                      </span>
-                      <span className="tnum text-xs text-ink-faint">
-                        {n} {n === 1 ? "document" : "documents"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {categories.map((group) => {
               const Icon = CATEGORY_ICON[group.category];
               return (
                 <Card key={group.category} padding="none">
-                  <div className="flex items-center gap-2.5 px-4 pb-2.5 pt-4">
+                  <Link
+                    href={`/documents?category=${encodeURIComponent(
+                      group.category
+                    )}`}
+                    className="flex items-center gap-2.5 px-4 pb-2.5 pt-4"
+                  >
                     <span aria-hidden className="text-sage">
                       <Icon size={16} strokeWidth={2} />
                     </span>
@@ -256,7 +211,7 @@ export default async function DashboardPage() {
                     <span className="tnum ml-auto text-xs text-ink-faint">
                       {group.documents.length}
                     </span>
-                  </div>
+                  </Link>
                   <ul className="border-t border-rule">
                     {group.documents.map((doc) => (
                       <li

@@ -6,15 +6,29 @@ import AppShell from "@/components/AppShell";
 import ExportButton from "@/components/ExportButton";
 import { Card, SectionHeading } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
+import { asCategory, effectiveCategory } from "@/lib/categories";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { requireOnboarded } from "@/lib/household";
 
 export const metadata = { title: "Documents · homeapp" };
 
-export default async function DocumentsPage() {
+function first(value: string | string[] | undefined): string | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { supabase, user, property, household } = await requireOnboarded();
   const billingConfigured = isBillingConfigured();
   const entitlements = await getEntitlements(household.id);
+
+  const params = await searchParams;
+  // Both come off a property-hub bucket: which one, and whether its + was used.
+  const category = asCategory(first(params.category));
+  const startUpload = first(params.upload) === "1";
 
   const { data } = await supabase
     .from("documents")
@@ -22,7 +36,12 @@ export default async function DocumentsPage() {
     .eq("property_id", property.id)
     .order("created_at", { ascending: false });
 
-  const documents = (data as DocumentRow[] | null) ?? [];
+  const all = (data as DocumentRow[] | null) ?? [];
+  // Filtered here rather than in the query so a legacy row with no stored
+  // category still shows up under its guess.
+  const documents = category
+    ? all.filter((doc) => effectiveCategory(doc) === category)
+    : all;
   const count = documents.length;
 
   return (
@@ -46,7 +65,12 @@ export default async function DocumentsPage() {
         </div>
 
         <Card>
-          <DocumentsUploader propertyId={property.id} />
+          <DocumentsUploader
+            key={category ?? "all"}
+            propertyId={property.id}
+            initialCategory={category}
+            focus={startUpload}
+          />
         </Card>
 
         <div>
@@ -57,8 +81,17 @@ export default async function DocumentsPage() {
                 : `${count} ${count === 1 ? "entry" : "entries"}`
             }
           >
-            In your file
+            {category ? category : "In your file"}
           </SectionHeading>
+
+          {category ? (
+            <p className="px-1 pb-2 text-xs text-ink-faint">
+              Showing one category.{" "}
+              <Link href="/documents" className="text-action text-xs">
+                Show everything
+              </Link>
+            </p>
+          ) : null}
 
           {count === 0 ? (
             <Card className="text-center">
@@ -69,7 +102,7 @@ export default async function DocumentsPage() {
                 <FilePlus2 size={22} strokeWidth={1.8} />
               </span>
               <h3 className="mt-3 text-base font-semibold text-ink">
-                Nothing filed yet
+                {category ? `Nothing filed under ${category}` : "Nothing filed yet"}
               </h3>
               <p className="mx-auto mt-1.5 max-w-xs text-sm text-ink-soft">
                 Add a PDF or a photo above and it will be read, sorted and

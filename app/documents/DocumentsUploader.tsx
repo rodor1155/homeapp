@@ -1,25 +1,42 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createUploadTarget, recordDocument } from "@/app/actions/documents";
 import { createClient } from "@/lib/supabase-client";
+import { CATEGORIES, type Category } from "@/lib/categories";
 import { Button } from "@/components/ui";
 
 const ACCEPT = "application/pdf,image/*";
 
 export default function DocumentsUploader({
   propertyId,
+  initialCategory = null,
+  focus = false,
 }: {
   propertyId: string;
+  /** Preselected bucket — what the property hub's + passes through. */
+  initialCategory?: Category | null;
+  /** Arrived here to upload, so bring the panel into view. */
+  focus?: boolean;
 }) {
   const router = useRouter();
+  const panelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [category, setCategory] = useState<Category | "">(
+    initialCategory ?? ""
+  );
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(0);
+
+  useEffect(() => {
+    if (focus) {
+      panelRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [focus]);
 
   async function uploadFiles(files: File[]) {
     if (busy || files.length === 0) return;
@@ -50,6 +67,7 @@ export default function DocumentsUploader({
           path: target.path,
           filename: file.name,
           mime: file.type || null,
+          category: category || null,
         });
         if ("error" in recorded) throw new Error(recorded.error);
 
@@ -64,7 +82,24 @@ export default function DocumentsUploader({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={panelRef} id="upload" className="flex flex-col gap-3">
+      <label className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-ink-soft">File it under</span>
+        <select
+          value={category}
+          disabled={busy}
+          onChange={(e) => setCategory(e.target.value as Category | "")}
+          className="field-input w-auto"
+        >
+          <option value="">Let us sort it</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div
         onDragOver={(e) => {
           e.preventDefault();

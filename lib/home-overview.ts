@@ -1,5 +1,6 @@
 import "server-only";
 
+import { CATEGORIES, effectiveCategory, type Category } from "@/lib/categories";
 import type { DocumentRow } from "@/lib/document-types";
 
 /* Pure shaping of a household's extracted documents for the home overview.
@@ -12,24 +13,13 @@ export const OVERVIEW_STATUSES = [
   "confirmed",
 ] as const;
 
-export const CATEGORIES = [
-  "Insurance",
-  "Utilities & bills",
-  "Vehicle",
-  "Property & compliance",
-  "Warranties & appliances",
-  "Subscriptions & services",
-  "Other",
-] as const;
-
-export type Category = (typeof CATEGORIES)[number];
-
 /** The subset of a document row the overview reads. */
 export type OverviewDocument = Pick<
   DocumentRow,
   | "id"
   | "original_filename"
   | "extraction_status"
+  | "category"
   | "doc_type"
   | "provider"
   | "end_date"
@@ -40,47 +30,6 @@ export type OverviewDocument = Pick<
   | "key_contact_phone"
 >;
 
-// First match wins, so the order here is the order of CATEGORIES: a car
-// insurance policy files under Insurance, a boiler warranty under Warranties.
-const CATEGORY_PATTERNS: ReadonlyArray<readonly [Category, RegExp]> = [
-  [
-    "Insurance",
-    /\b(insur|assurance|underwrit|indemnit|policy|policies|cover note|no claims|excess)/i,
-  ],
-  [
-    "Utilities & bills",
-    /\b(utility|utilities|bill|energy|electric|gas suppl|water|sewerage|broadband|internet|telecom|mobile|landline|tariff|meter reading|council tax|standing charge)/i,
-  ],
-  [
-    "Vehicle",
-    /\b(vehicle|car\b|motor|mot\b|dvla|v5c|road tax|breakdown|tyre|van\b|driving licen)/i,
-  ],
-  [
-    "Property & compliance",
-    /\b(propert|mortgage|tenanc|lease|leasehold|freehold|deed|title|land registry|epc\b|energy performance|eicr\b|gas safe|safety certificate|survey|planning|building regulation|asbestos|compliance|inspection)/i,
-  ],
-  [
-    "Warranties & appliances",
-    /\b(warrant|guarantee|appliance|boiler|furnace|oven|fridge|freezer|washing machine|dishwasher|manual|receipt|service plan|extended cover|repair|installation)/i,
-  ],
-  [
-    "Subscriptions & services",
-    /\b(subscription|membership|service agreement|maintenance|streaming|cleaning|garden|alarm|monitoring|contract)/i,
-  ],
-];
-
-/** Maps the free-text doc_type / provider onto a fixed set. "Other" is the fallback. */
-export function categorise(
-  doc: Pick<OverviewDocument, "doc_type" | "provider">
-): Category {
-  const haystack = `${doc.doc_type ?? ""} ${doc.provider ?? ""}`;
-  if (!haystack.trim()) return "Other";
-  for (const [category, pattern] of CATEGORY_PATTERNS) {
-    if (pattern.test(haystack)) return category;
-  }
-  return "Other";
-}
-
 export type CategoryGroup = { category: Category; documents: OverviewDocument[] };
 
 /** Groups documents by category, in CATEGORIES order, dropping empty categories. */
@@ -89,7 +38,7 @@ export function groupByCategory(
 ): CategoryGroup[] {
   const groups = new Map<Category, OverviewDocument[]>();
   for (const doc of docs) {
-    const category = categorise(doc);
+    const category = effectiveCategory(doc);
     const bucket = groups.get(category);
     if (bucket) bucket.push(doc);
     else groups.set(category, [doc]);
@@ -98,6 +47,18 @@ export function groupByCategory(
     category,
     documents: groups.get(category) ?? [],
   }));
+}
+
+/** A count for every category, empty ones included — what the hub renders. */
+export function countByCategory(
+  docs: readonly OverviewDocument[]
+): Record<Category, number> {
+  const counts = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<
+    Category,
+    number
+  >;
+  for (const doc of docs) counts[effectiveCategory(doc)] += 1;
+  return counts;
 }
 
 // --- dates ---------------------------------------------------------------

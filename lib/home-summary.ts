@@ -2,8 +2,8 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { Locale } from "@/lib/household";
+import { effectiveCategory } from "@/lib/categories";
 import {
-  categorise,
   documentLabel,
   parseAmount,
   type OverviewDocument,
@@ -26,7 +26,7 @@ Rules:
 - Address the household as "you".`;
 
 function describe(doc: OverviewDocument): string {
-  const parts = [documentLabel(doc), categorise(doc)];
+  const parts = [documentLabel(doc), effectiveCategory(doc)];
 
   if (doc.doc_type?.trim()) parts.push(doc.doc_type.trim());
   if (doc.renewal_date) parts.push(`renews ${doc.renewal_date}`);

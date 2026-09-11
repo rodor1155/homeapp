@@ -83,8 +83,9 @@ app/
   auth/callback/        PKCE code exchange (magic link, OAuth, email confirm)
   auth/sign-out/        POST route handler
   onboarding/           3-step wizard (locale -> property -> partner invite)
-  dashboard/            placeholder, gated on completed onboarding
-  documents/            list + uploader + per-doc extraction review/confirm (DocumentsList)
+  dashboard/            home overview + property hub, gated on completed onboarding
+  documents/            list + uploader + per-doc extraction review/confirm (DocumentsList);
+                        reads `?category=` (filter + preselected bucket) and `?upload=1`
   invite/               pending invites, accept/decline (InviteList); works signed out
   settings/             household + property + locale (HouseholdForm), plan (PlanPanel),
                         people and sent invites (PeoplePanel), sign out, account
@@ -95,8 +96,11 @@ app/
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
                         settings.ts, account.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
-                 AppShell.tsx (top bar: sign out + gear to /settings), BottomTabBar.tsx
+                 AppShell.tsx (top bar: sign out + gear to /settings), BottomTabBar.tsx,
+                 PropertyHub.tsx (the hub), category-icons.ts (icon + short label per category)
 lib/
+  categories.ts        client-safe CATEGORIES / Category / isCategory / asCategory /
+                       categorise() keyword guess / effectiveCategory() (stored, else guess)
   supabase-client.ts   browser client (createBrowserClient)
   supabase-server.ts   server client with cookie bridge (server-only)
   supabase-admin.ts    service-role client (server-only, bypasses RLS)
@@ -143,12 +147,17 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   currency / key_contact_name / key_contact_phone` and the `extraction_confidence`
   jsonb (`{ model, page_count, overall_confidence, flags, error, fields: {k: {value, confidence, ambiguity}} }`).
   Status flow: `pending → processing → extracted | needs_review | failed → confirmed`.
+  `category text` (nullable, checked against the seven `CATEGORIES`) is the filing bucket
+  chosen at upload — written by `recordDocument` and editable in the review form. Null on
+  rows filed before it existed, which is why everything reads it through
+  `effectiveCategory()`. `20260911120000_documents_category.sql` is **written but not
+  applied** — and every document query selects the column, so apply it before deploying.
 - `document_chunks(id, document_id, chunk_index, content)` — ~500-token (≈2000-char)
   plain-text chunks. Select-only RLS via the parent document; writes are service-role.
   No embeddings yet (phase 1b).
 - `reminder_rules(category, locale, offsets int[], pk(category, locale))` — reference
   data: how many days before a due date to nudge. `category` mirrors `CATEGORIES` in
-  `lib/home-overview.ts`, plus a `default` row. Readable by any signed-in user
+  `lib/categories.ts`, plus a `default` row. Readable by any signed-in user
   (RLS on, `using (true)`); written only by migrations.
 - `reminders(id, household_id, document_id, kind check renewal|end, due_date, offsets int[],
   status check scheduled|sent|cancelled, created_at, unique(document_id, kind))` —
@@ -297,6 +306,29 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   `<SITE>/api/stripe/webhook` for `checkout.session.completed` +
   `customer.subscription.created/updated/deleted`, enable the billing portal with
   cancellation on, then set the six `STRIPE_*` variables locally and in Vercel.
+
+## Property hub + filing categories
+
+- **One list of categories, in `lib/categories.ts`** (client-safe, so the uploader and the
+  hub share it with the server-only overview code): the seven `CATEGORIES`, the
+  `categorise()` keyword guess, and `effectiveCategory()` — the stored `documents.category`
+  if there is one, else the guess. **Read a document's category through
+  `effectiveCategory()`, never off the column**, or legacy rows fall out of their bucket.
+  `lib/home-overview.ts` keeps the shaping (`groupByCategory`, `countByCategory`).
+- **`components/PropertyHub.tsx`** (presentational, server-safe): the property in the
+  centre, the seven buckets on spokes around it — always all seven, empty or not. A bucket
+  links to `/documents?category=<name>`; its **+** links to
+  `/documents?upload=1&category=<name>#upload`. Geometry is a square box with the nodes
+  placed by angle, so it holds its shape from a narrow phone up to the 32rem column.
+  Icons and the hub's short labels are in `components/category-icons.ts`.
+- **`/documents`** reads both params: the category filters the list (through
+  `effectiveCategory`, so the filter is not a SQL `where`) and preselects the uploader's
+  "File it under"; `upload=1` scrolls the panel into view. The uploader is keyed on the
+  category so a fresh bucket resets the picker.
+- **Storing it**: `recordDocument({ ..., category })` runs the value through `asCategory()`,
+  so anything off-list is stored as null rather than rejected. The review form carries the
+  same picker (`name="category"`), and `confirmExtraction` only writes the column when the
+  form actually posted the field.
 
 ## Conventions
 

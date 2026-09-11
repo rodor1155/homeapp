@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { sendReminderEmail } from "@/lib/email";
-import { categorise } from "@/lib/home-overview";
+import { effectiveCategory } from "@/lib/categories";
 import { daysBetween, offsetDate, type ReminderKind } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase-admin";
 
@@ -21,6 +21,7 @@ type ReminderRow = {
   due_date: string;
   offsets: number[] | null;
   document: {
+    category: string | null;
     doc_type: string | null;
     provider: string | null;
     original_filename: string | null;
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("reminders")
     .select(
-      "id, household_id, document_id, kind, due_date, offsets, document:documents(doc_type, provider, original_filename)"
+      "id, household_id, document_id, kind, due_date, offsets, document:documents(category, doc_type, provider, original_filename)"
     )
     .eq("status", "scheduled")
     .gte("due_date", today)
@@ -144,7 +145,8 @@ export async function GET(request: Request) {
 
       const recipients = await recipientsFor(reminder.household_id);
       const providerLabel = label(reminder.document);
-      const category = categorise({
+      const category = effectiveCategory({
+        category: reminder.document?.category ?? null,
         doc_type: reminder.document?.doc_type ?? null,
         provider: reminder.document?.provider ?? null,
       });

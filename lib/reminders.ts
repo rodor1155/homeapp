@@ -1,6 +1,7 @@
 import "server-only";
 
-import { categorise, OVERVIEW_STATUSES } from "@/lib/home-overview";
+import { effectiveCategory } from "@/lib/categories";
+import { OVERVIEW_STATUSES } from "@/lib/home-overview";
 import type { Locale } from "@/lib/household";
 import { createAdminClient } from "@/lib/supabase-admin";
 
@@ -24,6 +25,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The fields of a document row this module reads. */
 export type ReminderDocument = {
+  category: string | null;
   doc_type: string | null;
   provider: string | null;
   end_date: string | null;
@@ -126,7 +128,7 @@ export async function syncRemindersForDocument(
   const { data: doc, error: loadErr } = await supabase
     .from("documents")
     .select(
-      "id, household_id, extraction_status, doc_type, provider, end_date, renewal_date"
+      "id, household_id, extraction_status, category, doc_type, provider, end_date, renewal_date"
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -179,7 +181,7 @@ export async function syncRemindersForDocument(
     .eq("locale", locale);
 
   const offsets = offsetsFor(
-    categorise(doc as ReminderDocument),
+    effectiveCategory(doc as ReminderDocument),
     locale,
     (ruleRows as ReminderRule[] | null) ?? []
   );

@@ -7,10 +7,17 @@ import {
   type ReviewState,
 } from "@/app/actions/documents";
 import {
+  asCategory,
+  categorise,
+  CATEGORIES,
+  effectiveCategory,
+} from "@/lib/categories";
+import {
   REVIEW_FIELDS,
   type DocumentRow,
   type ExtractionConfidence,
 } from "@/lib/document-types";
+import { CATEGORY_ICON } from "@/components/category-icons";
 import {
   Button,
   ConfidencePill,
@@ -68,6 +75,22 @@ function ReviewForm({ doc }: { doc: DocumentRow }) {
   return (
     <form action={submit} className="mt-4 flex flex-col gap-4">
       <input type="hidden" name="document_id" value={doc.id} />
+
+      <label className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-ink-soft">File it under</span>
+        <select
+          name="category"
+          defaultValue={effectiveCategory(doc)}
+          className="field-input w-auto"
+        >
+          <option value="">Let us sort it</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
         {REVIEW_FIELDS.map((f) => {
@@ -144,6 +167,11 @@ function Entry({ doc }: { doc: DocumentRow }) {
   const inProgress =
     doc.extraction_status === "pending" ||
     doc.extraction_status === "processing";
+  // The stored bucket if there is one; otherwise the guess, but only once
+  // there is something to guess from.
+  const shownCategory =
+    asCategory(doc.category) ?? (reviewable ? categorise(doc) : null);
+  const CategoryIcon = shownCategory ? CATEGORY_ICON[shownCategory] : null;
 
   return (
     <li className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
@@ -160,6 +188,12 @@ function Entry({ doc }: { doc: DocumentRow }) {
           {reviewable && doc.provider ? (
             <span className="mt-0.5 block truncate text-sm text-ink-soft">
               {doc.provider}
+            </span>
+          ) : null}
+          {shownCategory && CategoryIcon ? (
+            <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-faint">
+              <CategoryIcon size={13} strokeWidth={1.9} aria-hidden />
+              <span className="truncate">{shownCategory}</span>
             </span>
           ) : null}
         </span>
