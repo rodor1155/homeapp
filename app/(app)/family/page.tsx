@@ -9,10 +9,14 @@ import {
   loadSchools,
 } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
+import { loadMealPlans, weekStartMonday } from "@/lib/meals";
+import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import EventsPanel from "./EventsPanel";
 import PeoplePanel from "./PeoplePanel";
 import SchoolsPanel from "./SchoolsPanel";
+import MealsPanel from "./MealsPanel";
+import RoutinesPanel from "./RoutinesPanel";
 import TimetablePanel from "./TimetablePanel";
 
 export const metadata = { title: "Family · homeapp" };
@@ -21,26 +25,40 @@ export default async function FamilyPage() {
   const { supabase, household } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
-  const [peopleLoad, schoolsLoad, eventsLoad, calendarLoad, timetableLoad] =
-    await Promise.all([
-      loadHouseholdPeople(supabase, household.id),
-      loadSchools(supabase, household.id),
-      loadHouseholdEvents(supabase, household.id),
-      loadSchoolCalendarEvents(supabase, household.id),
-      loadPersonTimetableSlots(supabase, household.id),
-    ]);
+  const weekStart = weekStartMonday();
+  const [
+    peopleLoad,
+    schoolsLoad,
+    eventsLoad,
+    calendarLoad,
+    timetableLoad,
+    routinesLoad,
+    mealsLoad,
+  ] = await Promise.all([
+    loadHouseholdPeople(supabase, household.id),
+    loadSchools(supabase, household.id),
+    loadHouseholdEvents(supabase, household.id),
+    loadSchoolCalendarEvents(supabase, household.id),
+    loadPersonTimetableSlots(supabase, household.id),
+    loadHouseholdRoutines(supabase, household.id),
+    loadMealPlans(supabase, household.id, weekStart),
+  ]);
 
   const people = peopleLoad.items;
   const schools = schoolsLoad.items;
   const events = eventsLoad.items;
   const calendarEvents = calendarLoad.items;
   const timetableSlots = timetableLoad.items;
+  const routines = routinesLoad.items;
+  const meals = mealsLoad.items;
   const loadFault = firstFault(
     peopleLoad,
     schoolsLoad,
     eventsLoad,
     calendarLoad,
-    timetableLoad
+    timetableLoad,
+    routinesLoad,
+    mealsLoad
   );
 
   const children = people.filter((person) => person.kind === "child");
@@ -108,6 +126,26 @@ export default async function FamilyPage() {
           people={people}
           slots={timetableSlots}
           fault={timetableLoad.fault}
+        />
+      </Card>
+
+      <Card
+        title="Routines"
+        action={
+          <span className="tnum text-xs text-ink-faint">
+            {routines.length}{" "}
+            {routines.length === 1 ? "beat" : "beats"}
+          </span>
+        }
+      >
+        <RoutinesPanel routines={routines} fault={routinesLoad.fault} />
+      </Card>
+
+      <Card title="This week’s dinners">
+        <MealsPanel
+          meals={meals}
+          weekStart={weekStart}
+          fault={mealsLoad.fault}
         />
       </Card>
 

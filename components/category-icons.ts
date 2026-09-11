@@ -2,6 +2,7 @@ import {
   Car,
   ClipboardCheck,
   Folder,
+  Inbox,
   RefreshCw,
   ShieldCheck,
   Wrench,
@@ -9,7 +10,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Category } from "@/lib/categories";
-import type { Tone } from "@/lib/tones";
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   Insurance: ShieldCheck,
@@ -18,6 +18,7 @@ export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   "Property & compliance": ClipboardCheck,
   "Warranties & appliances": Wrench,
   "Subscriptions & services": RefreshCw,
+  "Home inbox": Inbox,
   Other: Folder,
 };
 
@@ -29,5 +30,6 @@ export const CATEGORY_SHORT_LABEL: Record<Category, string> = {
   "Property & compliance": "Compliance",
   "Warranties & appliances": "Appliances",
   "Subscriptions & services": "Subscriptions",
+  "Home inbox": "Inbox",
   Other: "Other",
 };

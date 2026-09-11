@@ -8,6 +8,7 @@ export const CATEGORIES = [
   "Property & compliance",
   "Warranties & appliances",
   "Subscriptions & services",
+  "Home inbox",
   "Other",
 ] as const;
 
@@ -48,6 +49,10 @@ const CATEGORY_PATTERNS: ReadonlyArray<readonly [Category, RegExp]> = [
   [
     "Subscriptions & services",
     /\b(subscription|membership|service agreement|maintenance|streaming|cleaning|garden|alarm|monitoring|contract)/i,
+  ],
+  [
+    "Home inbox",
+    /\b(school letter|permission slip|newsletter|trip form|parents evening|inbox|correspondence|letter from|notice from school)/i,
   ],
 ];
 

@@ -13,6 +13,9 @@ import DeleteAccountPanel from "./DeleteAccountPanel";
 import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
 import PlanPanel from "./PlanPanel";
+import GuestPackPanel from "./GuestPackPanel";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { loadGuestPack } from "@/lib/guests";
 
 export const metadata = { title: "Settings · homeapp" };
 
@@ -21,10 +24,11 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   const { supabase, user, household, property } = await requireOnboarded();
 
   const billingConfigured = isBillingConfigured();
-  const [members, invites, entitlements] = await Promise.all([
+  const [members, invites, entitlements, guestPackLoad] = await Promise.all([
     loadHouseholdMembers(supabase, household.id),
     loadSentInvites(supabase, household.id),
     getEntitlements(household.id),
+    loadGuestPack(supabase, household.id),
   ]);
 
   // The row is only read for the renewal date on the paid card. A free
@@ -67,6 +71,19 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
           cancelAtPeriodEnd={subscription?.cancel_at_period_end ?? false}
           justPaid={billing === "success"}
         />
+      </Card>
+
+      <Card title="Guests pack">
+        {guestPackLoad.fault ? (
+          <p role="status" className="mb-2 text-sm text-oxblood">
+            {guestPackLoad.fault}
+          </p>
+        ) : null}
+        <GuestPackPanel pack={guestPackLoad.pack} />
+      </Card>
+
+      <Card title="Parent / child view">
+        <ViewModeToggle />
       </Card>
 
       <Card

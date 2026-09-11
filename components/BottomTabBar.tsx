@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { APP_TAB_HREFS } from "@/lib/app-routes";
+import { useViewMode } from "@/components/ViewModeToggle";
 
 type Tab = {
   href: (typeof APP_TAB_HREFS)[number];
@@ -43,9 +44,14 @@ export default function BottomTabBar() {
   const pathname = usePathname();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const viewMode = useViewMode();
+  const tabs =
+    viewMode === "child"
+      ? TABS.filter((tab) => tab.href !== "/documents")
+      : TABS;
 
   const routeHref =
-    TABS.find((tab) => isActive(pathname, tab.href))?.href ?? pathname;
+    tabs.find((tab) => isActive(pathname, tab.href))?.href ?? pathname;
   // Optimistic highlight until the real route catches up — no effect needed.
   const highlightHref =
     pendingHref && pendingHref !== routeHref ? pendingHref : routeHref;
@@ -56,7 +62,7 @@ export default function BottomTabBar() {
       className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper-raised/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
       <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-2">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = isActive(highlightHref, tab.href);
           const Icon = tab.icon;
           return (

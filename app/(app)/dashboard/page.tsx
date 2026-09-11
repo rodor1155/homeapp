@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Inbox } from "lucide-react";
+import { Card } from "@/components/ui";
 import { Suspense } from "react";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import ComingUpSection from "./ComingUpSection";
@@ -9,7 +11,9 @@ import HouseFileSection from "./HouseFileSection";
 import HouseIllustration from "./HouseIllustration";
 import { resolveHomeMap } from "@/lib/home-map";
 import InvitesBanner from "./InvitesBanner";
+import MaintenanceSection from "./MaintenanceSection";
 import ShoppingSection from "./ShoppingSection";
+import WhosWhereSection from "./WhosWhereSection";
 import {
   ComingUpFallback,
   ExportFallback,
@@ -88,13 +92,23 @@ export default async function DashboardPage() {
         <HouseFileSection householdId={household.id} locale={locale} />
       </Suspense>
 
+      <Suspense fallback={null}>
+        <WhosWhereSection householdId={household.id} />
+      </Suspense>
+
       <Suspense fallback={<ComingUpFallback />}>
         <ComingUpSection householdId={household.id} locale={locale} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <MaintenanceSection householdId={household.id} locale={locale} />
       </Suspense>
 
       <Suspense fallback={<ShoppingFallback />}>
         <ShoppingSection householdId={household.id} />
       </Suspense>
+
+      <CardLinkInbox />
 
       <Suspense fallback={<FilingFallback />}>
         <FilingSection householdId={household.id} locale={locale} />
@@ -127,5 +141,30 @@ async function HomeMapCredit({ address }: { address: string }) {
     <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
       Map © OpenStreetMap · Carto
     </p>
+  );
+}
+
+
+function CardLinkInbox() {
+  return (
+    <Card padding="none">
+      <Link
+        href="/documents?category=Home%20inbox&upload=1#upload"
+        className="flex items-center gap-3 px-4 py-3.5"
+      >
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-ochre-tint text-ochre"
+        >
+          <Inbox size={17} strokeWidth={1.9} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-ink">Home inbox</span>
+          <span className="block truncate text-xs text-ink-faint">
+            Drop a school letter or slip — dated ones show in Coming up
+          </span>
+        </span>
+      </Link>
+    </Card>
   );
 }
