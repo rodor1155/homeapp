@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* The address picker's one endpoint: a postcode in, the addresses at it out.
-   Signed-in only — the getAddress.io key is metered, so this is not something
+   Signed-in only — the Ideal Postcodes key is metered, so this is not something
    to leave open, and a household has no reason to reach it before they are
    in. Everything about *which* provider answered is decided server-side in
    lib/address-lookup.ts; the client only reads the result. */

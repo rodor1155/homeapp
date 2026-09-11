@@ -4,18 +4,11 @@ import "server-only";
  * household types one in: their own property (/settings) and a school
  * (/family).
  *
- * Two providers, in order of how much they can tell us:
- *
- *   getAddress.io   the real picker — every delivery point at a postcode.
- *                   Needs GETADDRESS_API_KEY, which is a paid key.
- *   postcodes.io    free and needs no key, but it only knows *about* the
- *                   postcode (is it real, which district and ward it is in).
- *                   No house numbers, so there is nothing to pick from.
- *
- * Without the key the lookup still earns its place: it catches a mistyped
- * postcode and fills the town in, and says plainly that the list of addresses
- * needs the key. The caller can always type the address by hand — this is a
- * convenience, never a gate. */
+ * Ideal Postcodes is the licensed PAF source (getAddress.io shut down in
+ * Feb 2026). Needs IDEAL_POSTCODES_API_KEY. Without the key we still check
+ * the postcode via free postcodes.io so a typo is caught, and say plainly
+ * that the house list needs the key — the address field stays typeable.
+ */
 
 /** One line in the list the household picks from. */
 export type AddressSuggestion = {
@@ -32,7 +25,7 @@ export type AddressLookup = {
   postcode: string;
   suggestions: AddressSuggestion[];
   /** Which provider answered, so the UI can explain an empty list. */
-  source: "getaddress" | "postcodes.io";
+  source: "ideal-postcodes" | "postcodes.io";
   /** A sentence to show under the results, or null if there is nothing to add. */
   message: string | null;
 };
@@ -40,12 +33,12 @@ export type AddressLookup = {
 export type AddressLookupResult = AddressLookup | { error: string };
 
 const FETCH_TIMEOUT_MS = 6_000;
-/** More delivery points than any one postcode has. */
+/** More delivery points than any one postcode has on a single page. */
 const MAX_SUGGESTIONS = 100;
 
-/** True once a getAddress.io key is set, i.e. the full picker is available. */
+/** True once an Ideal Postcodes key is set, i.e. the full picker is available. */
 export function isAddressPickerConfigured(): boolean {
-  return Boolean(process.env.GETADDRESS_API_KEY?.trim());
+  return Boolean(process.env.IDEAL_POSTCODES_API_KEY?.trim());
 }
 
 /**
@@ -72,9 +65,9 @@ export async function lookupAddresses(
     return { error: "That doesn’t look like a UK postcode." };
   }
 
-  const key = process.env.GETADDRESS_API_KEY?.trim();
+  const key = process.env.IDEAL_POSTCODES_API_KEY?.trim();
   return key
-    ? await fromGetAddress(postcode, key)
+    ? await fromIdealPostcodes(postcode, key)
     : await fromPostcodesIo(postcode);
 }
 
@@ -88,8 +81,6 @@ async function getJson(url: string): Promise<{ status: number; body: unknown } |
       headers: { accept: "application/json" },
       cache: "no-store",
     });
-    // A 404 from either provider is a real answer ("no such postcode"), so
-    // the body is read whatever the status is.
     const body = await response.json().catch(() => null);
     return { status: response.status, body };
   } catch {
@@ -99,62 +90,95 @@ async function getJson(url: string): Promise<{ status: number; body: unknown } |
   }
 }
 
-// --- getAddress.io --------------------------------------------------------
+// --- Ideal Postcodes (licensed PAF) ---------------------------------------
 
-type GetAddressResponse = {
-  addresses?: {
-    formatted_address?: unknown;
-  }[];
+type IdealAddress = {
+  line_1?: unknown;
+  line_2?: unknown;
+  line_3?: unknown;
+  post_town?: unknown;
+  postcode?: unknown;
+  organisation_name?: unknown;
 };
 
-async function fromGetAddress(
+type IdealPostcodesResponse = {
+  code?: unknown;
+  message?: unknown;
+  result?: IdealAddress[];
+  total?: unknown;
+};
+
+async function fromIdealPostcodes(
   postcode: string,
   key: string
 ): Promise<AddressLookupResult> {
-  const url = `https://api.getaddress.io/find/${encodeURIComponent(
-    postcode
-  )}?expand=true&api-key=${encodeURIComponent(key)}`;
-
-  const answer = await getJson(url);
-  if (!answer) {
-    return { error: "The address lookup didn’t answer. Try again in a moment." };
-  }
-
-  if (answer.status === 404) {
-    return { error: "We couldn’t find that postcode." };
-  }
-  if (answer.status === 401 || answer.status === 403) {
-    // The household can't fix this, so don't ask them to — fall back to the
-    // free provider and let them type the address in.
-    console.error("[address-lookup] getAddress.io rejected the key");
-    return await fromPostcodesIo(postcode);
-  }
-  if (answer.status === 429) {
-    return { error: "The address lookup is busy. Try again in a moment." };
-  }
-  if (answer.status !== 200) {
-    console.error("[address-lookup] getAddress.io returned", answer.status);
-    return { error: "The address lookup didn’t answer. Try again in a moment." };
-  }
-
-  const rows = (answer.body as GetAddressResponse)?.addresses ?? [];
   const suggestions: AddressSuggestion[] = [];
+  let page = 0;
+  let total = Infinity;
 
-  for (const row of rows) {
-    const lines = addressLines(row?.formatted_address, postcode);
-    if (lines.length === 0) continue;
-    suggestions.push({
-      id: String(suggestions.length),
-      label: lines.join(", "),
-      lines,
-    });
-    if (suggestions.length >= MAX_SUGGESTIONS) break;
+  while (suggestions.length < MAX_SUGGESTIONS && suggestions.length < total) {
+    const url =
+      `https://api.ideal-postcodes.co.uk/v1/postcodes/` +
+      `${encodeURIComponent(postcode)}?api_key=${encodeURIComponent(key)}` +
+      `&page=${page}`;
+
+    const answer = await getJson(url);
+    if (!answer) {
+      return {
+        error: "The address lookup didn’t answer. Try again in a moment.",
+      };
+    }
+
+    if (answer.status === 404) {
+      return { error: "We couldn’t find that postcode." };
+    }
+    if (answer.status === 401 || answer.status === 403) {
+      console.error("[address-lookup] Ideal Postcodes rejected the key");
+      return await fromPostcodesIo(postcode);
+    }
+    if (answer.status === 402) {
+      return {
+        error:
+          "The address lookup is out of credit. Top up Ideal Postcodes, or type the address below.",
+      };
+    }
+    if (answer.status === 429) {
+      return { error: "The address lookup is busy. Try again in a moment." };
+    }
+    if (answer.status !== 200) {
+      console.error("[address-lookup] Ideal Postcodes returned", answer.status);
+      return {
+        error: "The address lookup didn’t answer. Try again in a moment.",
+      };
+    }
+
+    const body = answer.body as IdealPostcodesResponse;
+    const rows = Array.isArray(body.result) ? body.result : [];
+    total =
+      typeof body.total === "number" && Number.isFinite(body.total)
+        ? body.total
+        : rows.length;
+
+    for (const row of rows) {
+      const lines = addressLines(row, postcode);
+      if (lines.length === 0) continue;
+      suggestions.push({
+        id: String(suggestions.length),
+        label: lines.join(", "),
+        lines,
+      });
+      if (suggestions.length >= MAX_SUGGESTIONS) break;
+    }
+
+    if (rows.length === 0) break;
+    page += 1;
+    if (page > 20) break;
   }
 
   return {
     postcode,
     suggestions,
-    source: "getaddress",
+    source: "ideal-postcodes",
     message:
       suggestions.length === 0
         ? "That postcode is real, but no addresses came back for it. Type it in below."
@@ -162,18 +186,16 @@ async function fromGetAddress(
   };
 }
 
-/**
- * getAddress.io pads `formatted_address` out to five entries with empty
- * strings, so the blanks are dropped; the postcode is added because it isn't
- * one of them.
- */
-function addressLines(formatted: unknown, postcode: string): string[] {
-  if (!Array.isArray(formatted)) return [];
-  const lines = formatted
+function addressLines(row: IdealAddress, fallbackPostcode: string): string[] {
+  const parts = [row.line_1, row.line_2, row.line_3, row.post_town]
     .filter((line): line is string => typeof line === "string")
     .map((line) => line.trim())
     .filter(Boolean);
-  return lines.length === 0 ? [] : [...lines, postcode];
+  const pc =
+    typeof row.postcode === "string" && row.postcode.trim()
+      ? row.postcode.trim().toUpperCase()
+      : fallbackPostcode;
+  return parts.length === 0 ? [] : [...parts, pc];
 }
 
 // --- postcodes.io (no key needed) -----------------------------------------
@@ -188,11 +210,6 @@ type PostcodesIoResponse = {
   };
 };
 
-/**
- * Only validates the postcode and names the area it is in. Comes back with an
- * empty `suggestions`, and a message saying why, so the picker can be honest
- * rather than look broken.
- */
 async function fromPostcodesIo(postcode: string): Promise<AddressLookupResult> {
   const answer = await getJson(
     `https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`
@@ -218,7 +235,7 @@ async function fromPostcodesIo(postcode: string): Promise<AddressLookupResult> {
     suggestions: [],
     source: "postcodes.io",
     message: where
-      ? `${postcode} is in ${where}. Picking the house from a list needs an address-lookup key, so type the rest in below.`
-      : `${postcode} looks like a real postcode. Picking the house from a list needs an address-lookup key, so type the rest in below.`,
+      ? `${postcode} is in ${where}. Add an Ideal Postcodes key to pick the house from a list, or type the rest below.`
+      : `${postcode} looks like a real postcode. Add an Ideal Postcodes key to pick the house from a list, or type the rest below.`,
   };
 }

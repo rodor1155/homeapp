@@ -7,6 +7,7 @@ import HelpfulHintsSection from "./HelpfulHintsSection";
 import HeroExport from "./HeroExport";
 import HouseFileSection from "./HouseFileSection";
 import HouseIllustration from "./HouseIllustration";
+import { resolveHomeMap } from "@/lib/home-map";
 import InvitesBanner from "./InvitesBanner";
 import ShoppingSection from "./ShoppingSection";
 import {
@@ -38,14 +39,23 @@ export default async function DashboardPage() {
     .filter(Boolean)
     .join(", ");
 
+  const homeMap = await resolveHomeMap(property.address);
+
   return (
     <div className="flex flex-col gap-4">
       <Suspense fallback={null}>
         <InvitesBanner />
       </Suspense>
 
-      <section className="home-hero card overflow-hidden p-5">
-        <div className="flex items-start justify-between gap-3">
+      <section className="home-hero card relative overflow-hidden p-5">
+        {homeMap ? (
+          <div
+            aria-hidden
+            className="home-hero-map"
+            style={{ backgroundImage: `url(${homeMap.imagePath})` }}
+          />
+        ) : null}
+        <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-sage">
               Your home
@@ -60,7 +70,7 @@ export default async function DashboardPage() {
           </div>
           <HouseIllustration className="h-16 w-24" />
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-5 flex flex-wrap gap-2">
           <Link href="/documents" className="btn">
             Open the documents file
           </Link>
@@ -68,6 +78,11 @@ export default async function DashboardPage() {
             <HeroExport householdId={household.id} />
           </Suspense>
         </div>
+        {homeMap ? (
+          <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
+            Map © OpenStreetMap · Carto
+          </p>
+        ) : null}
       </section>
 
       <Suspense fallback={<HintsFallback />}>

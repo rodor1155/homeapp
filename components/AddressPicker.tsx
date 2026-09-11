@@ -12,7 +12,7 @@ import type { AddressLookup, AddressSuggestion } from "@/lib/address-lookup";
 
    It is a convenience, not a gate. Whatever the lookup says, the address
    field underneath stays typeable — which is also what happens when no
-   getAddress.io key is set and only the postcode can be checked. */
+   Ideal Postcodes key is set and only the postcode can be checked. */
 
 type Props = {
   postcode: string;
