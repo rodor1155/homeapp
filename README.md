@@ -25,7 +25,7 @@ Open http://localhost:3000.
 | `INTERNAL_TOOLS_EMAILS` | server-only | optional CSV allow-list for `/internal/*` pages |
 | `RESEND_API_KEY` | server-only secret | Resend key for reminder email; unset = reminders are logged as skipped, not sent |
 | `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email, on a domain verified in Resend |
-| `CRON_SECRET` | server-only secret | bearer token for `/api/cron/reminders`; Vercel sends it automatically once set |
+| `CRON_SECRET` | server-only secret | bearer token for `/api/cron/reminders` and `/api/cron/school-calendars`; Vercel sends it automatically once set |
 | `STRIPE_SECRET_KEY` | server-only secret | Stripe key; **unset = billing off**, every household keeps the paid entitlements |
 | `STRIPE_WEBHOOK_SECRET` | server-only secret | signing secret for `/api/stripe/webhook`; unset = the webhook no-ops |
 | `STRIPE_PRICE_GBP_MONTHLY` | server-only | price ID offered to UK households, £4.99/mo |
@@ -65,6 +65,11 @@ from `lib/home-overview.ts` and the household's locale — 60/30/7/0 days by def
 emails every household member whose reminder falls due that day via Resend, and logs
 each send in `reminder_events` — the unique `(reminder_id, offset_days)` there is what
 stops a nudge going out twice. The day-of send closes the reminder off as `sent`.
+
+`GET /api/cron/school-calendars` runs daily at 06:15 UTC on the same `CRON_SECRET`,
+re-reading every school's linked ICS feed through `syncSchoolCalendar()` so term dates
+on the dashboard stay fresh. It takes at most 50 schools a run, stalest first, and one
+unreadable feed is recorded against that school rather than failing the run.
 
 ## Billing
 

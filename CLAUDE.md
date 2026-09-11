@@ -470,9 +470,19 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
 - **Dashboard "Coming up"** takes `schoolEntries()` from `lib/coming-up.ts` — kind
   `"school"`, a graduation-cap mark, `SCHOOL_HORIZON_DAYS` (45) and at most
   `SCHOOL_ENTRY_LIMIT` (8) rows, so one busy feed can't drown the household's own dates.
-- Nothing emails a school date, and nothing re-reads a feed on a schedule: a calendar is
-  only as fresh as the last save or Refresh. A cron over `syncSchoolCalendar()` is the
-  obvious next step.
+- **`GET /api/cron/school-calendars`** (nodejs, maxDuration 60) re-reads the feeds so a
+  term date doesn't go stale between saves. Same shape as the reminders cron: unset
+  `CRON_SECRET` logs a warning and returns 200 `{ skipped: true }`, otherwise a bearer
+  compare against it. Every school with a non-empty `calendar_url`, stalest first
+  (`calendar_last_synced_at` nulls first), at most `MAX_SCHOOLS` (50) a run and
+  sequentially — these are other people's servers. It stops starting new feeds after
+  45s so the last one still fits inside `maxDuration`; whatever is left counts as
+  `skipped` and comes round tomorrow. One bad feed is logged against its school id and
+  counted, never fatal. Returns `{ processed, synced, errors, skipped, events }`.
+  **`vercel.json`** runs it at `15 6 * * *` — before the 08:00 reminders run, so a UK
+  morning sees fresh term dates.
+- Nothing emails a school date: a school calendar only ever shows up on the page and in
+  "Coming up".
 
 ## Shopping lists (phase 8)
 
