@@ -119,7 +119,7 @@ export default async function ComingUpSection({
     ),
     birthdayEntries(people),
     eventEntries(events, people),
-    schoolEntries(schoolDates, schools),
+    schoolEntries(schoolDates, schools, people),
     sharedEntries(sharedDates, calendars)
   );
 

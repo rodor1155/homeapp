@@ -13,6 +13,11 @@ import {
   type SchoolCalendarEvent,
 } from "@/lib/family";
 import type { UpcomingDate } from "@/lib/home-overview";
+import {
+  childYearsForSchool,
+  eventRelevantToYears,
+  householdChildYears,
+} from "@/lib/school-year-match";
 import type { Tone } from "@/lib/tones";
 
 /* One list for everything with a date on it: renewals read off documents,
@@ -142,6 +147,7 @@ export function eventEntries(
 export function schoolEntries(
   events: readonly SchoolCalendarEvent[],
   schools: readonly School[] = [],
+  people: readonly HouseholdPerson[] = [],
   now: Date = new Date(),
   withinDays: number = SCHOOL_HORIZON_DAYS,
   limit: number = SCHOOL_ENTRY_LIMIT
@@ -149,6 +155,8 @@ export function schoolEntries(
   const labelById = new Map(
     schools.map((school) => [school.id, school.calendar_title?.trim() || school.name])
   );
+  const householdYears = householdChildYears(people);
+  const yearsBySchool = new Map<string, Set<string>>();
   const entries: ComingUpEntry[] = [];
 
   for (const event of events) {
@@ -156,6 +164,15 @@ export function schoolEntries(
     if (!date) continue;
     const daysAway = daysUntil(date, now);
     if (daysAway === null || daysAway < 0 || daysAway > withinDays) continue;
+
+    if (householdYears.size > 0) {
+      let years = yearsBySchool.get(event.school_id);
+      if (!years) {
+        years = childYearsForSchool(people, event.school_id);
+        yearsBySchool.set(event.school_id, years);
+      }
+      if (!eventRelevantToYears(event.title, years)) continue;
+    }
 
     entries.push({
       key: `school-${event.id}`,

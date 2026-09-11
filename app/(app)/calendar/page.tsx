@@ -55,8 +55,8 @@ export const metadata = { title: "Calendar · homeapp" };
 
 /* The household's month: the birthdays it derives, the dates someone typed in,
    whatever the schools' feeds say and whatever the household's own linked
-   calendars do, on one grid. A month is a URL (`?ym=2026-10`), so the back
-   button works and a month can be shared.
+   calendars do, on one grid. A month is a URL (`?ym=2026-10`), and a day is
+   too (`?day=2026-10-14`), so the back button works and a day can be shared.
 
    Colour is the only thing telling the four apart, and it comes from
    lib/tones.ts through each kind's tone — never a class written here. */
@@ -68,8 +68,51 @@ const KIND_ICON: Record<CalendarKind, LucideIcon> = {
   shared: Share2,
 };
 
+const DAY_PARAM = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function first(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+/** A `?day=YYYY-MM-DD` value that falls in the visible month, or null. */
+function parseDayInMonth(
+  value: string | null,
+  month: MonthKey
+): string | null {
+  const match = DAY_PARAM.exec((value ?? "").trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthNum = Number(match[2]);
+  const day = Number(match[3]);
+  if (year !== month.year || monthNum !== month.month) return null;
+  if (day < 1 || day > 31) return null;
+  const iso = `${match[1]}-${match[2]}-${match[3]}`;
+  // Reject nonsense like 2026-02-31 by round-tripping through Date.UTC.
+  const at = new Date(Date.UTC(year, monthNum - 1, day));
+  if (
+    at.getUTCFullYear() !== year ||
+    at.getUTCMonth() !== monthNum - 1 ||
+    at.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return iso;
+}
+
+/**
+ * The day the list under the grid shows: the URL's day when it is in this
+ * month; otherwise today when today is in this month; otherwise nothing, so
+ * the empty state asks them to tap a day.
+ */
+function resolveSelectedDay(
+  dayParam: string | null,
+  month: MonthKey,
+  today: string
+): string | null {
+  const fromUrl = parseDayInMonth(dayParam, month);
+  if (fromUrl) return fromUrl;
+  if (parseDayInMonth(today, month)) return today;
+  return null;
 }
 
 export default async function CalendarPage({
@@ -80,7 +123,8 @@ export default async function CalendarPage({
   const { supabase, household } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
-  const month = parseMonthKey(first((await searchParams).ym));
+  const params = await searchParams;
+  const month = parseMonthKey(first(params.ym));
   const bounds = monthBounds(month);
 
   const fromIso = `${bounds.from}T00:00:00.000Z`;
@@ -120,7 +164,7 @@ export default async function CalendarPage({
   const items = sortItems([
     ...birthdayItems(people, month),
     ...eventItems(events, people, month),
-    ...schoolItems(schoolDates, schools, month),
+    ...schoolItems(schoolDates, schools, month, people),
     ...sharedItems(sharedDates, calendars, month),
   ]);
 
@@ -128,6 +172,8 @@ export default async function CalendarPage({
   const todayParts = calendarDayParts();
   const today = `${todayParts.year}-${String(todayParts.month).padStart(2, "0")}-${String(todayParts.day).padStart(2, "0")}`;
   const label = formatMonth(monthParam(month), locale);
+  const selectedDay = resolveSelectedDay(first(params.day), month, today);
+  const dayItems = selectedDay ? byDate.get(selectedDay) ?? [] : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -160,6 +206,7 @@ export default async function CalendarPage({
           month={month}
           byDate={byDate}
           today={today}
+          selectedDay={selectedDay}
           locale={locale}
         />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-rule px-4 py-3 text-xs text-ink-faint">
@@ -178,42 +225,44 @@ export default async function CalendarPage({
       </Card>
 
       <Card
-        title={label}
+        title={
+          selectedDay
+            ? `${selectedDay === today ? "Today · " : ""}${formatWeekdayDate(selectedDay, locale)}`
+            : label
+        }
         action={
-          items.length > 0 ? (
+          selectedDay && dayItems.length > 0 ? (
             <span className="tnum text-xs text-ink-faint">
-              {items.length} {items.length === 1 ? "date" : "dates"}
+              {dayItems.length} {dayItems.length === 1 ? "date" : "dates"}
             </span>
           ) : undefined
         }
       >
-        {items.length === 0 ? (
+        {!selectedDay ? (
           <p className="text-sm text-ink-faint">
-            Nothing on in {label}. Birthdays come from the family, and a
+            Tap a day to see what&rsquo;s on.
+          </p>
+        ) : dayItems.length === 0 ? (
+          <p className="text-sm text-ink-faint">
+            Nothing on this day. Birthdays come from the family, and a
             school&rsquo;s terms come from its own calendar.
           </p>
         ) : (
-          <div className="-mx-1 flex flex-col gap-3.5">
-            {[...byDate.entries()].map(([date, dayItems]) => (
-              <div key={date}>
-                <h3 className="px-2.5 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                  {date === today ? "Today · " : ""}
-                  {formatWeekdayDate(date, locale)}
-                </h3>
-                <ul className="flex flex-col gap-1">
-                  {dayItems.map((item) => (
-                    <Row key={item.key} item={item} today={date === today} />
-                  ))}
-                </ul>
-              </div>
+          <ul className="-mx-1 flex flex-col gap-1">
+            {dayItems.map((item) => (
+              <Row
+                key={item.key}
+                item={item}
+                today={selectedDay === today}
+              />
             ))}
-          </div>
+          </ul>
         )}
       </Card>
 
       <AddDateCard
         people={people}
-        defaultDate={bounds.from}
+        defaultDate={selectedDay ?? bounds.from}
         monthLabel={label}
       />
 
@@ -278,6 +327,8 @@ function MonthArrow({
   direction: "back" | "on";
 }) {
   const Icon = direction === "back" ? ChevronLeft : ChevronRight;
+  // Drop `day` when changing months — the selected day belongs to the month
+  // it came from, and resolving to today (when in range) is quieter.
   return (
     <Link
       href={`/calendar?ym=${monthParam(month)}`}
@@ -289,20 +340,23 @@ function MonthArrow({
   );
 }
 
-/** The month as squares. Display only — the list under it is the readable
- *  copy of the same thing, so a day needs no tap target of its own. */
+/** The month as squares. Each in-month day is a link; the list under the
+ *  grid shows only the selected day. */
 function Grid({
   month,
   byDate,
   today,
+  selectedDay,
   locale,
 }: {
   month: MonthKey;
   byDate: Map<string, CalendarItem[]>;
   today: string;
+  selectedDay: string | null;
   locale: Locale;
 }) {
   const days = monthDays(month, weekStartsOn(locale));
+  const ym = monthParam(month);
 
   return (
     <div className="px-2 pb-3 pt-2">
@@ -323,20 +377,27 @@ function Grid({
             (byDate.get(day.date) ?? []).some((item) => item.kind === kind)
           );
           const marked = kinds.length > 0 && day.inMonth;
+          const isToday = day.date === today;
+          const isSelected = day.inMonth && day.date === selectedDay;
           // A busy day takes the wash of its first kind, so the month reads
-          // as colour from arm's length and the dots say the rest.
-          const wash = marked ? TONE_WASH[CALENDAR_KIND_TONE[kinds[0]]] : "";
+          // as colour from arm's length and the dots say the rest. Selected
+          // wins over wash so the tap target stays obvious.
+          const wash =
+            marked && !isSelected ? TONE_WASH[CALENDAR_KIND_TONE[kinds[0]]] : "";
 
-          return (
-            <div
-              key={day.date}
-              className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm ${wash} ${
-                day.inMonth ? "text-ink" : "text-ink-faint opacity-60"
-              } ${day.date === today ? "ring-1 ring-inset ring-navy" : ""}`}
-            >
-              <span
-                className={`tnum ${day.date === today ? "font-semibold" : ""}`}
-              >
+          const cellClass = `flex aspect-square flex-col items-center justify-center gap-1 rounded-lg text-sm ${wash} ${
+            day.inMonth ? "text-ink" : "text-ink-faint opacity-60"
+          } ${
+            isSelected
+              ? "bg-navy-tint font-semibold ring-2 ring-inset ring-navy"
+              : isToday
+                ? "ring-1 ring-inset ring-navy"
+                : ""
+          } ${day.inMonth ? "transition-colors hover:bg-navy-tint/60" : ""}`;
+
+          const inner = (
+            <>
+              <span className={`tnum ${isToday || isSelected ? "font-semibold" : ""}`}>
                 {day.day}
               </span>
               <span aria-hidden className="flex h-1.5 items-center gap-0.5">
@@ -351,7 +412,27 @@ function Grid({
                     ))
                   : null}
               </span>
-            </div>
+            </>
+          );
+
+          if (!day.inMonth) {
+            return (
+              <div key={day.date} className={cellClass}>
+                {inner}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={day.date}
+              href={`/calendar?ym=${ym}&day=${day.date}`}
+              aria-label={formatWeekdayDate(day.date, locale)}
+              aria-current={isSelected ? "date" : undefined}
+              className={cellClass}
+            >
+              {inner}
+            </Link>
           );
         })}
       </div>

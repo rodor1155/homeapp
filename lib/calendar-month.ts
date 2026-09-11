@@ -14,6 +14,11 @@ import {
   type School,
   type SchoolCalendarEvent,
 } from "@/lib/family";
+import {
+  childYearsForSchool,
+  eventRelevantToYears,
+  householdChildYears,
+} from "@/lib/school-year-match";
 import type { Tone } from "@/lib/tones";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -199,21 +204,35 @@ export function eventItems(
     }));
 }
 
-/** What the schools' own feeds say about this month. */
+/** What the schools' own feeds say about this month, filtered to the years
+ *  the household's children are in (plus whole-school, untagged dates). */
 export function schoolItems(
   calendarEvents: readonly SchoolCalendarEvent[],
   schools: readonly School[],
-  key: MonthKey
+  key: MonthKey,
+  people: readonly HouseholdPerson[] = []
 ): CalendarItem[] {
   const prefix = monthParam(key);
   const labelById = new Map(
     schools.map((school) => [school.id, school.calendar_title?.trim() || school.name])
   );
+  const householdYears = householdChildYears(people);
+  const yearsBySchool = new Map<string, Set<string>>();
   const items: CalendarItem[] = [];
 
   for (const event of calendarEvents) {
     const date = calendarEventDate(event.starts_at);
     if (!date || !date.startsWith(prefix)) continue;
+
+    // No child year_group anywhere → leave the feed alone.
+    if (householdYears.size > 0) {
+      let years = yearsBySchool.get(event.school_id);
+      if (!years) {
+        years = childYearsForSchool(people, event.school_id);
+        yearsBySchool.set(event.school_id, years);
+      }
+      if (!eventRelevantToYears(event.title, years)) continue;
+    }
 
     items.push({
       key: `school-${event.id}`,
