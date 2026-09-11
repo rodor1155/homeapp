@@ -56,6 +56,89 @@ function optional(formData: FormData, key: string): string | null {
   return value ? value : null;
 }
 
+
+/** Normalise a school name for select-or-insert: trim + casefold. */
+function normaliseSchoolName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-GB");
+}
+
+/**
+ * Ensure a referenced school belongs to this household. Rejects cross-household
+ * ids that RLS alone would not catch on insert of a person/event row.
+ */
+async function assertSchoolInHousehold(
+  supabase: SupabaseClient,
+  householdId: string,
+  schoolId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("schools")
+    .select("id")
+    .eq("id", schoolId)
+    .eq("household_id", householdId)
+    .maybeSingle();
+  return data ? null : "That school isn’t in your household.";
+}
+
+async function assertPersonInHousehold(
+  supabase: SupabaseClient,
+  householdId: string,
+  personId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("household_people")
+    .select("id")
+    .eq("id", personId)
+    .eq("household_id", householdId)
+    .maybeSingle();
+  return data ? null : "That person isn’t in your household.";
+}
+
+/**
+ * Find a school by normalised name in the household, or insert one. Surfaces
+ * create errors so the child form can show them.
+ */
+async function findOrCreateSchool(
+  supabase: SupabaseClient,
+  householdId: string,
+  name: string
+): Promise<{ id: string } | { error: string }> {
+  const trimmed = name.trim().replace(/\s+/g, " ");
+  if (!trimmed) return { error: "Give the school a name." };
+  const needle = normaliseSchoolName(trimmed);
+
+  const { data: existing, error: listErr } = await supabase
+    .from("schools")
+    .select("id, name")
+    .eq("household_id", householdId);
+  if (listErr) return { error: listErr.message };
+
+  const hit = (existing ?? []).find(
+    (row) => normaliseSchoolName(String(row.name ?? "")) === needle
+  );
+  if (hit) return { id: hit.id as string };
+
+  const { data: created, error: schoolError } = await supabase
+    .from("schools")
+    .insert({ household_id: householdId, name: trimmed })
+    .select("id")
+    .single();
+  if (schoolError) {
+    // Unique race: someone else minted the same name — re-select.
+    const { data: again } = await supabase
+      .from("schools")
+      .select("id, name")
+      .eq("household_id", householdId);
+    const raced = (again ?? []).find(
+      (row) => normaliseSchoolName(String(row.name ?? "")) === needle
+    );
+    if (raced) return { id: raced.id as string };
+    return { error: schoolError.message };
+  }
+  return { id: created.id as string };
+}
+
+
 /** A real calendar date, so 2026-02-31 can't be stored. */
 function isRealDate(value: string): boolean {
   const parts = parseDateParts(value);
@@ -119,14 +202,24 @@ export async function savePerson(
 
   // Child form can mint a school in the same save when the list is empty (or
   // when the household types a new name instead of picking). Adults ignore it.
+  // Select-or-insert by normalised name so a double submit doesn't mint twice.
   if (kind === "child" && newSchoolName && !schoolId) {
-    const { data: created, error: schoolError } = await supabase
-      .from("schools")
-      .insert({ household_id: caller.householdId, name: newSchoolName })
-      .select("id")
-      .single();
-    if (schoolError) return { error: schoolError.message };
-    schoolId = created.id as string;
+    const minted = await findOrCreateSchool(
+      supabase,
+      caller.householdId,
+      newSchoolName
+    );
+    if ("error" in minted) return { error: minted.error };
+    schoolId = minted.id;
+  }
+
+  if (kind === "child" && schoolId) {
+    const schoolErr = await assertSchoolInHousehold(
+      supabase,
+      caller.householdId,
+      schoolId
+    );
+    if (schoolErr) return { error: schoolErr };
   }
 
   const values = {
@@ -240,13 +333,15 @@ export async function saveSchool(
       .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
   } else {
-    const { data, error } = await supabase
+    const minted = await findOrCreateSchool(supabase, caller.householdId, name);
+    if ("error" in minted) return { error: minted.error };
+    savedId = minted.id;
+    const { error } = await supabase
       .from("schools")
-      .insert({ household_id: caller.householdId, ...values })
-      .select("id")
-      .single();
+      .update(values)
+      .eq("id", savedId)
+      .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
-    savedId = data.id as string;
   }
 
   // A changed link is fetched straight away so the household sees dates (or
@@ -491,6 +586,23 @@ export async function saveEvent(
   const supabase = await createClient();
   const caller = await resolveCaller(supabase);
   if (!caller.ok) return { error: caller.error };
+
+  if (personId) {
+    const personErr = await assertPersonInHousehold(
+      supabase,
+      caller.householdId,
+      personId
+    );
+    if (personErr) return { error: personErr };
+  }
+  if (schoolId) {
+    const schoolErr = await assertSchoolInHousehold(
+      supabase,
+      caller.householdId,
+      schoolId
+    );
+    if (schoolErr) return { error: schoolErr };
+  }
 
   const values = {
     title,

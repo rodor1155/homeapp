@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarDays, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
+  firstFault,
   loadHouseholdEvents,
   loadHouseholdPeople,
   loadSchoolCalendarEvents,
@@ -18,12 +19,18 @@ export default async function FamilyPage() {
   const { supabase, household } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
-  const [people, schools, events, calendarEvents] = await Promise.all([
+  const [peopleLoad, schoolsLoad, eventsLoad, calendarLoad] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
     loadHouseholdEvents(supabase, household.id),
     loadSchoolCalendarEvents(supabase, household.id),
   ]);
+
+  const people = peopleLoad.items;
+  const schools = schoolsLoad.items;
+  const events = eventsLoad.items;
+  const calendarEvents = calendarLoad.items;
+  const loadFault = firstFault(peopleLoad, schoolsLoad, eventsLoad, calendarLoad);
 
   const children = people.filter((person) => person.kind === "child");
 
@@ -36,6 +43,15 @@ export default async function FamilyPage() {
           worth remembering.
         </p>
       </div>
+
+      {loadFault ? (
+        <p
+          role="status"
+          className="rounded border border-oxblood/30 bg-oxblood-tint px-3 py-2 text-sm text-oxblood"
+        >
+          {loadFault}
+        </p>
+      ) : null}
 
       <Card
         title="Schools"

@@ -1,8 +1,17 @@
 import sharp from "sharp";
+import {
+  roundCoord,
+  verifyHomeMapToken,
+  HOME_MAP_COORD_DECIMALS,
+} from "@/lib/home-map";
+import { cacheGet, cacheSet, takeToken } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase-server";
 
 /* Stitches a small Carto Voyager mosaic around the home so the hero can show
    the road and area without shipping a map SDK. One GET, one PNG, long cache.
-   Attribution stays on the hero ("© OSM · Carto"). */
+   Attribution stays on the hero ("© OSM · Carto").
+   Auth: signed short-lived token from resolveHomeMap, or a signed-in session
+   — never open to anonymous sharp stitch abuse. */
 
 export const runtime = "nodejs";
 
@@ -13,37 +22,76 @@ const COLS = 3;
 const ROWS = 2;
 const FETCH_TIMEOUT_MS = 8_000;
 const USER_AGENT = "homeapp/1.0 (https://homeapp-mu.vercel.app; family home app)";
+const STITCH_CACHE_TTL_MS = 60 * 60 * 1000;
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const lat = Number(url.searchParams.get("lat"));
-  const lng = Number(url.searchParams.get("lng"));
+  const latRaw = Number(url.searchParams.get("lat"));
+  const lngRaw = Number(url.searchParams.get("lng"));
+  const token = url.searchParams.get("t") ?? "";
 
   if (
-    !Number.isFinite(lat) ||
-    !Number.isFinite(lng) ||
-    lat < -85 ||
-    lat > 85 ||
-    lng < -180 ||
-    lng > 180
+    !Number.isFinite(latRaw) ||
+    !Number.isFinite(lngRaw) ||
+    latRaw < -85 ||
+    latRaw > 85 ||
+    lngRaw < -180 ||
+    lngRaw > 180
   ) {
     return new Response("Bad coordinates", { status: 400 });
   }
 
+  const lat = roundCoord(latRaw);
+  const lng = roundCoord(lngRaw);
+
+  const tokenOk = verifyHomeMapToken(token, lat, lng);
+  if (!tokenOk) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return new Response("Sign in first.", { status: 401 });
+    }
+    const bucket = `home-map:user:${user.id}`;
+    if (!takeToken(bucket, { limit: RATE_LIMIT, windowMs: RATE_WINDOW_MS })) {
+      return new Response("Too many map requests.", { status: 429 });
+    }
+  } else {
+    // Token is already scoped to lat/lng; still blunt stampeding refreshes.
+    const bucket = `home-map:token:${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}`;
+    if (!takeToken(bucket, { limit: RATE_LIMIT, windowMs: RATE_WINDOW_MS })) {
+      return new Response("Too many map requests.", { status: 429 });
+    }
+  }
+
+  const cacheKey = `home-map:png:${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}`;
+  const cached = cacheGet<Buffer>(cacheKey);
+  if (cached) {
+    return pngResponse(cached);
+  }
+
   try {
     const png = await stitchMap(lat, lng);
-    return new Response(new Uint8Array(png), {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        // Pin the place for a week at the edge; browsers keep it a day.
-        "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
-      },
-    });
+    cacheSet(cacheKey, png, STITCH_CACHE_TTL_MS);
+    return pngResponse(png);
   } catch (error) {
     console.error("[home-map] stitch failed", error);
     return new Response("Map unavailable", { status: 502 });
   }
+}
+
+function pngResponse(png: Buffer): Response {
+  return new Response(new Uint8Array(png), {
+    status: 200,
+    headers: {
+      "Content-Type": "image/png",
+      // Private: the URL carries a token; don't let shared caches serve it around.
+      "Cache-Control": "private, max-age=86400, stale-while-revalidate=86400",
+    },
+  });
 }
 
 async function stitchMap(lat: number, lng: number): Promise<Buffer> {

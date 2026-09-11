@@ -5,6 +5,7 @@ import {
   normaliseCalendarUrl,
   readCalendarFeed,
   type ParsedCalendar,
+  type ParsedCalendarEvent,
 } from "@/lib/ics";
 import { createAdminClient } from "@/lib/supabase-admin";
 
@@ -25,18 +26,31 @@ export type SchoolCalendarSync = {
   error: string | null;
 };
 
+/** One in-flight sync per school so a double-tap on Refresh can't race deletes. */
+const inflight = new Map<string, Promise<SchoolCalendarSync>>();
+
 /**
- * Fetches a school's feed and replaces its cached occurrences. Safe to call
- * as often as somebody presses Refresh: the cache is rebuilt from scratch
- * every time, so an event dropped from the feed disappears here too.
- *
- * A failure leaves the previous rows and the previous "last synced" alone and
- * records the reason on the school, so the page can say what happened without
- * pretending the calendar is empty.
+ * Fetches a school's feed and refreshes its cached occurrences without wiping
+ * first. Upserts by uid, then drops orphans — a failed insert leaves the
+ * previous rows alone, matching what the page claims.
  */
 export async function syncSchoolCalendar(
   schoolId: string,
   now: Date = new Date()
+): Promise<SchoolCalendarSync> {
+  const existing = inflight.get(schoolId);
+  if (existing) return existing;
+
+  const run = syncSchoolCalendarInner(schoolId, now).finally(() => {
+    if (inflight.get(schoolId) === run) inflight.delete(schoolId);
+  });
+  inflight.set(schoolId, run);
+  return run;
+}
+
+async function syncSchoolCalendarInner(
+  schoolId: string,
+  now: Date
 ): Promise<SchoolCalendarSync> {
   const supabase = createAdminClient();
 
@@ -87,34 +101,14 @@ export async function syncSchoolCalendar(
     return recordFailure(supabase, schoolId, message);
   }
 
-  const { error: clearErr } = await supabase
-    .from("school_calendar_events")
-    .delete()
-    .eq("school_id", schoolId);
-  if (clearErr) {
-    console.error("[school-calendar] clear failed", schoolId, clearErr);
+  const replaced = await replaceSchoolEvents(
+    supabase,
+    schoolId,
+    householdId,
+    parsed.events
+  );
+  if (!replaced.ok) {
     return recordFailure(supabase, schoolId, "We couldn’t save that calendar.");
-  }
-
-  if (parsed.events.length > 0) {
-    const { error: insertErr } = await supabase
-      .from("school_calendar_events")
-      .insert(
-        parsed.events.map((event) => ({
-          school_id: schoolId,
-          household_id: householdId,
-          uid: event.uid,
-          title: event.title,
-          starts_at: event.startsAt,
-          ends_at: event.endsAt,
-          all_day: event.allDay,
-          location: event.location,
-        }))
-      );
-    if (insertErr) {
-      console.error("[school-calendar] insert failed", schoolId, insertErr);
-      return recordFailure(supabase, schoolId, "We couldn’t save that calendar.");
-    }
   }
 
   // The feed's own name is only borrowed when nobody has named the calendar
@@ -129,6 +123,70 @@ export async function syncSchoolCalendar(
   await supabase.from("schools").update(patch).eq("id", schoolId);
 
   return { schoolId, count: parsed.events.length, error: null };
+}
+
+/**
+ * Upsert-by-uid, then delete orphans. Never deletes before the write lands, so
+ * a failed save keeps whatever was already on the dashboard.
+ */
+async function replaceSchoolEvents(
+  supabase: AdminClient,
+  schoolId: string,
+  householdId: string,
+  events: ParsedCalendarEvent[]
+): Promise<{ ok: boolean }> {
+  const rows = events.map((event) => ({
+    school_id: schoolId,
+    household_id: householdId,
+    uid: stableEventUid(event),
+    title: event.title,
+    starts_at: event.startsAt,
+    ends_at: event.endsAt,
+    all_day: event.allDay,
+    location: event.location,
+  }));
+  const keep = new Set(rows.map((row) => row.uid));
+
+  if (rows.length > 0) {
+    const { error: upsertErr } = await supabase
+      .from("school_calendar_events")
+      .upsert(rows, { onConflict: "school_id,uid" });
+    if (upsertErr) {
+      console.error("[school-calendar] upsert failed", schoolId, upsertErr);
+      return { ok: false };
+    }
+  }
+
+  const { data: existing, error: listErr } = await supabase
+    .from("school_calendar_events")
+    .select("id, uid")
+    .eq("school_id", schoolId);
+  if (listErr) {
+    console.error("[school-calendar] list for prune failed", schoolId, listErr);
+    // Upsert already landed — extras are better than an empty Coming up.
+    return { ok: true };
+  }
+
+  const toDelete = (existing ?? [])
+    .filter((row) => !keep.has(row.uid as string))
+    .map((row) => row.id as string);
+  if (toDelete.length > 0) {
+    const { error: deleteErr } = await supabase
+      .from("school_calendar_events")
+      .delete()
+      .in("id", toDelete);
+    if (deleteErr) {
+      console.error("[school-calendar] prune failed", schoolId, deleteErr);
+    }
+  }
+
+  return { ok: true };
+}
+
+/** Every cached row needs a uid for the unique key; synthesise a stable one. */
+function stableEventUid(event: ParsedCalendarEvent): string {
+  if (event.uid?.trim()) return event.uid.trim().slice(0, 500);
+  return `~${event.startsAt}|${event.title}|${event.location ?? ""}`.slice(0, 500);
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>;
