@@ -121,7 +121,7 @@ export default async function DashboardPage() {
               Once a document has been read, this page fills in with what is
               coming up, what it costs and who to call.
             </p>
-            <Link href="/documents" className="btn mt-5">
+            <Link href="/documents?upload=1#upload" className="btn mt-5">
               Add a document
             </Link>
           </Card>
