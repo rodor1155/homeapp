@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { CalendarDays, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   loadHouseholdEvents,
@@ -66,6 +68,31 @@ export default async function FamilyPage() {
 
       <Card title="Key dates">
         <EventsPanel events={events} people={people} locale={locale} />
+      </Card>
+
+      <Card padding="none">
+        <Link href="/calendar" className="flex items-center gap-3 px-4 py-3.5">
+          <span
+            aria-hidden
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-sage-tint text-sage"
+          >
+            <CalendarDays size={17} strokeWidth={1.9} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-ink">
+              Open the family calendar
+            </span>
+            <span className="block truncate text-xs text-ink-faint">
+              Birthdays, key dates and term dates, a month at a time
+            </span>
+          </span>
+          <ChevronRight
+            size={16}
+            strokeWidth={1.9}
+            aria-hidden
+            className="shrink-0 text-ink-faint"
+          />
+        </Link>
       </Card>
 
       <p className="px-1 pt-2 text-center text-xs text-ink-faint">

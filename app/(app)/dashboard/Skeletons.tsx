@@ -97,6 +97,28 @@ export function GlanceFallback() {
   );
 }
 
+/** The morning's suggestions. Gone entirely if there is nothing to suggest. */
+export function HintsFallback() {
+  return (
+    <Card title="Helpful hints">
+      <div className="flex animate-pulse flex-col gap-2">
+        {[0, 1].map((row) => (
+          <div
+            key={row}
+            className="flex items-center gap-3 rounded-lg bg-sage-wash px-3 py-2.5"
+          >
+            <span className="h-9 w-9 shrink-0 rounded-pill bg-sage-tint" />
+            <div className="min-w-0 flex-1">
+              <Bar className="h-3.5 w-2/5" />
+              <Bar className="mt-1.5 h-3 w-4/5" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export function ComingUpFallback() {
   return (
     <Card title="Coming up">

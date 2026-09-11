@@ -152,3 +152,29 @@ export function mergeComingUp(
       (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
     );
 }
+
+/** One month's worth of the list. `key` is the YYYY-MM the caller writes out. */
+export type ComingUpMonth = {
+  key: string;
+  entries: ComingUpEntry[];
+};
+
+/**
+ * The merged list broken at each change of month, so a long horizon reads as
+ * "October, then December" rather than one unbroken run. Relies on the list
+ * already being in date order, which is what `mergeComingUp` leaves it in.
+ */
+export function groupByMonth(
+  entries: readonly ComingUpEntry[]
+): ComingUpMonth[] {
+  const months: ComingUpMonth[] = [];
+
+  for (const entry of entries) {
+    const key = entry.date.slice(0, 7);
+    const open = months[months.length - 1];
+    if (open?.key === key) open.entries.push(entry);
+    else months.push({ key, entries: [entry] });
+  }
+
+  return months;
+}

@@ -11,12 +11,13 @@ import {
   birthdayEntries,
   documentEntries,
   eventEntries,
+  groupByMonth,
   mergeComingUp,
   schoolEntries,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
-import { formatDate, relativeWhen } from "@/lib/dates";
+import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import {
   loadHouseholdEvents,
   loadHouseholdPeople,
@@ -34,6 +35,13 @@ import { createClient } from "@/lib/supabase-server";
 import { loadOverviewDocuments } from "./overview-data";
 
 const SOON_DAYS = 30;
+
+/**
+ * How near the first thing has to be before it gets the "coming up in N days"
+ * line and the warm wash. Wider than SOON_DAYS, so a month-and-a-bit away
+ * still gets the count — it is the next thing either way.
+ */
+const HEADLINE_DAYS = 35;
 
 const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   document: FileText,
@@ -99,12 +107,19 @@ function ComingUp({
   locale: Locale;
   hasPeople: boolean;
 }) {
+  const months = groupByMonth(entries);
+  // Only worth writing the month out when the list actually crosses one.
+  const showMonths = months.length > 1;
+  const first = entries[0];
+  const headlineKey =
+    first && first.daysAway <= HEADLINE_DAYS ? first.key : null;
+
   return (
     <Card
       title="Coming up"
       action={
-        <Link href="/family" className="text-action text-xs">
-          Family dates
+        <Link href="/calendar" className="text-action text-xs">
+          Open the calendar
         </Link>
       }
     >
@@ -115,56 +130,95 @@ function ComingUp({
             : "Nothing on the horizon yet. Add the family and their birthdays show up here."}
         </p>
       ) : (
-        <ul className="divide-y divide-rule">
-          {entries.map((entry) => {
-            const soon = entry.daysAway <= SOON_DAYS;
-            const Icon = COMING_UP_ICON[entry.kind];
-            return (
-              <li
-                key={entry.key}
-                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className={`shrink-0 ${
-                      entry.kind === "birthday"
-                        ? "text-sage"
-                        : soon
-                          ? "mark-review"
-                          : "text-ink-faint"
-                    }`}
-                  >
-                    <Icon size={15} strokeWidth={1.9} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-ink">
-                      {entry.title}
-                    </span>
-                    <span className="block truncate text-xs text-ink-faint">
-                      {entry.note}
-                    </span>
-                  </span>
-                </span>
-                <span className="tnum shrink-0 text-right">
-                  <span className="block text-sm text-ink">
-                    {formatDate(entry.date, locale)}
-                  </span>
-                  <span
-                    className={`block text-xs ${
-                      soon ? "mark-review font-medium" : "text-ink-faint"
-                    }`}
-                  >
-                    {relativeWhen(entry.daysAway)}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="-mx-1 flex flex-col gap-3.5">
+          {months.map((month) => (
+            <div key={month.key}>
+              {showMonths ? (
+                <h3 className="px-2.5 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                  {formatMonth(month.key, locale)}
+                </h3>
+              ) : null}
+              <ul className="flex flex-col gap-1">
+                {month.entries.map((entry) => (
+                  <Entry
+                    key={entry.key}
+                    entry={entry}
+                    locale={locale}
+                    headline={entry.key === headlineKey}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
     </Card>
   );
+}
+
+/** One dated thing. The next one wears the countdown and the warm wash. */
+function Entry({
+  entry,
+  locale,
+  headline,
+}: {
+  entry: ComingUpEntry;
+  locale: Locale;
+  headline: boolean;
+}) {
+  const soon = entry.daysAway <= SOON_DAYS;
+  const Icon = COMING_UP_ICON[entry.kind];
+
+  return (
+    <li className={`rounded-lg px-2.5 py-2 ${headline ? "bg-ochre-wash" : ""}`}>
+      {headline ? (
+        <p className="mark-review mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-ochre" />
+          {countdown(entry.daysAway)}
+        </p>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
+              headline ? "bg-ochre-tint text-ochre" : "bg-sage-tint text-sage"
+            }`}
+          >
+            <Icon size={17} strokeWidth={1.9} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-ink">
+              {entry.title}
+            </span>
+            <span className="block truncate text-xs text-ink-faint">
+              {entry.note}
+            </span>
+          </span>
+        </span>
+        <span className="tnum shrink-0 text-right">
+          <span className="block text-sm text-ink">
+            {formatDate(entry.date, locale)}
+          </span>
+          <span
+            className={`block text-xs ${
+              soon ? "mark-review font-medium" : "text-ink-faint"
+            }`}
+          >
+            {relativeWhen(entry.daysAway)}
+          </span>
+        </span>
+      </div>
+    </li>
+  );
+}
+
+/** The little uppercase line over the next thing: "Coming up in 31 days". */
+function countdown(daysAway: number): string {
+  if (daysAway <= 0) return "Coming up today";
+  if (daysAway === 1) return "Coming up tomorrow";
+  return `Coming up in ${daysAway} days`;
 }
 
 function entryKey(entry: Pick<UpcomingDate, "provider" | "date" | "label">) {

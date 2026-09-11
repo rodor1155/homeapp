@@ -6,6 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 // visitors away from the app's authenticated areas.
 
 const PROTECTED_PREFIXES = [
+  "/calendar",
   "/dashboard",
   "/documents",
   "/family",

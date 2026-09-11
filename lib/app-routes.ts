@@ -3,6 +3,7 @@
 export const APP_TAB_HREFS = [
   "/dashboard",
   "/family",
+  "/calendar",
   "/lists",
   "/documents",
 ] as const;

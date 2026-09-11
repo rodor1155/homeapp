@@ -137,12 +137,31 @@ export async function loadSchoolCalendarEvents(
   { now = new Date(), withinDays = SCHOOL_CALENDAR_WINDOW_DAYS } = {}
 ): Promise<SchoolCalendarEvent[]> {
   const from = startOfUtcDay(now);
+  return loadSchoolCalendarEventsBetween(
+    supabase,
+    householdId,
+    new Date(from).toISOString(),
+    new Date(from + withinDays * DAY_MS).toISOString()
+  );
+}
+
+/**
+ * The cached school dates starting between two instants — what a calendar
+ * month asks for. The cache only ever holds today to the end of the window,
+ * so a month outside that reads as empty rather than wrong.
+ */
+export async function loadSchoolCalendarEventsBetween(
+  supabase: SupabaseClient,
+  householdId: string,
+  fromIso: string,
+  toIso: string
+): Promise<SchoolCalendarEvent[]> {
   const { data, error } = await supabase
     .from("school_calendar_events")
     .select(SCHOOL_CALENDAR_SELECT)
     .eq("household_id", householdId)
-    .gte("starts_at", new Date(from).toISOString())
-    .lte("starts_at", new Date(from + withinDays * DAY_MS).toISOString())
+    .gte("starts_at", fromIso)
+    .lte("starts_at", toIso)
     .order("starts_at", { ascending: true })
     .limit(SCHOOL_CALENDAR_ROW_CAP);
   if (error) return [];

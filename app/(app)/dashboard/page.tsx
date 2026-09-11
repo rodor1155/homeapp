@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import ComingUpSection from "./ComingUpSection";
 import FilingSection from "./FilingSection";
+import HelpfulHintsSection from "./HelpfulHintsSection";
 import HeroExport from "./HeroExport";
 import HouseFileSection from "./HouseFileSection";
 import HouseIllustration from "./HouseIllustration";
@@ -12,6 +13,7 @@ import {
   ComingUpFallback,
   ExportFallback,
   FilingFallback,
+  HintsFallback,
   HouseFileFallback,
   ShoppingFallback,
 } from "./Skeletons";
@@ -20,8 +22,8 @@ export const metadata = { title: "Home overview · homeapp" };
 
 /**
  * Home paints the hero as soon as the household is known. Everything below —
- * house file, Coming up, shopping, filed lists — streams in behind its own
- * Suspense boundary. Documents are loaded once per request via
+ * hints, house file, Coming up, shopping, filed lists — streams in behind its
+ * own Suspense boundary. Documents are loaded once per request via
  * `loadOverviewDocuments` (React `cache`), so those sections share a round trip
  * without blocking each other or the hero.
  */
@@ -67,6 +69,10 @@ export default async function DashboardPage() {
           </Suspense>
         </div>
       </section>
+
+      <Suspense fallback={<HintsFallback />}>
+        <HelpfulHintsSection householdId={household.id} locale={locale} />
+      </Suspense>
 
       <Suspense fallback={<HouseFileFallback />}>
         <HouseFileSection householdId={household.id} locale={locale} />

@@ -493,6 +493,14 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
 - Nothing emails a school date: a school calendar only ever shows up on the page and in
   "Coming up".
 
+## Hartley-leaning home UI
+
+- **Helpful hints** on Home (`lib/helpful-hints.ts` + `HelpfulHintsSection`): up to three
+  setup-gap tips (family, schools, ICS, lists, first document) — omitted when none apply.
+- **Coming up** groups by month with a “Coming up in N days” lead-in for near items.
+- **`/calendar`** month view of birthdays, household events and school calendar events;
+  fifth bottom tab between Family and Lists. Protected in `proxy.ts`.
+
 ## Tab navigation cache
 
 - **Tab Client Cache**: `experimental.staleTimes` keeps recently visited signed-in tabs in the Next Client Cache (`dynamic` 120s, `static` 300s with `prefetch={true}` on the tab bar). `PrefetchAppRoutes` warms every tab plus settings as soon as the shell mounts (and again on visibility). Pull-to-refresh on the shell calls `router.refresh()` when fresh data is needed.

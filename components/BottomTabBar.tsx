@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
+  CalendarDays,
   FileText,
   House,
   ShoppingBasket,
@@ -24,6 +25,7 @@ const TAB_META: Record<
 > = {
   "/dashboard": { label: "Home", icon: House },
   "/family": { label: "Family", icon: Users },
+  "/calendar": { label: "Calendar", icon: CalendarDays },
   "/lists": { label: "Lists", icon: ShoppingBasket },
   "/documents": { label: "Documents", icon: FileText },
 };
