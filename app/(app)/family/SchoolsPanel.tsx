@@ -229,6 +229,7 @@ function SchoolForm({
   // Typing over it afterwards is the point, not an edge case.
   const [postcode, setPostcode] = useState(school?.postcode ?? "");
   const [address, setAddress] = useState(school?.address ?? "");
+  const [name, setName] = useState(school?.name ?? "");
 
   useEffect(() => {
     if (state?.ok) onDone();
@@ -245,7 +246,8 @@ function SchoolForm({
           name="name"
           type="text"
           required
-          defaultValue={school?.name ?? ""}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           className="field-input"
           placeholder="St Mary’s Primary"
         />
@@ -255,7 +257,19 @@ function SchoolForm({
         name="postcode"
         postcode={postcode}
         onPostcodeChange={setPostcode}
-        onPick={(lines) => setAddress(lines.join("\n"))}
+        onPick={(pick) => {
+          // Named premises (schools, offices) fill the school name; the
+          // address field keeps the street/town without repeating that name.
+          if (pick.organisation) {
+            setName(pick.organisation);
+            const withoutOrg = pick.lines.filter(
+              (line) => line !== pick.organisation
+            );
+            setAddress(withoutOrg.join("\n"));
+          } else {
+            setAddress(pick.lines.join("\n"));
+          }
+        }}
       />
 
       <Field label="Address" hint="optional">

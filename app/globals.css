@@ -302,7 +302,8 @@
     border-radius: var(--radius);
     padding: 0.6rem 0.75rem;
     font: inherit;
-    font-size: var(--text-sm);
+    /* 16px minimum — iOS Safari zooms the page when a focused control is smaller. */
+    font-size: var(--text-base);
     transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
   .field-input::placeholder {

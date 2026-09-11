@@ -17,8 +17,8 @@ import type { AddressLookup, AddressSuggestion } from "@/lib/address-lookup";
 type Props = {
   postcode: string;
   onPostcodeChange: (postcode: string) => void;
-  /** Called with the address as separate lines once one is chosen. */
-  onPick: (lines: string[]) => void;
+  /** Called once an address is chosen — lines for the field, org when Ideal named one. */
+  onPick: (pick: { lines: string[]; organisation: string | null }) => void;
   /** Set to post the postcode with a surrounding form. */
   name?: string;
   label?: string;
@@ -73,7 +73,9 @@ export default function AddressPicker({
     const match = found?.suggestions.find(
       (suggestion: AddressSuggestion) => suggestion.id === id
     );
-    if (match) onPick(match.lines);
+    if (match) {
+      onPick({ lines: match.lines, organisation: match.organisation });
+    }
   }
 
   return (

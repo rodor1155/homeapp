@@ -18,6 +18,12 @@ export type AddressSuggestion = {
   label: string;
   /** The same address as separate lines, which is what fills the field. */
   lines: string[];
+  /**
+   * Ideal Postcodes' organisation_name when this delivery point is a named
+   * business or school — null for a plain house. Callers like the school
+   * form use it to fill the name field.
+   */
+  organisation: string | null;
 };
 
 export type AddressLookup = {
@@ -162,10 +168,15 @@ async function fromIdealPostcodes(
     for (const row of rows) {
       const lines = addressLines(row, postcode);
       if (lines.length === 0) continue;
+      const organisation =
+        typeof row.organisation_name === "string" && row.organisation_name.trim()
+          ? row.organisation_name.trim()
+          : null;
       suggestions.push({
         id: String(suggestions.length),
         label: lines.join(", "),
         lines,
+        organisation,
       });
       if (suggestions.length >= MAX_SUGGESTIONS) break;
     }

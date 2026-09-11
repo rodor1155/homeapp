@@ -71,7 +71,7 @@ export default function HouseholdForm({
         label="Find by postcode"
         postcode={postcode}
         onPostcodeChange={setPostcode}
-        onPick={(lines) => setAddress(lines.join("\n"))}
+        onPick={(pick) => setAddress(pick.lines.join("\n"))}
       />
 
       <Field label="Property address">
