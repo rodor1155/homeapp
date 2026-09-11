@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Backpack,
+  Repeat,
   Cake,
   CalendarDays,
   FileText,
@@ -19,6 +20,7 @@ import {
   schoolEntries,
   sharedEntries,
   timetableEntries,
+  routineEntries,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
@@ -32,6 +34,7 @@ import {
   loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
+import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
@@ -60,6 +63,7 @@ const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   school: GraduationCap,
   shared: Share2,
   timetable: Backpack,
+  routine: Repeat,
 };
 
 type ReminderRow = {
@@ -91,6 +95,7 @@ export default async function ComingUpSection({
     calendarsLoad,
     sharedDatesLoad,
     timetableLoad,
+    routinesLoad,
   ] = await Promise.all([
     loadOverviewDocuments(householdId),
     scheduledReminders(supabase, householdId),
@@ -101,6 +106,7 @@ export default async function ComingUpSection({
     loadHouseholdCalendars(supabase, householdId),
     loadHouseholdCalendarEvents(supabase, householdId),
     loadPersonTimetableSlots(supabase, householdId),
+    loadHouseholdRoutines(supabase, householdId),
   ]);
 
   const people = peopleLoad.items;
@@ -110,6 +116,7 @@ export default async function ComingUpSection({
   const calendars = calendarsLoad.items;
   const sharedDates = sharedDatesLoad.items;
   const timetableSlots = timetableLoad.items;
+  const routines = routinesLoad.items;
   const loadFault = firstFault(
     peopleLoad,
     eventsLoad,
@@ -117,7 +124,8 @@ export default async function ComingUpSection({
     schoolDatesLoad,
     calendarsLoad,
     sharedDatesLoad,
-    timetableLoad
+    timetableLoad,
+    routinesLoad
   );
 
   const reminded = remindedEntries(scheduled, documents);
@@ -129,7 +137,8 @@ export default async function ComingUpSection({
     eventEntries(events, people),
     schoolEntries(schoolDates, schools, people),
     sharedEntries(sharedDates, calendars),
-    timetableEntries(timetableSlots, people)
+    timetableEntries(timetableSlots, people),
+    routineEntries(routines)
   );
 
   return (

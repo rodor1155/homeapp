@@ -19,6 +19,8 @@ import {
   householdChildYears,
 } from "@/lib/school-year-match";
 import type { Tone } from "@/lib/tones";
+import type { HouseholdRoutine } from "@/lib/routines";
+import { routineComingUpEntries } from "@/lib/routines";
 import type { PersonTimetableSlot } from "@/lib/timetable";
 import { timetableComingUpEntries } from "@/lib/timetable";
 
@@ -33,7 +35,8 @@ export type ComingUpKind =
   | "event"
   | "school"
   | "shared"
-  | "timetable";
+  | "timetable"
+  | "routine";
 
 /**
  * The colour each kind wears in the list. The same assignment the calendar
@@ -47,6 +50,7 @@ export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
   school: "peach",
   shared: "sky",
   timetable: "ochre",
+  routine: "lilac",
 };
 
 export type ComingUpEntry = {
@@ -236,6 +240,20 @@ export function sharedEntries(
  * Kit / ingredients cues (and plain lessons on the day) from each child's
  * confirmed week. Europe/London day arithmetic lives in lib/timetable.
  */
+export function routineEntries(
+  routines: readonly HouseholdRoutine[],
+  now: Date = new Date()
+): ComingUpEntry[] {
+  return routineComingUpEntries(routines, now).map((entry) => ({
+    key: entry.key,
+    kind: "routine" as const,
+    title: entry.title,
+    note: entry.note,
+    date: entry.date,
+    daysAway: entry.daysAway,
+  }));
+}
+
 export function timetableEntries(
   slots: readonly PersonTimetableSlot[],
   people: readonly HouseholdPerson[],
