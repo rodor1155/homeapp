@@ -14,6 +14,7 @@ import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
 import PlanPanel from "./PlanPanel";
 import GuestPackPanel from "./GuestPackPanel";
+import HubDisplayLink from "@/components/HubDisplayLink";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { loadGuestPack } from "@/lib/guests";
 
@@ -80,6 +81,10 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
           </p>
         ) : null}
         <GuestPackPanel pack={guestPackLoad.pack} />
+      </Card>
+
+      <Card title="Hub display">
+        <HubDisplayLink />
       </Card>
 
       <Card title="Parent / child view">

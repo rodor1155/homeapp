@@ -14,6 +14,7 @@ Instance: `instances/homeapp/`
 | Bundle ID | `co.rodor.homeapp` (change when the name is final) |
 | Web URL | `https://homeapp-mu.vercel.app` |
 | URL scheme | `co.rodor.homeapp://` |
+| Hub deep link | `co.rodor.homeapp://hub` → `/hub` (kitchen display; auth required) |
 
 ### Open in Xcode (Mac Mini)
 
