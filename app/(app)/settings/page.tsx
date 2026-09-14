@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import { Card } from "@/components/ui";
 import {
@@ -47,10 +48,24 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   return (
     <div className="flex flex-col gap-4">
       <div className="px-1">
-        <h1 className="text-2xl">Settings</h1>
-        <p className="mt-0.5 truncate text-sm text-ink-soft">
-          Signed in as {user.email}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <Link
+              href="/dashboard"
+              className="text-action inline-flex items-center gap-1 text-sm"
+            >
+              <ChevronLeft size={15} strokeWidth={2} aria-hidden />
+              Home
+            </Link>
+            <h1 className="mt-1.5 text-2xl">Settings</h1>
+            <p className="mt-0.5 truncate text-sm text-ink-soft">
+              Signed in as {user.email}
+            </p>
+          </div>
+          <Link href="/dashboard" className="btn-quiet shrink-0">
+            Done
+          </Link>
+        </div>
       </div>
 
       <Card title="Your household">

@@ -64,7 +64,12 @@ export default function AppShell({
       <header className="sticky top-0 z-20 border-b border-rule bg-paper/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[32rem] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
-            <Wordmark className="text-xs" />
+            <Link
+              href="/dashboard"
+              className="inline-block rounded-sm transition-opacity hover:opacity-80"
+            >
+              <Wordmark className="text-xs" />
+            </Link>
             <p className="truncate text-base font-semibold text-ink">
               Hello, {firstName}
             </p>
