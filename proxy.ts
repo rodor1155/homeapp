@@ -10,6 +10,7 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/documents",
   "/family",
+  "/hub",
   "/lists",
   "/settings",
   "/onboarding",

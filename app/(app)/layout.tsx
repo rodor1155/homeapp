@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import AppShell from "@/components/AppShell";
+import ShellRouter from "@/components/ShellRouter";
 import { requireOnboarded } from "@/lib/household";
 
 /**
@@ -8,11 +8,17 @@ import { requireOnboarded } from "@/lib/household";
  * and the tab bar stay put — and `loading.tsx` next to this file fills the gap
  * while the new page is read.
  *
+ * `/hub` swaps in `HubShell` instead — no tab bar, landscape kitchen display.
+ *
  * The pages inside still call `requireOnboarded()` for the household they
  * need; `loadHouseholdContext` is memoised per request, so that is free.
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { user } = await requireOnboarded();
+  const { user, household } = await requireOnboarded();
 
-  return <AppShell user={user}>{children}</AppShell>;
+  return (
+    <ShellRouter user={user} householdName={household.name}>
+      {children}
+    </ShellRouter>
+  );
 }
