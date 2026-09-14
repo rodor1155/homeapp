@@ -32,6 +32,8 @@ Open http://localhost:3000.
 | `STRIPE_PRICE_GBP_YEARLY` | server-only | price ID offered to UK households, £39/yr |
 | `STRIPE_PRICE_USD_MONTHLY` | server-only | price ID offered to US households, $6.99/mo |
 | `STRIPE_PRICE_USD_YEARLY` | server-only | price ID offered to US households, $59/yr |
+| `GOOGLE_CLIENT_ID` | server-only | OAuth client ID for Gmail read-only import (separate from Supabase sign-in Google) |
+| `GOOGLE_CLIENT_SECRET` | server-only secret | OAuth client secret for Gmail import |
 
 Set the secrets in the Vercel project settings (Production + Preview).
 `NEXT_PUBLIC_SITE_URL` must match the deployment origin (`https://homeapp-mu.vercel.app`).
@@ -44,6 +46,24 @@ to the linked project. Tables: `households`, `household_members`, `properties`,
 `reminder_events`, `subscriptions`; plus a private `documents` Storage bucket. Every
 table has row-level security scoped to household membership. The `subscriptions`
 migration is the exception: written, not yet applied.
+
+## Gmail import
+
+Read-only Gmail import lets a household scan the last 12 months of inbox PDFs,
+review candidates, and confirm what to file — nothing is stored until import.
+
+**Google Cloud setup (Ross):**
+
+1. Create an OAuth 2.0 **Web application** client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (this is separate from the Supabase Auth Google provider used for sign-in).
+2. Enable the **Gmail API** on the project.
+3. Add authorised redirect URIs:
+   - `https://homeapp-mu.vercel.app/api/gmail/callback` (production)
+   - `http://localhost:3000/api/gmail/callback` (local)
+4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local` and Vercel.
+5. Apply migration `20260914130000_gmail_import.sql` if not already applied.
+
+The OAuth scope is `gmail.readonly` only. Tokens are stored server-side; members
+disconnect from the Add document sheet.
 
 ## Document extraction
 

@@ -61,14 +61,19 @@ export type CategorisableDocument = {
   provider: string | null;
 };
 
-/** Guesses from the free-text doc_type / provider. "Other" is the fallback. */
-export function categorise(doc: CategorisableDocument): Category {
-  const haystack = `${doc.doc_type ?? ""} ${doc.provider ?? ""}`;
-  if (!haystack.trim()) return "Other";
+/** Guesses from arbitrary text (email subject, filename, etc.). */
+export function categoriseFromText(text: string): Category {
+  const haystack = text.trim();
+  if (!haystack) return "Other";
   for (const [category, pattern] of CATEGORY_PATTERNS) {
     if (pattern.test(haystack)) return category;
   }
   return "Other";
+}
+
+/** Guesses from the free-text doc_type / provider. "Other" is the fallback. */
+export function categorise(doc: CategorisableDocument): Category {
+  return categoriseFromText(`${doc.doc_type ?? ""} ${doc.provider ?? ""}`);
 }
 
 /**

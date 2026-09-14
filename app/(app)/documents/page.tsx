@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { FilePlus2 } from "lucide-react";
-import DocumentsUploader from "./DocumentsUploader";
 import DocumentsList from "./DocumentsList";
+import DocumentsPageClient from "./DocumentsPageClient";
 import ExportButton from "@/components/ExportButton";
 import { Card, SectionHeading } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
 import { asCategory, effectiveCategory } from "@/lib/categories";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
+import { isGmailConfigured } from "@/lib/gmail-config";
+import { loadGmailConnectionPublic, loadPendingCandidates } from "@/lib/gmail";
 import { requireOnboarded } from "@/lib/household";
 
 export const metadata = { title: "Documents · homeapp" };
@@ -22,56 +25,79 @@ export default async function DocumentsPage({
 }) {
   const { supabase, property, household } = await requireOnboarded();
   const billingConfigured = isBillingConfigured();
+  const gmailConfigured = isGmailConfigured();
 
   const params = await searchParams;
-  // Both come off a property-hub bucket: which one, and whether its + was used.
   const category = asCategory(first(params.category));
   const startUpload = first(params.upload) === "1";
+  const gmailFlow = first(params.gmail);
+  const gmailMessage = first(params.message);
 
-  const [entitlements, { data }] = await Promise.all([
-    getEntitlements(household.id),
-    supabase
-      .from("documents")
-      .select(DOCUMENTS_SELECT)
-      .eq("property_id", property.id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [entitlements, { data }, gmailConnection, gmailCandidates] =
+    await Promise.all([
+      getEntitlements(household.id),
+      supabase
+        .from("documents")
+        .select(DOCUMENTS_SELECT)
+        .eq("property_id", property.id)
+        .order("created_at", { ascending: false }),
+      loadGmailConnectionPublic(household.id),
+      loadPendingCandidates(household.id),
+    ]);
 
   const all = (data as DocumentRow[] | null) ?? [];
-  // Filtered here rather than in the query so a legacy row with no stored
-  // category still shows up under its guess.
   const documents = category
     ? all.filter((doc) => effectiveCategory(doc) === category)
     : all;
   const count = documents.length;
 
+  const gmailCandidatesPublic = gmailCandidates.map((c) => ({
+    id: c.id,
+    filename: c.filename,
+    subject: c.subject,
+    sender: c.sender,
+    received_at: c.received_at,
+    suggested_category: c.suggested_category,
+  }));
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-3 px-1">
-        <div className="min-w-0">
-          <h1 className="text-2xl">Documents</h1>
-          <p className="mt-0.5 truncate text-sm text-ink-soft">
-            {property.address.split("\n")[0]}
-          </p>
-        </div>
-        <ExportButton
-          canExport={entitlements.canExport}
-          billingConfigured={billingConfigured}
-          variant="ghost"
-          className="shrink-0"
-        >
-          Export
-        </ExportButton>
-      </div>
-
-      <Card>
-        <DocumentsUploader
-          key={category ?? "all"}
+      <Suspense fallback={null}>
+        <DocumentsPageClient
           propertyId={property.id}
+          locale={household.locale ?? "UK"}
           initialCategory={category}
-          focus={startUpload}
+          startUpload={startUpload}
+          gmailFlow={
+            gmailFlow === "connected" ||
+            gmailFlow === "error" ||
+            gmailFlow === "setup"
+              ? gmailFlow
+              : null
+          }
+          gmailMessage={gmailMessage}
+          gmailConfigured={gmailConfigured}
+          gmailConnection={
+            gmailConnection
+              ? {
+                  gmailAddress: gmailConnection.gmailAddress,
+                  lastScanError: gmailConnection.lastScanError,
+                }
+              : null
+          }
+          gmailCandidates={gmailCandidatesPublic}
+          addressLine={property.address.split("\n")[0]}
+          headerActions={
+            <ExportButton
+              canExport={entitlements.canExport}
+              billingConfigured={billingConfigured}
+              variant="ghost"
+            >
+              Export
+            </ExportButton>
+          }
         />
-      </Card>
+      </Suspense>
 
       <div>
         <SectionHeading
@@ -105,8 +131,8 @@ export default async function DocumentsPage({
               {category ? `Nothing filed under ${category}` : "Nothing filed yet"}
             </h3>
             <p className="mx-auto mt-1.5 max-w-xs text-sm text-ink-soft">
-              Add a PDF or a photo above and it will be read, sorted and filed
-              for you.
+              Tap Add to upload a PDF or photo, or connect Gmail to import
+              paperwork you already have.
             </p>
             <Link href="/dashboard" className="text-action mt-4 inline-block text-sm">
               Back to your home

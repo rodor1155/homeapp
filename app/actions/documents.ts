@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { asCategory, isCategory } from "@/lib/categories";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { runExtractionForDocument } from "@/lib/extraction";
 import { syncRemindersForDocument } from "@/lib/reminders";
@@ -115,6 +116,42 @@ export async function recordDocument(input: {
   if (error) return { error: error.message };
 
   return { ok: true };
+}
+
+/** Import bytes straight to Storage + documents (Gmail confirm path). */
+export async function importDocumentFromBuffer(input: {
+  propertyId: string;
+  householdId: string;
+  filename: string;
+  mime: string;
+  buffer: Buffer;
+  category?: string | null;
+}): Promise<{ documentId: string } | { error: string }> {
+  const admin = createAdminClient();
+  const documentId = randomUUID();
+  const path = `${input.householdId}/${documentId}/${safeFilename(input.filename)}`;
+
+  const { error: uploadError } = await admin.storage
+    .from("documents")
+    .upload(path, input.buffer, {
+      contentType: input.mime,
+      upsert: false,
+    });
+  if (uploadError) return { error: uploadError.message };
+
+  const { error } = await admin.from("documents").insert({
+    id: documentId,
+    household_id: input.householdId,
+    property_id: input.propertyId,
+    storage_path: path,
+    original_filename: input.filename.slice(0, 300),
+    mime: input.mime,
+    category: asCategory(input.category),
+    extraction_status: "pending",
+  });
+  if (error) return { error: error.message };
+
+  return { documentId };
 }
 
 // --- review + reprocess -------------------------------------------------
