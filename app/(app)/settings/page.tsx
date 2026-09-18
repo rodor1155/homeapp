@@ -145,6 +145,12 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
           soleMember={soleMember}
         />
       </Card>
+
+      <p className="px-1 text-center text-xs text-ink-faint">
+        <Link href="/privacy" className="text-action text-xs">
+          Privacy policy
+        </Link>
+      </p>
     </div>
   );
 }
