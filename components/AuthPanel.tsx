@@ -155,6 +155,12 @@ export default function AuthPanel({
           </>
         )}
       </p>
+
+      <p className="text-center text-xs text-ink-faint">
+        <Link href="/privacy" className="text-action text-xs">
+          Privacy policy
+        </Link>
+      </p>
     </PreAppShell>
   );
 }
