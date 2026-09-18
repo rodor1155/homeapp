@@ -11,10 +11,15 @@ type Props = {
   lists: ShoppingList[];
   /** How many things are still to get on each list, keyed by list id. */
   outstanding: Record<string, number>;
+  startAdding?: boolean;
 };
 
-export default function ListsPanel({ lists, outstanding }: Props) {
-  const [adding, setAdding] = useState(false);
+export default function ListsPanel({
+  lists,
+  outstanding,
+  startAdding = false,
+}: Props) {
+  const [adding, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
 
   return (

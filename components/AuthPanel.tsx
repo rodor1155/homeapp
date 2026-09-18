@@ -9,7 +9,8 @@ import {
   type AuthState,
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase-client";
-import { Button, Field, Wordmark } from "@/components/ui";
+import PreAppShell from "@/components/PreAppShell";
+import { Button, Field } from "@/components/ui";
 
 export default function AuthPanel({
   mode,
@@ -60,22 +61,19 @@ export default function AuthPanel({
   const isError = Boolean(pwState?.error || mlState?.error || googleError);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[27rem] flex-col justify-center gap-7 px-5 py-12">
-      <header className="flex flex-col gap-4">
-        <Wordmark className="text-sm" />
+    <PreAppShell>
+      <div className="sheet flex flex-col gap-5">
         <div>
-          <h1 className="text-2xl">
-            {isSignUp ? "Start your household file" : "Welcome back"}
+          <h1 className="text-xl">
+            {isSignUp ? "Create your account" : "Welcome back"}
           </h1>
-          <p className="mt-1.5 text-sm text-ink-soft">
+          <p className="mt-1 text-sm text-ink-soft">
             {isSignUp
-              ? "One place for the paperwork that protects your home."
-              : "Sign in to your household file."}
+              ? "Set up your household in a few minutes."
+              : "Sign in to pick up where you left off."}
           </p>
         </div>
-      </header>
 
-      <div className="sheet flex flex-col gap-5">
         <Button variant="quiet" type="button" onClick={handleGoogle} disabled={googlePending}>
           {googlePending ? "Taking you to Google…" : "Continue with Google"}
         </Button>
@@ -140,10 +138,10 @@ export default function AuthPanel({
         ) : null}
       </div>
 
-      <p className="text-sm text-ink-soft">
+      <p className="text-center text-sm text-ink-soft">
         {isSignUp ? (
           <>
-            Already have a file?{" "}
+            Already have an account?{" "}
             <Link className="text-action" href={withNext("/sign-in")}>
               Sign in
             </Link>
@@ -152,11 +150,11 @@ export default function AuthPanel({
           <>
             New here?{" "}
             <Link className="text-action" href={withNext("/sign-up")}>
-              Start your household file
+              Create an account
             </Link>
           </>
         )}
       </p>
-    </div>
+    </PreAppShell>
   );
 }

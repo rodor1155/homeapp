@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import BottomTabBar from "@/components/BottomTabBar";
+import CreateFab from "@/components/CreateFab";
 import PrefetchAppRoutes from "@/components/PrefetchAppRoutes";
 import PullToRefresh from "@/components/PullToRefresh";
-import SignOutButton from "@/components/SignOutButton";
-import { Wordmark } from "@/components/ui";
 
 /** Just enough of a Supabase user for the greeting — keeps this reusable. */
 export type ShellUser = {
@@ -59,42 +58,37 @@ export default function AppShell({
   const firstName = name.split(/\s+/)[0] ?? name;
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-dvh bg-paper">
       <PrefetchAppRoutes />
-      <header className="sticky top-0 z-20 border-b border-rule bg-paper/85 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-rule bg-paper/85 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex w-full max-w-[32rem] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
-            <Link
-              href="/dashboard"
-              className="inline-block rounded-sm transition-opacity hover:opacity-80"
-            >
-              <Wordmark className="text-xs" />
-            </Link>
-            <p className="truncate text-base font-semibold text-ink">
+            <p className="truncate text-lg font-semibold text-ink">
               Hello, {firstName}
             </p>
+            <p className="truncate text-xs text-ink-faint">{user.email}</p>
           </div>
-          <SignOutButton />
           <Link
             href="/settings"
             aria-label="Settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-navy-tint hover:text-ink"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-sage-tint hover:text-ink"
           >
             <Settings size={19} strokeWidth={1.8} aria-hidden />
           </Link>
           <span
             aria-hidden
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-semibold text-paper-raised"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sm font-semibold text-sage"
           >
             {initials(name)}
           </span>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[32rem] px-4 pb-28 pt-5">
+      <main className="mx-auto w-full max-w-[32rem] px-4 pb-[calc(8.75rem+env(safe-area-inset-bottom))] pt-5">
         <PullToRefresh>{children}</PullToRefresh>
       </main>
 
+      <CreateFab />
       <BottomTabBar />
     </div>
   );

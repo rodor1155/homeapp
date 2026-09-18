@@ -27,10 +27,16 @@ type Props = {
   people: HouseholdPerson[];
   schools: School[];
   locale: Locale;
+  startAdding?: boolean;
 };
 
-export default function PeoplePanel({ people, schools, locale }: Props) {
-  const [adding, setAdding] = useState(false);
+export default function PeoplePanel({
+  people,
+  schools,
+  locale,
+  startAdding = false,
+}: Props) {
+  const [adding, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
 
   return (

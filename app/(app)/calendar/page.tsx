@@ -128,6 +128,7 @@ export default async function CalendarPage({
   const locale: Locale = household.locale ?? "UK";
 
   const params = await searchParams;
+  const startAdding = first(params.add) === "1";
   const month = parseMonthKey(first(params.ym));
   const bounds = monthBounds(month);
 
@@ -273,6 +274,7 @@ export default async function CalendarPage({
         people={people}
         defaultDate={selectedDay ?? bounds.from}
         monthLabel={label}
+        startAdding={startAdding}
       />
 
       <Card

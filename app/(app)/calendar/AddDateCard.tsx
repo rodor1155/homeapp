@@ -17,12 +17,14 @@ export default function AddDateCard({
   people,
   defaultDate,
   monthLabel,
+  startAdding = false,
 }: {
   people: HouseholdPerson[];
   defaultDate: string;
   monthLabel: string;
+  startAdding?: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
 
   return (

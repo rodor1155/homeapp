@@ -8,7 +8,7 @@ import FilingSection from "./FilingSection";
 import HelpfulHintsSection from "./HelpfulHintsSection";
 import HeroExport from "./HeroExport";
 import HouseFileSection from "./HouseFileSection";
-import HouseIllustration from "./HouseIllustration";
+import AppMark from "@/components/AppMark";
 import { resolveHomeMap } from "@/lib/home-map";
 import InvitesBanner from "./InvitesBanner";
 import MaintenanceSection from "./MaintenanceSection";
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         <InvitesBanner />
       </Suspense>
 
-      <section className="home-hero card relative overflow-hidden p-5">
+      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 px-5 py-5 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x">
         <Suspense fallback={null}>
           <HomeMapUnderlay address={property.address} />
         </Suspense>
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
               <p className="mt-0.5 text-sm text-ink-faint">{detail}</p>
             ) : null}
           </div>
-          <HouseIllustration className="h-16 w-24" />
+          <AppMark size="lg" />
         </div>
         <div className="relative z-10 mt-5 flex flex-wrap gap-2">
           <Link href="/documents" className="btn">

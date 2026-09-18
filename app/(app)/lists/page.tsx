@@ -5,8 +5,18 @@ import ListsPanel from "./ListsPanel";
 
 export const metadata = { title: "Lists · homeapp" };
 
-export default async function ListsPage() {
+function first(value: string | string[] | undefined): string | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+export default async function ListsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { supabase, household } = await requireOnboarded();
+  const params = await searchParams;
+  const startAdding = first(params.add) === "1";
 
   const [lists, counts] = await Promise.all([
     loadShoppingLists(supabase, household.id),
@@ -34,7 +44,11 @@ export default async function ListsPage() {
           ) : undefined
         }
       >
-        <ListsPanel lists={lists} outstanding={outstanding} />
+        <ListsPanel
+          lists={lists}
+          outstanding={outstanding}
+          startAdding={startAdding}
+        />
       </Card>
 
       <p className="px-1 pt-2 text-center text-xs text-ink-faint">

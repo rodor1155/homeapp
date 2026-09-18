@@ -59,9 +59,9 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper-raised/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper-raised/95 backdrop-blur"
     >
-      <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-2">
+      <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1">
         {tabs.map((tab) => {
           const active = isActive(highlightHref, tab.href);
           const Icon = tab.icon;
