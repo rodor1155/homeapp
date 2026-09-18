@@ -12,7 +12,6 @@ export default function HouseIllustration({
       className={`shrink-0 ${className}`}
       fill="none"
     >
-      <circle cx="90" cy="18" r="11" className="fill-sage-soft" opacity="0.22" />
       <path
         d="M8 70h96"
         className="stroke-rule-strong"

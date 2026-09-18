@@ -8,7 +8,8 @@ import {
 } from "@/app/actions/onboarding";
 import type { Locale } from "@/lib/household";
 import { PROPERTY_TYPES } from "@/lib/property";
-import { Button, Field, Wordmark } from "@/components/ui";
+import PreAppShell from "@/components/PreAppShell";
+import { Button, Field } from "@/components/ui";
 
 type Props = {
   defaultLocale: Locale | null;
@@ -51,18 +52,16 @@ export default function OnboardingWizard({
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-5 py-12">
-      <div className="ledger-bound">
-        <Wordmark className="text-sm" />
-
-        <div className="mt-4">
+    <PreAppShell>
+      <div className="sheet flex flex-col gap-5">
+        <div>
           <p className="text-sm text-ink-soft">
             Step {step + 1} of {STEPS.length}
           </p>
-          <h1 className="mt-1 text-2xl">{STEPS[step]}</h1>
+          <h1 className="mt-1 text-xl">{STEPS[step]}</h1>
         </div>
 
-        <div className="mt-7 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           {step === 0 && (
             <>
               <p className="text-sm text-ink-soft">
@@ -191,6 +190,6 @@ export default function OnboardingWizard({
           </div>
         </div>
       </div>
-    </div>
+    </PreAppShell>
   );
 }

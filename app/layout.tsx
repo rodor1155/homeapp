@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -21,6 +21,12 @@ const plex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: "homeapp",
   description: "A calm home for the paperwork that protects your household.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

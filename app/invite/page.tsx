@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
-import { Card, Wordmark } from "@/components/ui";
+import PreAppShell from "@/components/PreAppShell";
+import { Card } from "@/components/ui";
 import { isOnboarded, loadHouseholdContext } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import InviteList from "./InviteList";
@@ -56,19 +57,15 @@ export default async function InvitePage() {
 /** Invite links land here cold, so the page has to work signed out. */
 function SignedOutPrompt() {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[27rem] flex-col justify-center gap-7 px-5 py-12">
-      <header className="flex flex-col gap-4">
-        <Wordmark className="text-sm" />
+    <PreAppShell>
+      <div className="sheet flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl">You’ve been invited</h1>
-          <p className="mt-1.5 text-sm text-ink-soft">
-            Sign in with the email address the invitation was sent to and we’ll
-            bring you straight back here.
+          <h1 className="text-xl">You’ve been invited</h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            Sign in with the email the invitation was sent to — we’ll bring you
+            straight back here.
           </p>
         </div>
-      </header>
-
-      <div className="sheet flex flex-col gap-4">
         <Link href="/sign-in?next=/invite" className="btn">
           Sign in
         </Link>
@@ -79,6 +76,6 @@ function SignedOutPrompt() {
           </Link>
         </p>
       </div>
-    </div>
+    </PreAppShell>
   );
 }

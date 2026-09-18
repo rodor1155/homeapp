@@ -21,8 +21,18 @@ import TimetablePanel from "./TimetablePanel";
 
 export const metadata = { title: "Family · homeapp" };
 
-export default async function FamilyPage() {
+function first(value: string | string[] | undefined): string | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+export default async function FamilyPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { supabase, household } = await requireOnboarded();
+  const params = await searchParams;
+  const startAddingPerson = first(params.add) === "person";
   const locale: Locale = household.locale ?? "UK";
 
   const weekStart = weekStartMonday();
@@ -108,7 +118,12 @@ export default async function FamilyPage() {
           </span>
         }
       >
-        <PeoplePanel people={people} schools={schools} locale={locale} />
+        <PeoplePanel
+          people={people}
+          schools={schools}
+          locale={locale}
+          startAdding={startAddingPerson}
+        />
       </Card>
 
       <Card
