@@ -269,6 +269,17 @@
     padding-left: 0;
   }
 
+  /* Pre-app screens (sign-in, onboarding, invite) — bright paper ground, no dark scrim. */
+  .pre-app-ground {
+    min-height: 100dvh;
+    background: linear-gradient(
+      180deg,
+      var(--color-paper-raised) 0%,
+      color-mix(in oklab, var(--color-sage-tint) 55%, var(--color-paper-raised)) 38%,
+      var(--color-paper) 100%
+    );
+  }
+
   /* The auth / onboarding panel — the card, with a little more air. */
   .sheet {
     background-color: var(--color-paper-raised);

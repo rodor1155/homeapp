@@ -8,7 +8,8 @@ export const APP_TAGLINE =
 /** Shared layout for sign-in, sign-up, invite (signed out) and onboarding. */
 export default function PreAppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[27rem] flex-col justify-center gap-6 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
+    <div className="pre-app-ground">
+      <div className="mx-auto flex min-h-dvh w-full max-w-[27rem] flex-col justify-center gap-6 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
       <header className="flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-2.5">
           <AppMark size="md" />
@@ -18,7 +19,8 @@ export default function PreAppShell({ children }: { children: ReactNode }) {
           {APP_TAGLINE}
         </p>
       </header>
-      {children}
+        {children}
+      </div>
     </div>
   );
 }

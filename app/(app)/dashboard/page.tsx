@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         <InvitesBanner />
       </Suspense>
 
-      <section className="home-hero card relative -mx-4 overflow-hidden rounded-none border-x-0 px-5 py-5 sm:mx-0 sm:rounded-[var(--radius-card)] sm:border-x">
+      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 px-5 py-5 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x">
         <Suspense fallback={null}>
           <HomeMapUnderlay address={property.address} />
         </Suspense>

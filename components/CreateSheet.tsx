@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -66,8 +65,13 @@ export default function CreateSheet({
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Add something">
-      <ul className="flex flex-col gap-1 pb-2">
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="What are you adding?"
+      className="max-h-[min(72dvh,520px)]"
+    >
+      <ul className="flex flex-col divide-y divide-rule">
         {options.map((option) => {
           const Icon = option.icon;
           return (
@@ -75,7 +79,7 @@ export default function CreateSheet({
               <button
                 type="button"
                 onClick={() => pick(option.href)}
-                className="flex w-full items-center gap-3 rounded-lg px-1 py-3 text-left transition-colors hover:bg-paper-sunk"
+                className="flex w-full items-center gap-3 py-3.5 text-left transition-colors hover:bg-paper-sunk"
               >
                 <span
                   aria-hidden
@@ -102,17 +106,6 @@ export default function CreateSheet({
           );
         })}
       </ul>
-      <p className="border-t border-rule pt-4 text-center text-xs text-ink-faint">
-        Or open a tab below —{" "}
-        <Link href="/documents" className="text-action" onClick={onClose}>
-          Documents
-        </Link>
-        ,{" "}
-        <Link href="/family" className="text-action" onClick={onClose}>
-          Family
-        </Link>
-        , and the rest stay where they are.
-      </p>
     </BottomSheet>
   );
 }
