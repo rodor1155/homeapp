@@ -5,6 +5,7 @@ import {
   nativeOAuthCallbackUrl,
   nativeOAuthInWebViewCallbackUrl,
 } from "@/lib/native-oauth";
+import { publicAppOrigin } from "@/lib/public-app-origin";
 
 type CapacitorBrowserPlugin = {
   open: (options: { url: string }) => Promise<void>;
@@ -34,9 +35,10 @@ export async function signInWithGoogleNative(options?: {
 }): Promise<{ error: string | null }> {
   const supabase = createClient();
   const useInWebView = options?.useInWebView === true;
+  const origin = publicAppOrigin();
   const redirectTo = useInWebView
-    ? nativeOAuthInWebViewCallbackUrl(window.location.origin)
-    : nativeOAuthCallbackUrl(window.location.origin);
+    ? nativeOAuthInWebViewCallbackUrl(origin)
+    : nativeOAuthCallbackUrl(origin);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

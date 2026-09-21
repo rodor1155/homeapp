@@ -11,6 +11,7 @@ import {
 import { createClient } from "@/lib/supabase-client";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
 import { signInWithGoogleNative } from "@/lib/native-google-sign-in";
+import { publicAppOrigin } from "@/lib/public-app-origin";
 import PreAppShell from "@/components/PreAppShell";
 import { Button, Field } from "@/components/ui";
 
@@ -55,7 +56,7 @@ export default function AuthPanel({
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${publicAppOrigin()}/auth/callback` },
     });
     if (error) {
       setGoogleError(error.message);
