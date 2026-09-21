@@ -102,7 +102,7 @@ function PersonRow({
   const meta = personSummary(person, school?.name);
 
   return (
-    <li className="py-3 first:pt-0 last:pb-0">
+    <li className="py-3.5 first:pt-0 last:pb-0">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
@@ -111,10 +111,10 @@ function PersonRow({
           {person.name.trim()[0]?.toUpperCase() ?? "?"}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{person.name}</p>
-          <p className="truncate text-xs text-ink-faint">{meta}</p>
+          <p className="truncate text-sm font-semibold text-ink">{person.name}</p>
+          <p className="text-xs leading-relaxed text-ink-faint">{meta}</p>
           {birthday ? (
-            <p className="tnum mt-0.5 text-xs text-ink-soft">
+            <p className="tnum mt-0.5 text-xs leading-relaxed text-ink-soft">
               Turns {birthday.turning} on {formatDate(birthday.date, locale)} ·{" "}
               {relativeWhen(birthday.daysAway)}
             </p>

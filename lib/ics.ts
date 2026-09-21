@@ -4,6 +4,7 @@ import { promises as dns } from "node:dns";
 import * as https from "node:https";
 import { expandRecurringEvent, sync as ical, type VEvent } from "node-ical";
 import { CALENDAR_WINDOW_DAYS, startOfCalendarDay } from "@/lib/family";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 
 /* Reading somebody else's ICS feed: the URL we are willing to store, the
  * fetch, and the parse. Feed-agnostic on purpose — a school's term dates
@@ -367,12 +368,13 @@ export type ParsedCalendar = {
 
 /** node-ical hands back either the value or `{ val, params }`. */
 function plainValue(value: unknown): string | null {
-  if (typeof value === "string") return value.trim() || null;
-  if (value && typeof value === "object" && "val" in value) {
+  let raw: string | null = null;
+  if (typeof value === "string") raw = value.trim() || null;
+  else if (value && typeof value === "object" && "val" in value) {
     const inner = (value as { val: unknown }).val;
-    return typeof inner === "string" ? inner.trim() || null : null;
+    raw = typeof inner === "string" ? inner.trim() || null : null;
   }
-  return null;
+  return raw ? decodeHtmlEntities(raw) : null;
 }
 
 /**

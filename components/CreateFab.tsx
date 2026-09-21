@@ -12,7 +12,13 @@ export default function CreateFab() {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.15rem+env(safe-area-inset-bottom))] z-40 flex justify-center">
+      <div
+        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center"
+        style={{
+          bottom:
+            "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 0.35rem)",
+        }}
+      >
         <button
           type="button"
           aria-label="Add something"

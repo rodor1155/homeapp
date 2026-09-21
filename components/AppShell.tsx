@@ -84,7 +84,13 @@ export default function AppShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[32rem] px-4 pb-[calc(8.75rem+env(safe-area-inset-bottom))] pt-5">
+      <main
+        className="mx-auto w-full max-w-[32rem] px-4 pt-5"
+        style={{
+          paddingBottom:
+            "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 4.5rem)",
+        }}
+      >
         <PullToRefresh>{children}</PullToRefresh>
       </main>
 

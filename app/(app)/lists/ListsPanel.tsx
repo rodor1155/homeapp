@@ -24,12 +24,21 @@ export default function ListsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {lists.length === 0 ? (
-        <p className="text-sm text-ink-faint">
-          No lists yet. Start one for the weekly shop, and another for the
-          things you only ever need from the DIY place.
-        </p>
-      ) : (
+      {lists.length === 0 && !adding ? (
+        <div className="rounded-lg border border-rule-strong bg-paper-sunk px-4 py-5 sm:py-6">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Start a list for the weekly shop, or one for the things you only
+            ever need from the DIY place.
+          </p>
+          <Button
+            type="button"
+            className="mt-4 w-full sm:w-auto"
+            onClick={() => setAdding(true)}
+          >
+            Start a list
+          </Button>
+        </div>
+      ) : lists.length > 0 ? (
         <ul className="divide-y divide-rule">
           {lists.map((list) => {
             const count = outstanding[list.id] ?? 0;
@@ -37,7 +46,7 @@ export default function ListsPanel({
               <li key={list.id}>
                 <Link
                   href={`/lists/${list.id}`}
-                  className="flex items-center gap-3 py-3 first:pt-0"
+                  className="tap-row -mx-1 flex items-center gap-3 rounded-lg px-1 py-3.5 first:pt-0"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-ink">
@@ -64,17 +73,19 @@ export default function ListsPanel({
             );
           })}
         </ul>
-      )}
+      ) : null}
 
-      <div className="border-t border-rule pt-4">
-        {adding ? (
+      {adding ? (
+        <div className={lists.length > 0 ? "border-t border-rule pt-4" : ""}>
           <ListForm onDone={stopAdding} />
-        ) : (
+        </div>
+      ) : lists.length > 0 ? (
+        <div className="border-t border-rule pt-4">
           <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
             Start a list
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -79,7 +79,7 @@ export default function CreateSheet({
               <button
                 type="button"
                 onClick={() => pick(option.href)}
-                className="flex min-h-[3.5rem] w-full items-center gap-3 py-4 text-left transition-colors hover:bg-paper-sunk"
+                className="tap-row flex min-h-[3.25rem] w-full items-center gap-3 px-1 py-3.5 text-left"
               >
                 <span
                   aria-hidden

@@ -112,9 +112,13 @@
   --radius-card: 16px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 1px 2px rgb(31 42 68 / 0.04), 0 8px 20px -12px rgb(31 42 68 / 0.16);
-  --shadow-raised: 0 2px 4px rgb(31 42 68 / 0.05), 0 16px 32px -16px rgb(31 42 68 / 0.24);
+  --shadow-card: 0 1px 3px rgb(31 42 68 / 0.06), 0 10px 24px -14px rgb(31 42 68 / 0.18);
+  --shadow-raised: 0 2px 6px rgb(31 42 68 / 0.07), 0 18px 36px -16px rgb(31 42 68 / 0.26);
   --shadow-bar: 0 -1px 0 var(--color-rule);
+
+  --mobile-tab-bar-height: 4.75rem;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231f2a44' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -168,6 +172,8 @@
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -12px rgb(0 0 0 / 0.5);
     --shadow-raised: 0 2px 4px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.6);
+
+    --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e8eaf0' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 }
 
@@ -178,9 +184,11 @@
   }
   body {
     background-color: var(--color-paper);
+    background-image: var(--paper-texture);
     color: var(--color-ink);
     font-family: var(--font-body);
     font-size: var(--text-base);
+    font-weight: 500;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -217,7 +225,7 @@
 
   .card {
     background-color: var(--color-paper-raised);
-    border: 1px solid var(--color-rule);
+    border: 1.5px solid var(--color-rule-strong);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
   }
@@ -282,10 +290,31 @@
   /* The auth / onboarding panel — the card, with a little more air. */
   .sheet {
     background-color: var(--color-paper-raised);
-    border: 1px solid var(--color-rule);
+    border: 1.5px solid var(--color-rule-strong);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     padding: clamp(1.25rem, 6vw, 1.75rem);
+  }
+
+  /* Tappable rows and hub drawers — calm press/hover feedback. */
+  .tap-row {
+    transition: background-color 0.14s ease, filter 0.14s ease;
+  }
+  .tap-row:hover {
+    background-color: var(--color-navy-wash);
+  }
+  .tap-row:active {
+    background-color: var(--color-navy-tint);
+    filter: brightness(0.99);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tap-row:hover {
+      background-color: var(--color-navy-tint);
+    }
+    .tap-row:active {
+      filter: brightness(1.03);
+    }
   }
 
   /* Section heading: a plain navy label above a card, with optional aside. */

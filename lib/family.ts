@@ -4,6 +4,7 @@
 // one definition of all of it.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 
 // --- people --------------------------------------------------------------
 
@@ -215,7 +216,13 @@ export async function loadSchools(
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
   if (error) return listFault("loadSchools", error.message);
-  return listOk((data as School[] | null) ?? []);
+  const rows = ((data as School[] | null) ?? []).map((school) => ({
+    ...school,
+    calendar_title: school.calendar_title
+      ? decodeHtmlEntities(school.calendar_title)
+      : school.calendar_title,
+  }));
+  return listOk(rows);
 }
 
 // --- linked calendars ----------------------------------------------------
@@ -299,7 +306,22 @@ export async function loadSchoolCalendarEventsBetween(
     .order("starts_at", { ascending: true })
     .limit(CALENDAR_ROW_CAP);
   if (error) return listFault("loadSchoolCalendarEvents", error.message);
-  return listOk((data as SchoolCalendarEvent[] | null) ?? []);
+  const rows = ((data as SchoolCalendarEvent[] | null) ?? []).map(
+    decodeCalendarEventText
+  );
+  return listOk(rows);
+}
+
+function decodeCalendarEventText<
+  T extends { title: string; location: string | null },
+>(event: T): T {
+  return {
+    ...event,
+    title: decodeHtmlEntities(event.title),
+    location: event.location
+      ? decodeHtmlEntities(event.location)
+      : event.location,
+  };
 }
 
 // --- the household's own shared calendars --------------------------------
@@ -351,7 +373,13 @@ export async function loadHouseholdCalendars(
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
   if (error) return listFault("loadHouseholdCalendars", error.message);
-  return listOk((data as HouseholdCalendar[] | null) ?? []);
+  const rows = ((data as HouseholdCalendar[] | null) ?? []).map((calendar) => ({
+    ...calendar,
+    calendar_title: calendar.calendar_title
+      ? decodeHtmlEntities(calendar.calendar_title)
+      : calendar.calendar_title,
+  }));
+  return listOk(rows);
 }
 
 /** Every cached shared date from today to the end of the window. */
@@ -385,7 +413,10 @@ export async function loadHouseholdCalendarEventsBetween(
     .order("starts_at", { ascending: true })
     .limit(CALENDAR_ROW_CAP);
   if (error) return listFault("loadHouseholdCalendarEvents", error.message);
-  return listOk((data as HouseholdCalendarEvent[] | null) ?? []);
+  const rows = ((data as HouseholdCalendarEvent[] | null) ?? []).map(
+    decodeCalendarEventText
+  );
+  return listOk(rows);
 }
 
 // --- key dates -----------------------------------------------------------

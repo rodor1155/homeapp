@@ -209,7 +209,7 @@ function SchoolCalendar({
                 key={event.id}
                 className="flex items-baseline justify-between gap-3 text-xs"
               >
-                <span className="min-w-0 truncate text-ink">{event.title}</span>
+                <span className="min-w-0 leading-snug text-ink">{event.title}</span>
                 <span className="tnum shrink-0 text-ink-faint">
                   {on ? formatDate(on, locale) : ""}
                 </span>

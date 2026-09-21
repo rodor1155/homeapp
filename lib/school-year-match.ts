@@ -5,19 +5,11 @@
 
 import type { HouseholdPerson } from "@/lib/family";
 import { SCHOOL_YEARS } from "@/lib/family";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 
 const CANONICAL = new Set<string>(SCHOOL_YEARS);
 
-/** Decode the handful of entities ICS titles sometimes carry. */
-export function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&nbsp;/gi, " ");
-}
+export { decodeHtmlEntities };
 
 function yearLabel(n: number): string | null {
   if (n < 1 || n > 13) return null;

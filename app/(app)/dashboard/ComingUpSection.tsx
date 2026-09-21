@@ -184,10 +184,10 @@ function ComingUp({
         </p>
       ) : null}
       {entries.length === 0 ? (
-        <p className="text-sm text-ink-faint">
+        <p className="text-sm leading-relaxed text-ink-soft">
           {hasPeople
             ? "Nothing on the horizon — no renewals, birthdays or dates ahead."
-            : "Nothing on the horizon yet. Add the family and their birthdays show up here."}
+            : "Nothing on the horizon yet. Add the family on Family and their birthdays show up here."}
         </p>
       ) : (
         <div className="-mx-1 flex flex-col gap-3.5">
@@ -253,10 +253,10 @@ function Entry({
             <Icon size={17} strokeWidth={1.9} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-ink">
+            <span className="block text-sm font-medium leading-snug text-ink">
               {entry.title}
             </span>
-            <span className="block truncate text-xs text-ink-faint">
+            <span className="block text-xs leading-relaxed text-ink-faint">
               {entry.note}
             </span>
           </span>

@@ -469,10 +469,10 @@ function Row({ item, today }: { item: CalendarItem; today: boolean }) {
         <Icon size={17} strokeWidth={1.9} />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-ink">
+        <span className="block text-sm font-medium leading-snug text-ink">
           {item.title}
         </span>
-        <span className="block truncate text-xs text-ink-faint">
+        <span className="block text-xs leading-relaxed text-ink-faint">
           {item.note}
         </span>
       </span>

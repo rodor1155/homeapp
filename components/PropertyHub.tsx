@@ -57,7 +57,7 @@ export default function PropertyHub({
               <Link
                 href={documentsHref(category)}
                 aria-label={`${category} — ${filedLabel(n).toLowerCase()}`}
-                className="group flex items-center gap-3 px-3.5 py-3 pr-11"
+                className="tap-row group flex items-center gap-3 px-3.5 py-3.5 pr-11"
               >
                 <span
                   aria-hidden
