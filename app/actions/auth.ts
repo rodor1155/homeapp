@@ -66,6 +66,16 @@ export async function signUpWithPassword(
   });
   if (error) return { error: error.message };
 
+  // Already registered (e.g. Google): Supabase returns empty identities and
+  // sends no confirmation email — don't claim one was sent.
+  const identities = data.user?.identities ?? [];
+  if (data.user && identities.length === 0) {
+    return {
+      error:
+        "An account with this email already exists. Sign in with Google, or use Sign in if you already set a password.",
+    };
+  }
+
   if (!data.session) {
     return {
       success: "Check your email to confirm your address, then sign in.",
