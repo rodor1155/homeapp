@@ -45,11 +45,21 @@ export default function SchoolsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {schools.length === 0 ? (
-        <p className="text-sm text-ink-faint">
-          No schools yet. Add one and you can put each child in it.
-        </p>
-      ) : (
+      {schools.length === 0 && !adding ? (
+        <div className="rounded-lg border border-rule bg-paper-sunk px-4 py-5 sm:py-6">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Add each school once, then link the children and paste in a term-dates
+            calendar.
+          </p>
+          <Button
+            type="button"
+            className="mt-4 w-full sm:w-auto"
+            onClick={() => setAdding(true)}
+          >
+            Add a school
+          </Button>
+        </div>
+      ) : schools.length > 0 ? (
         <ul className="divide-y divide-rule">
           {schools.map((school) => (
             <SchoolRow
@@ -65,17 +75,19 @@ export default function SchoolsPanel({
             />
           ))}
         </ul>
-      )}
+      ) : null}
 
-      <div className="border-t border-rule pt-4">
-        {adding ? (
+      {adding ? (
+        <div className={schools.length > 0 ? "border-t border-rule pt-4" : ""}>
           <SchoolForm onDone={stopAdding} />
-        ) : (
+        </div>
+      ) : schools.length > 0 ? (
+        <div className="border-t border-rule pt-4">
           <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
             Add a school
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

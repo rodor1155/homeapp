@@ -23,6 +23,7 @@ export default function MealsPanel({
   fault: string | null;
 }) {
   const byDay = new Map(meals.map((m) => [m.weekday, m]));
+  const emptyWeek = meals.length === 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -30,6 +31,14 @@ export default function MealsPanel({
         <p role="status" className="text-sm text-oxblood">
           {fault}
         </p>
+      ) : null}
+      {emptyWeek ? (
+        <div className="rounded-lg border border-rule bg-paper-sunk px-4 py-5 sm:py-6">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Plan the week&rsquo;s dinners here — tap a day below, then send
+            ingredients straight to your shopping list.
+          </p>
+        </div>
       ) : null}
       <p className="text-xs text-ink-faint">
         Week of {weekStart} · dinners only — add ingredients, then push them to

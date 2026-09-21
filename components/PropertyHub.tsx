@@ -17,7 +17,7 @@ function documentsHref(category: Category, upload = false): string {
 }
 
 function filedLabel(n: number): string {
-  if (n === 0) return "Empty";
+  if (n === 0) return "Nothing here yet";
   return `${n} ${n === 1 ? "document" : "documents"}`;
 }
 
@@ -33,7 +33,7 @@ export default function PropertyHub({
       <div className="flex items-baseline justify-between gap-3 px-4 pb-3 pt-4">
         <h2 className="text-base font-semibold text-ink">The house file</h2>
         <span className="tnum shrink-0 text-xs text-ink-faint">
-          {total === 0 ? "nothing filed yet" : `${total} filed`}
+          {total === 0 ? "ready for your first" : `${total} filed`}
         </span>
       </div>
 
@@ -96,8 +96,9 @@ export default function PropertyHub({
         })}
       </div>
 
-      <p className="border-t border-rule px-4 py-3 text-xs text-ink-faint">
-        Open a drawer to see what is filed there, or + to put something in it.
+      <p className="border-t border-rule px-4 py-3 text-xs text-ink-soft">
+        Tap a drawer to browse what&rsquo;s filed, or + to add your first
+        document there.
       </p>
     </Card>
   );

@@ -2,14 +2,13 @@
 @config "../tailwind.config.js";
 
 /* =========================================================================
-   homeapp design tokens — the card system (INTERIM)
+   homeapp design tokens — Hartley paper/ink restored for screenshots
 
-   A soft, friendly consumer surface: a light grey ground, white rounded
-   cards, a navy for structure and primary action, a muted sage green as the
-   one accent. Change values HERE, never per screen.
+   Warm paper ground, cream-white cards, navy ink for structure and primary
+   action, muted sage as the one accent. Change values HERE, never per screen.
 
    Palette:
-     paper    #f4f5f7   the ground the cards sit on
+     paper    #f7f3eb   warm paper ground the cards sit on
      surface  #ffffff   the card itself
      ink      #1f2a44   navy — headings, primary text, the primary button
      rule     #e6e8ee   hairlines and dividers
@@ -37,9 +36,9 @@
    ========================================================================= */
 
 @theme {
-  --color-paper: #f4f5f7;
+  --color-paper: #f7f3eb;
   --color-paper-raised: #ffffff;
-  --color-paper-sunk: #eef0f4;
+  --color-paper-sunk: #efe8dc;
 
   --color-ink: #1f2a44;
   --color-ink-soft: #5b6478;

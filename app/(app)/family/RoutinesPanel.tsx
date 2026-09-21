@@ -32,27 +32,38 @@ export default function RoutinesPanel({
           {fault}
         </p>
       ) : null}
-      {routines.length === 0 ? (
-        <p className="text-sm text-ink-faint">
-          Bin night, library books, recycling — add the weekly beats so Coming up
-          reminds you.
-        </p>
-      ) : (
+      {routines.length === 0 && !adding ? (
+        <div className="rounded-lg border border-rule bg-paper-sunk px-4 py-5 sm:py-6">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Bin night, library books, recycling — the weekly beats that keep the
+            house running.
+          </p>
+          <Button
+            type="button"
+            className="mt-4 w-full sm:w-auto"
+            onClick={() => setAdding(true)}
+          >
+            Add a routine
+          </Button>
+        </div>
+      ) : routines.length > 0 ? (
         <ul className="divide-y divide-rule">
           {routines.map((routine) => (
             <RoutineRow key={routine.id} routine={routine} />
           ))}
         </ul>
-      )}
-      <div className="border-t border-rule pt-4">
-        {adding ? (
+      ) : null}
+      {adding ? (
+        <div className={routines.length > 0 ? "border-t border-rule pt-4" : ""}>
           <RoutineForm onDone={stop} />
-        ) : (
+        </div>
+      ) : routines.length > 0 ? (
+        <div className="border-t border-rule pt-4">
           <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
             Add a routine
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

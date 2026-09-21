@@ -41,12 +41,21 @@ export default function PeoplePanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {people.length === 0 ? (
-        <p className="text-sm text-ink-faint">
-          Nobody here yet. Add yourself, whoever you live with, and the
-          children — birthdays and schools hang off these.
-        </p>
-      ) : (
+      {people.length === 0 && !adding ? (
+        <div className="rounded-lg border border-rule bg-paper-sunk px-4 py-5 sm:py-6">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Start with who lives here — birthdays, schools and the calendar
+            all follow from these.
+          </p>
+          <Button
+            type="button"
+            className="mt-4 w-full sm:w-auto"
+            onClick={() => setAdding(true)}
+          >
+            Add someone
+          </Button>
+        </div>
+      ) : people.length > 0 ? (
         <ul className="divide-y divide-rule">
           {people.map((person) => (
             <PersonRow
@@ -57,17 +66,19 @@ export default function PeoplePanel({
             />
           ))}
         </ul>
-      )}
+      ) : null}
 
-      <div className="border-t border-rule pt-4">
-        {adding ? (
+      {adding ? (
+        <div className={people.length > 0 ? "border-t border-rule pt-4" : ""}>
           <PersonForm schools={schools} onDone={stopAdding} />
-        ) : (
+        </div>
+      ) : people.length > 0 ? (
+        <div className="border-t border-rule pt-4">
           <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
             Add someone
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

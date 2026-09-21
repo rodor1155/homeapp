@@ -51,9 +51,9 @@ function ImportTile({
       type="button"
       onClick={onClick}
       disabled={disabled || soon}
-      className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-lg border border-rule bg-ink px-3 py-3 text-center text-sm font-semibold text-paper-raised transition-colors disabled:opacity-45 ${className}`}
+      className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-lg border border-rule bg-paper-raised px-3 py-3 text-center text-sm font-semibold text-ink transition-colors hover:bg-paper-sunk disabled:opacity-45 ${className}`}
     >
-      {icon}
+      <span className="text-sage-soft">{icon}</span>
       <span>{soon ? `${label} (soon)` : label}</span>
     </button>
   );

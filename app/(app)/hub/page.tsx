@@ -26,7 +26,9 @@ export default async function HubPage() {
       <HubColumn title="Today" icon={CalendarDays} href="/calendar">
         {data.loadFault ? <HubFault message={data.loadFault} /> : null}
         {data.today.length === 0 && !data.loadFault ? (
-          <HubEmpty message="Nothing flagged for today yet." />
+          <HubEmpty
+            message="A quiet day — add a routine on Family and today's beats will show here."
+          />
         ) : (
           <ul className="divide-y divide-dashed divide-rule">
             {data.today.map((row) => (
@@ -44,7 +46,9 @@ export default async function HubPage() {
           compact
         >
           {data.whosWhere.length === 0 ? (
-            <HubEmpty message="Add people on Family to see who's where." />
+            <HubEmpty
+              message="Add the family on Family and you'll see who's home, at school, or out."
+            />
           ) : (
             <ul className="divide-y divide-rule">
               {data.whosWhere.map((row) => (
@@ -85,7 +89,9 @@ export default async function HubPage() {
 
       <HubColumn title="Coming up" icon={CalendarDays} href="/calendar">
         {data.comingUp.length === 0 ? (
-          <HubEmpty message="Nothing on the horizon." />
+          <HubEmpty
+            message="Birthdays, renewals and term dates land here once you've added people, schools, or documents."
+          />
         ) : (
           <ul className="divide-y divide-dashed divide-rule">
             {data.comingUp.map((row) => (
@@ -184,7 +190,11 @@ function HubComingUpRow({
 }
 
 function HubEmpty({ message }: { message: string }) {
-  return <p className="text-lg text-ink-faint">{message}</p>;
+  return (
+    <p className="text-base leading-relaxed text-ink-soft sm:text-lg">
+      {message}
+    </p>
+  );
 }
 
 function HubFault({ message }: { message: string }) {
