@@ -138,7 +138,7 @@ async function downloadExport(
     const today = new Date().toISOString().slice(0, 10);
     const filename =
       parseFilename(response.headers.get("Content-Disposition")) ??
-      `homeapp-export-${today}.zip`;
+      `hearth-home-export-${today}.zip`;
 
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");

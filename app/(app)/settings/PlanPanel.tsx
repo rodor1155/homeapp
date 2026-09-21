@@ -78,7 +78,7 @@ export default function PlanPanel({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-ink-soft">
-          Everything in homeapp is switched on for this household.
+          Everything in Hearth Home is switched on for this household.
         </p>
         <p className="text-xs text-ink-faint">Billing isn’t set up yet.</p>
       </div>

@@ -6,10 +6,11 @@ import { requireOnboarded } from "@/lib/household";
 import { loadShoppingItems, loadShoppingList, splitItems } from "@/lib/shopping";
 import ItemsPanel from "./ItemsPanel";
 import ListSettings from "./ListSettings";
+import { appTitle } from "@/lib/brand";
 
 type Props = { params: Promise<{ listId: string }> };
 
-export const metadata = { title: "List · homeapp" };
+export const metadata = { title: appTitle("List") };
 
 export default async function ListPage({ params }: Props) {
   const { listId } = await params;

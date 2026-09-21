@@ -11,8 +11,9 @@ import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
 import { isGmailConfigured } from "@/lib/gmail-config";
 import { loadGmailConnectionPublic, loadPendingCandidates } from "@/lib/gmail";
 import { requireOnboarded } from "@/lib/household";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Documents · homeapp" };
+export const metadata = { title: appTitle("Documents") };
 
 function first(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;

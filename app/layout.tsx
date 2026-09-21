@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import { APP_NAME } from "@/lib/brand";
 
 // Display: a warm old-style serif with real character (for headings + the wordmark).
 const fraunces = Fraunces({
@@ -19,7 +20,7 @@ const plex = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "homeapp",
+  title: APP_NAME,
   description: "A calm home for the paperwork that protects your household.",
 };
 

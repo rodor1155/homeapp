@@ -18,8 +18,9 @@ import SchoolsPanel from "./SchoolsPanel";
 import MealsPanel from "./MealsPanel";
 import RoutinesPanel from "./RoutinesPanel";
 import TimetablePanel from "./TimetablePanel";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Family · homeapp" };
+export const metadata = { title: appTitle("Family") };
 
 function first(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;

@@ -39,7 +39,7 @@ export default function DeleteAccountPanel({
       <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-soft">
         <li>
           Your sign-in is removed, so this email address can no longer open
-          homeapp.
+          Hearth Home.
         </li>
         <li>
           {soleMember

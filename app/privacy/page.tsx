@@ -1,11 +1,12 @@
 import Link from "next/link";
 import AppMark from "@/components/AppMark";
 import { LedgerPage, Wordmark } from "@/components/ui";
+import { appTitle } from "@/lib/brand";
 
 export const metadata = {
-  title: "Privacy policy · homeapp",
+  title: appTitle("Privacy policy"),
   description:
-    "How Rodor Homeapp collects, uses and protects your household data.",
+    "How Hearth Home collects, uses and protects your household data.",
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
@@ -23,7 +24,7 @@ export default function PrivacyPage() {
           <h1 className="font-display text-2xl text-ink">Privacy policy</h1>
           <p className="text-sm text-ink-soft">
             Last updated {LAST_UPDATED}. This policy explains how{" "}
-            <span className="font-display italic">homeapp</span> (Rodor Homeapp)
+            <span className="font-display italic">Hearth Home</span>
             handles personal data for households in the United Kingdom.
           </p>
         </header>
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
           <section>
             <h2>Who we are</h2>
             <p>
-              homeapp is a household app operated by Rodor. It helps you file
+              Hearth Home is a household app operated by Rodor. It helps you file
               documents, track dates, manage shopping lists and share a home
               with the people who live there. For data protection purposes, Rodor
               is the controller of the personal data described in this policy.
@@ -112,7 +113,7 @@ export default function PrivacyPage() {
           <section>
             <h2>Cookies and session storage</h2>
             <p>
-              homeapp uses essential cookies set by Supabase Auth to maintain
+              Hearth Home uses essential cookies set by Supabase Auth to maintain
               your signed-in session. These are required for the app to work. We
               do not use advertising or third-party tracking cookies.
             </p>
@@ -208,7 +209,7 @@ export default function PrivacyPage() {
           </Link>
           <span className="mx-2">·</span>
           <Link href="/" className="text-action">
-            homeapp
+            Hearth Home
           </Link>
         </footer>
       </LedgerPage>

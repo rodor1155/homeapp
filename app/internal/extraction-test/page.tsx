@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { loadHouseholdContext } from "@/lib/household";
 import ExtractionTester from "./ExtractionTester";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Extraction test · homeapp" };
+export const metadata = { title: appTitle("Extraction test") };
 
 // Internal benchmark tool. Not linked from anywhere in the product UI.
 export default async function ExtractionTestPage() {

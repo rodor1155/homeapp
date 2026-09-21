@@ -18,8 +18,9 @@ import GuestPackPanel from "./GuestPackPanel";
 import HubDisplayLink from "@/components/HubDisplayLink";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { loadGuestPack } from "@/lib/guests";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Settings · homeapp" };
+export const metadata = { title: appTitle("Settings") };
 
 export default async function SettingsPage(props: PageProps<"/settings">) {
   const { billing } = await props.searchParams;

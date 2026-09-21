@@ -22,8 +22,9 @@ import {
   HouseFileFallback,
   ShoppingFallback,
 } from "./Skeletons";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Home overview · homeapp" };
+export const metadata = { title: appTitle("Home overview") };
 
 /**
  * Home paints the hero as soon as the household is known. Everything below —
@@ -139,7 +140,7 @@ async function HomeMapCredit({ address }: { address: string }) {
   if (!homeMap) return null;
   return (
     <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
-      Map © OpenStreetMap · Carto
+      Map © OpenStreetMap
     </p>
   );
 }

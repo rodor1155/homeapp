@@ -160,7 +160,7 @@ export async function GET() {
   zip.file("documents.csv", `${csvLines.join("\r\n")}\r\n`);
   zip.file(
     "README.txt",
-    `homeapp export — ${today}\r\n\r\nThis is everything homeapp holds for your household. The original ` +
+    `Hearth Home export — ${today}\r\n\r\nThis is everything Hearth Home holds for your household. The original ` +
       `document files are in the files/ folder, named in the order they were ` +
       `added. documents.csv lists one row per document, with the details read ` +
       `off each one — its filename column matches the names in files/. ` +
@@ -183,7 +183,7 @@ export async function GET() {
   return new Response(body, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="homeapp-export-${today}.zip"`,
+      "Content-Disposition": `attachment; filename="hearth-home-export-${today}.zip"`,
       "Content-Length": String(body.byteLength),
       "Cache-Control": "no-store",
     },

@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { requireOnboarded } from "@/lib/household";
 import { loadHubData } from "@/lib/hub-data";
+import { appTitle } from "@/lib/brand";
 
 export const metadata = {
-  title: "Hub · homeapp",
+  title: appTitle("Hub"),
   description: "Kitchen display — today, who's where, and what's coming up.",
 };
 

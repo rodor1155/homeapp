@@ -6,11 +6,11 @@ import { Button } from "@/components/ui";
 
 const STEPS = [
   {
-    title: "homeapp scans your inbox",
+    title: "Hearth Home scans your inbox",
     body: "A secure scan looks back through the last 12 months to spot household PDFs.",
   },
   {
-    title: "homeapp categorises found PDFs",
+    title: "Hearth Home categorises found PDFs",
     body: "We sort what we find — from car insurance to utility bills — into your house file.",
   },
   {
@@ -74,7 +74,7 @@ export default function GmailExplainPanel({
       {!configured ? (
         <p className="rounded-lg border border-rule bg-paper-sunk px-3 py-2.5 text-sm text-ink-soft">
           Gmail import is not set up on this deployment yet. Ask the person who
-          runs homeapp to add Google OAuth credentials.
+          runs Hearth Home to add Google OAuth credentials.
         </p>
       ) : null}
 
@@ -106,7 +106,7 @@ export default function GmailExplainPanel({
       </div>
 
       <p className="text-center text-xs text-ink-faint">
-        By continuing, you give homeapp read-only access to Gmail to scan for
+        By continuing, you give Hearth Home read-only access to Gmail to scan for
         household documents.
       </p>
     </div>

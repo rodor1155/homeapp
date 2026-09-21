@@ -2,8 +2,9 @@ import { Card } from "@/components/ui";
 import { requireOnboarded } from "@/lib/household";
 import { loadOutstandingCounts, loadShoppingLists } from "@/lib/shopping";
 import ListsPanel from "./ListsPanel";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Lists · homeapp" };
+export const metadata = { title: appTitle("Lists") };
 
 function first(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;

@@ -53,8 +53,9 @@ import { requireOnboarded, type Locale } from "@/lib/household";
 import { TONE_DOT, TONE_PILL, TONE_WASH } from "@/lib/tones";
 import AddDateCard from "./AddDateCard";
 import SharedCalendarsPanel from "./SharedCalendarsPanel";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Calendar · homeapp" };
+export const metadata = { title: appTitle("Calendar") };
 
 /* The household's month: the birthdays it derives, the dates someone typed in,
    whatever the schools' feeds say and whatever the household's own linked

@@ -75,9 +75,9 @@ export async function sendReminderEmail(
   const lines = [
     `${input.providerLabel} ${verb} on ${date} — ${timing}.`,
     "",
-    `It is filed under ${input.category} in homeapp. If you have already dealt with it there is nothing to do; otherwise this is your nudge to have a look before the date passes.`,
+    `It is filed under ${input.category} in Hearth Home. If you have already dealt with it there is nothing to do; otherwise this is your nudge to have a look before the date passes.`,
     "",
-    "— homeapp",
+    "— Hearth Home",
   ];
 
   const html = lines

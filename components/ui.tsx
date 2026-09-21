@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confidence } from "@/lib/document-types";
+import { APP_NAME } from "@/lib/brand";
 
 /* Shared building blocks for the card system.
    Tokens + the CSS classes these lean on live in app/globals.css. */
@@ -30,7 +31,7 @@ export function LedgerPage({
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-display font-medium italic text-ink ${className}`}>
-      homeapp
+      {APP_NAME}
     </span>
   );
 }

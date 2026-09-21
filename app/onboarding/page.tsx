@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { isOnboarded, loadHouseholdContext } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import OnboardingWizard from "./OnboardingWizard";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Get started · homeapp" };
+export const metadata = { title: appTitle("Get started") };
 
 export default async function OnboardingPage() {
   const ctx = await loadHouseholdContext();

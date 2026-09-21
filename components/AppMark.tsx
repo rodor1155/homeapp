@@ -6,7 +6,7 @@ const SIZE = {
   lg: { box: "h-16 w-16 rounded-xl", icon: 30 },
 } as const;
 
-/** The homeapp mark — a house on sage tint. Used on auth and the home hero. */
+/** The Hearth Home mark — a house on sage tint. Used on auth and the home hero. */
 export default function AppMark({
   size = "md",
   className = "",

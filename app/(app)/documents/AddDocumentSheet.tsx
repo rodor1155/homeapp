@@ -364,12 +364,12 @@ function AddDocumentSheetBody({
           <StubRow
             icon={<Share2 size={18} aria-hidden />}
             label="Share from other apps"
-            detail="Send a PDF from another app into homeapp using your phone’s share sheet. Coming soon."
+            detail="Send a PDF from another app into Hearth Home using your phone’s share sheet. Coming soon."
           />
           <StubRow
             icon={<Mail size={18} aria-hidden />}
-            label="Email to homeapp"
-            detail="Forward household paperwork to a homeapp address and we’ll file it for you. Coming soon."
+            label="Email to Hearth Home"
+            detail="Forward household paperwork to a Hearth Home address and we’ll file it for you. Coming soon."
           />
         </section>
 
@@ -379,7 +379,7 @@ function AddDocumentSheetBody({
         {error ? <p className="text-xs mark-fault">{error}</p> : null}
 
         <p className="text-center text-xs text-ink-faint">
-          P.S. homeapp is your home’s filing assistant — please stick to
+          P.S. Hearth Home is your home’s filing assistant — please stick to
           home-related paperwork rather than personal medical documents.
         </p>
 

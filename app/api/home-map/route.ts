@@ -21,7 +21,7 @@ const TILE = 256;
 const COLS = 3;
 const ROWS = 2;
 const FETCH_TIMEOUT_MS = 8_000;
-const USER_AGENT = "homeapp/1.0 (https://homeapp-mu.vercel.app; family home app)";
+const USER_AGENT = "HearthHome/1.0 (https://homeapp-mu.vercel.app; family home app)";
 /** In-process only; keep short — PNG mosaics are large. */
 const STITCH_CACHE_TTL_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 30;
@@ -135,10 +135,24 @@ async function stitchMap(lat: number, lng: number): Promise<Buffer> {
     .toBuffer();
 }
 
+function cartoBasemapKey(): string | null {
+  return process.env.CARTO_BASEMAPS_API_KEY?.trim() || null;
+}
+
 async function fetchTile(z: number, x: number, y: number): Promise<Buffer> {
-  // Carto Voyager: soft, street-labelled, close to the paper/ink palette.
-  const subdomain = ["a", "b", "c", "d"][(x + y) % 4]!;
-  const tileUrl = `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+  // Prefer Carto Voyager (paper/ink palette) when CARTO_BASEMAPS_API_KEY is set.
+  // Without a key, Carto stamps every tile "API KEY REQUIRED" — fall back to
+  // OSM raster so the Home hero stays clean for screenshots.
+  const cartoKey = cartoBasemapKey();
+  let tileUrl: string;
+  if (cartoKey) {
+    const subdomain = ["a", "b", "c", "d"][(x + y) % 4]!;
+    tileUrl =
+      `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png` +
+      `?key=${encodeURIComponent(cartoKey)}`;
+  } else {
+    tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {

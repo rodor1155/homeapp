@@ -5,8 +5,9 @@ import { Card } from "@/components/ui";
 import { isOnboarded, loadHouseholdContext } from "@/lib/household";
 import { loadPendingInvites } from "@/lib/invites";
 import InviteList from "./InviteList";
+import { appTitle } from "@/lib/brand";
 
-export const metadata = { title: "Invitations · homeapp" };
+export const metadata = { title: appTitle("Invitations") };
 
 export default async function InvitePage() {
   const ctx = await loadHouseholdContext();
