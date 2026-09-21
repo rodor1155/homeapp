@@ -7,8 +7,13 @@ import { safeNextPath } from "@/lib/safe-path";
 export type AuthState = { error?: string; success?: string } | undefined;
 
 function siteUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  return raw.replace(/\/+$/, "");
+  const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
+  // Never ship auth emails / redirects that point at a developer machine.
+  if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) return fromEnv;
+  const vercel = process.env.VERCEL_URL?.replace(/\/+$/, "");
+  if (vercel) return `https://${vercel}`;
+  if (fromEnv) return fromEnv;
+  return "http://localhost:3000";
 }
 
 function readEmail(formData: FormData): string {
