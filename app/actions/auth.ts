@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { safeNextPath } from "@/lib/safe-path";
 
 export type AuthState = { error?: string; success?: string } | undefined;
@@ -81,10 +82,34 @@ export async function signUpWithPassword(
     };
   }
 
-  if (!data.session) {
-    return {
-      success: "Check your email to confirm your address, then sign in.",
-    };
+  // Built-in Supabase mailer often never delivers. Until custom Auth SMTP is
+  // wired, auto-confirm new email signups and sign them in immediately
+  // (same effective behaviour as GraftMate / Confirm email off).
+  if (!data.session && data.user) {
+    try {
+      const admin = createAdminClient();
+      const { error: confirmError } = await admin.auth.admin.updateUserById(
+        data.user.id,
+        { email_confirm: true }
+      );
+      if (confirmError) {
+        return { error: confirmError.message };
+      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        return {
+          error:
+            "Account created, but sign-in failed. Try Sign in with the same email and password.",
+        };
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not finish signup.";
+      return { error: message };
+    }
   }
 
   redirect(next);
