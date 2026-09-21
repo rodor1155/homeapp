@@ -109,8 +109,10 @@ The `subscriptions` migration is written but **not yet applied** to the project.
 
 ## Supabase config that isn't in code
 
-- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` (local and
-  prod) to the redirect allow-list; set the Site URL to the prod origin.
+- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` and
+  `${NEXT_PUBLIC_SITE_URL}/auth/native-bridge` (local and prod) to the redirect
+  allow-list; set the Site URL to the prod origin. The native-bridge URL is used by
+  the Capacitor iOS shell for Google OAuth (in-app browser → deep link back).
 - **Auth → Providers → Google**: paste a Google OAuth client ID/secret and add
   `${SUPABASE_URL}/auth/v1/callback` as an authorized redirect URI in Google Cloud.
   Until then the "Continue with Google" button returns an error; email + magic link work.

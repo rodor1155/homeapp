@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import NativeOAuthListener from "@/components/NativeOAuthListener";
 import { APP_NAME } from "@/lib/brand";
 
 // Display: a warm old-style serif with real character (for headings + the wordmark).
@@ -37,7 +38,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fraunces.variable} ${plex.variable}`}>
-      <body>{children}</body>
+      <body>
+        <NativeOAuthListener />
+        {children}
+      </body>
     </html>
   );
 }

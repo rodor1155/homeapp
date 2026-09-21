@@ -9,6 +9,8 @@ import {
   type AuthState,
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase-client";
+import { isCapacitorNative } from "@/lib/is-capacitor-native";
+import { signInWithGoogleNative } from "@/lib/native-google-sign-in";
 import PreAppShell from "@/components/PreAppShell";
 import { Button, Field } from "@/components/ui";
 
@@ -40,6 +42,16 @@ export default function AuthPanel({
   async function handleGoogle() {
     setGoogleError(null);
     setGooglePending(true);
+
+    if (isCapacitorNative()) {
+      const { error } = await signInWithGoogleNative();
+      if (error) {
+        setGoogleError(error);
+        setGooglePending(false);
+      }
+      return;
+    }
+
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
