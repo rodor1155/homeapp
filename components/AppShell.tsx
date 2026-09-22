@@ -60,7 +60,7 @@ export default function AppShell({
   return (
     <div className="min-h-dvh bg-paper">
       <PrefetchAppRoutes />
-      <header className="sticky top-0 z-20 border-b border-rule bg-paper/85 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-rule-strong bg-paper/90 pt-[env(safe-area-inset-top)] shadow-[0_1px_0_rgb(31_42_68_/_0.03)] backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[32rem] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-semibold text-ink">
@@ -88,7 +88,7 @@ export default function AppShell({
         className="mx-auto w-full max-w-[32rem] px-4 pt-5"
         style={{
           paddingBottom:
-            "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 4.5rem)",
+            "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 5rem)",
         }}
       >
         <PullToRefresh>{children}</PullToRefresh>

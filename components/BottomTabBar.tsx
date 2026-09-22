@@ -59,10 +59,10 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule-strong bg-paper-raised/95 shadow-bar backdrop-blur"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule-strong bg-paper-raised/97 shadow-bar backdrop-blur-md"
+      style={{ paddingBottom: "max(0.55rem, env(safe-area-inset-bottom, 0px))" }}
     >
-      <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-1.5 pt-1">
+      <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-1 pt-1.5">
         {tabs.map((tab) => {
           const active = isActive(highlightHref, tab.href);
           const Icon = tab.icon;
@@ -78,18 +78,28 @@ export default function BottomTabBar() {
                   if (isActive(pathname, tab.href)) return;
                   startTransition(() => setPendingHref(tab.href));
                 }}
-                className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold transition-colors ${
+                className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-semibold transition-colors active:scale-[0.97] ${
                   active ? "text-ink" : "text-ink-faint hover:text-ink-soft"
                 }`}
               >
                 <span
-                  className={`flex h-9 w-[4.25rem] items-center justify-center rounded-pill transition-colors ${
-                    active ? "bg-sage-tint text-sage ring-1 ring-sage-soft/25" : ""
+                  className={`flex h-9 w-[4.5rem] items-center justify-center rounded-pill transition-colors ${
+                    active
+                      ? "bg-sage-tint text-sage shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--color-sage-soft)_28%,transparent)]"
+                      : "text-ink-faint"
                   }`}
                 >
-                  <Icon size={21} strokeWidth={active ? 2.2 : 1.7} aria-hidden />
+                  <Icon size={22} strokeWidth={active ? 2.35 : 1.7} aria-hidden />
                 </span>
-                {tab.label}
+                <span className="relative">
+                  {tab.label}
+                  {active ? (
+                    <span
+                      aria-hidden
+                      className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-pill bg-ink"
+                    />
+                  ) : null}
+                </span>
               </Link>
             </li>
           );

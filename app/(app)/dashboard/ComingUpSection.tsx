@@ -184,11 +184,29 @@ function ComingUp({
         </p>
       ) : null}
       {entries.length === 0 ? (
-        <p className="text-sm leading-relaxed text-ink-soft">
-          {hasPeople
-            ? "Nothing on the horizon — no renewals, birthdays or dates ahead."
-            : "Nothing on the horizon yet. Add the family on Family and their birthdays show up here."}
-        </p>
+        <div className="empty-state rounded-lg bg-ochre-wash/60 px-3 py-5">
+          <span
+            aria-hidden
+            className="icon-well-lg icon-well bg-ochre-tint text-ochre"
+          >
+            <CalendarDays size={20} strokeWidth={1.9} />
+          </span>
+          <p className="mt-2 text-base font-semibold text-ink">Nothing coming up</p>
+          <p className="empty-state-body">
+            {hasPeople
+              ? "No renewals, birthdays or dates on the horizon right now."
+              : "Add the family on Family and their birthdays show up here."}
+          </p>
+          {!hasPeople ? (
+            <Link href="/family" className="btn-quiet mt-3">
+              Open Family
+            </Link>
+          ) : (
+            <Link href="/calendar" className="btn-quiet mt-3">
+              Open the calendar
+            </Link>
+          )}
+        </div>
       ) : (
         <div className="-mx-1 flex flex-col gap-3.5">
           {months.map((month) => (
@@ -230,9 +248,15 @@ function Entry({
   const Icon = COMING_UP_ICON[entry.kind];
 
   return (
-    <li className={`rounded-lg px-2.5 py-2 ${headline ? "bg-ochre-wash" : ""}`}>
+    <li
+      className={`rounded-[var(--radius)] px-3 py-2.5 ${
+        headline
+          ? "border border-ochre/25 bg-ochre-wash shadow-[var(--shadow-card)]"
+          : "hover:bg-navy-wash/70"
+      }`}
+    >
       {headline ? (
-        <p className="mark-review mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide">
+        <p className="mark-review mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
           <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-ochre" />
           {countdown(entry.daysAway)}
         </p>
@@ -244,7 +268,7 @@ function Entry({
               not a kind. Everything below it keeps its own colour. */}
           <span
             aria-hidden
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
+            className={`icon-well ${
               headline
                 ? "bg-ochre-tint text-ochre"
                 : TONE_PILL[COMING_UP_TONE[entry.kind]]
@@ -253,7 +277,7 @@ function Entry({
             <Icon size={17} strokeWidth={1.9} />
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-medium leading-snug text-ink">
+            <span className="block text-sm font-semibold leading-snug text-ink">
               {entry.title}
             </span>
             <span className="block text-xs leading-relaxed text-ink-faint">

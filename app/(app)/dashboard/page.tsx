@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox } from "lucide-react";
+import { ChevronRight, FileText, Inbox, Users } from "lucide-react";
 import { Card } from "@/components/ui";
 import { Suspense } from "react";
 import { requireOnboarded, type Locale } from "@/lib/household";
@@ -53,17 +53,20 @@ export default async function DashboardPage() {
         <InvitesBanner />
       </Suspense>
 
-      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 px-5 py-5 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x">
+      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 px-5 pb-5 pt-6 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x sm:pt-5">
         <Suspense fallback={null}>
           <HomeMapUnderlay address={property.address} />
         </Suspense>
+        <div aria-hidden className="home-hero-scrim" />
         <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-sage">
               Your home
             </p>
-            <h1 className="mt-1 text-2xl">{household.name}</h1>
-            <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">
+            <h1 className="mt-1 text-2xl drop-shadow-[0_1px_0_rgb(247_243_235_/_0.65)]">
+              {household.name}
+            </h1>
+            <p className="mt-1 whitespace-pre-line text-sm font-medium text-ink-soft">
               {property.address}
             </p>
             {detail ? (
@@ -72,7 +75,7 @@ export default async function DashboardPage() {
           </div>
           <AppMark size="lg" />
         </div>
-        <div className="relative z-10 mt-5 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-6 flex flex-wrap gap-2">
           <Link href="/documents" className="btn">
             Open the documents file
           </Link>
@@ -88,6 +91,8 @@ export default async function DashboardPage() {
       <Suspense fallback={<HintsFallback />}>
         <HelpfulHintsSection householdId={household.id} locale={locale} />
       </Suspense>
+
+      <HomePromoRow />
 
       <Suspense fallback={<HouseFileFallback />}>
         <HouseFileSection householdId={household.id} locale={locale} />
@@ -139,23 +144,68 @@ async function HomeMapCredit({ address }: { address: string }) {
   const homeMap = await resolveHomeMap(address);
   if (!homeMap) return null;
   return (
-    <p className="relative z-10 mt-3 text-[10px] text-ink-faint">
+    <p className="relative z-10 mt-4 text-[10px] font-medium text-ink-faint">
       Map © OpenStreetMap
     </p>
   );
 }
 
+/** Pastel promo tiles — Hartley density without cloning Hartley copy. */
+function HomePromoRow() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <Link href="/documents?upload=1#upload" className="card-promo card-promo-lilac">
+        <span className="card-promo-kicker">House file</span>
+        <span className="flex items-start justify-between gap-2">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold leading-snug text-ink">
+              File a document
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+              Policies, bills and letters in one place
+            </span>
+          </span>
+          <span
+            aria-hidden
+            className="icon-well shrink-0 bg-paper-raised/80 text-lilac"
+          >
+            <FileText size={17} strokeWidth={1.9} />
+          </span>
+        </span>
+      </Link>
+      <Link href="/family" className="card-promo card-promo-peach">
+        <span className="card-promo-kicker">Household</span>
+        <span className="flex items-start justify-between gap-2">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold leading-snug text-ink">
+              Keep family close
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+              People, schools and shared dates
+            </span>
+          </span>
+          <span
+            aria-hidden
+            className="icon-well shrink-0 bg-paper-raised/80 text-peach"
+          >
+            <Users size={17} strokeWidth={1.9} />
+          </span>
+        </span>
+      </Link>
+    </div>
+  );
+}
 
 function CardLinkInbox() {
   return (
     <Card padding="none">
       <Link
         href="/documents?category=Home%20inbox&upload=1#upload"
-        className="flex items-center gap-3 px-4 py-3.5"
+        className="tap-row flex items-center gap-3 px-4 py-3.5"
       >
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-ochre-tint text-ochre"
+          className="icon-well bg-ochre-tint text-ochre"
         >
           <Inbox size={17} strokeWidth={1.9} />
         </span>
@@ -165,6 +215,12 @@ function CardLinkInbox() {
             Drop a school letter or slip — dated ones show in Coming up
           </span>
         </span>
+        <ChevronRight
+          size={16}
+          strokeWidth={1.9}
+          aria-hidden
+          className="shrink-0 text-ink-faint"
+        />
       </Link>
     </Card>
   );

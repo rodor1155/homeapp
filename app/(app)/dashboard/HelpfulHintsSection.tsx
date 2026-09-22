@@ -101,20 +101,18 @@ function HelpfulHints({
             <li key={hint.key}>
               <Link
                 href={hint.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                className={`flex items-center gap-3 rounded-[var(--radius)] px-3 py-3 transition-colors ${
                   TONE_WASH[hint.tone]
                 } ${TONE_WASH_HOVER[hint.tone]}`}
               >
                 <span
                   aria-hidden
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
-                    TONE_PILL[hint.tone]
-                  }`}
+                  className={`icon-well ${TONE_PILL[hint.tone]}`}
                 >
                   <Icon size={17} strokeWidth={1.9} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-ink">
+                  <span className="block text-sm font-semibold text-ink">
                     {hint.title}
                   </span>
                   <span className="block text-xs text-ink-soft">

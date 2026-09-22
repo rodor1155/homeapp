@@ -44,10 +44,10 @@ function Shopping({
 
   return (
     <Card padding="none">
-      <Link href="/lists" className="flex items-center gap-3 px-4 py-3.5">
+      <Link href="/lists" className="tap-row flex items-center gap-3 px-4 py-3.5">
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-sage-tint text-sage"
+          className="icon-well bg-sage-tint text-sage"
         >
           <ShoppingBasket size={17} strokeWidth={1.9} />
         </span>

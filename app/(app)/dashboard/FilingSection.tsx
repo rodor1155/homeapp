@@ -29,14 +29,14 @@ export default async function FilingSection({
 
   if (documents.length === 0) {
     return (
-      <Card className="text-center">
+      <Card className="empty-state">
         <HouseIllustration className="mx-auto h-24 w-32" />
-        <h2 className="mt-3 text-lg">Nothing filed yet</h2>
-        <p className="mx-auto mt-2 max-w-xs text-sm text-ink-soft">
+        <h2 className="empty-state-title">Nothing filed yet</h2>
+        <p className="empty-state-body">
           Once a document has been read, this page fills in with what is
           coming up, what it costs and who to call.
         </p>
-        <Link href="/documents?upload=1#upload" className="btn mt-5">
+        <Link href="/documents?upload=1#upload" className="btn mt-4">
           Add a document
         </Link>
       </Card>
