@@ -48,7 +48,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "people",
       icon: "people",
-      tone: "lilac",
+      tone: "navy",
       href: "/family",
       title: "Say who lives here",
       body: "Add the family and their birthdays come round on their own.",
@@ -73,7 +73,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
       hints.push({
         key: "school-link",
         icon: "school",
-        tone: "peach",
+        tone: "sage",
         href: "/family",
         title:
           unplaced.length === 1
@@ -90,7 +90,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "school-calendar",
       icon: "calendar",
-      tone: "peach",
+      tone: "sage",
       href: "/family",
       title:
         withoutFeed.length === 1
@@ -104,7 +104,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "shared-calendar",
       icon: "shared",
-      tone: "sky",
+      tone: "navy",
       href: "/calendar",
       title: "Link the family calendar",
       body: "Paste the iCal link from a Google or Apple calendar and its dates join this month.",
@@ -126,7 +126,7 @@ export function helpfulHints(facts: HintFacts): HelpfulHint[] {
     hints.push({
       key: "documents",
       icon: "file",
-      tone: "lilac",
+      tone: "navy",
       href: "/documents?upload=1#upload",
       title: "File your first document",
       body: "A photo of a policy or a bill is read and sorted for you, renewal date and all.",

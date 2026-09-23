@@ -18,6 +18,8 @@ import SchoolsPanel from "./SchoolsPanel";
 import MealsPanel from "./MealsPanel";
 import RoutinesPanel from "./RoutinesPanel";
 import TimetablePanel from "./TimetablePanel";
+import WhosWhereSection from "../dashboard/WhosWhereSection";
+import { Suspense } from "react";
 import { appTitle } from "@/lib/brand";
 
 export const metadata = { title: appTitle("Family") };
@@ -92,6 +94,10 @@ export default async function FamilyPage({
           {loadFault}
         </p>
       ) : null}
+
+      <Suspense fallback={null}>
+        <WhosWhereSection householdId={household.id} />
+      </Suspense>
 
       <Card
         title="Schools"

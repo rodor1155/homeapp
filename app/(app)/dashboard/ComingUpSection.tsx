@@ -80,9 +80,12 @@ const KIND_LABEL: Record<string, string> = {
 export default async function ComingUpSection({
   householdId,
   locale,
+  limit,
 }: {
   householdId: string;
   locale: Locale;
+  /** Cap the briefing (Home). Omit for the full list. */
+  limit?: number;
 }) {
   const supabase = await createClient();
   const [
@@ -141,12 +144,18 @@ export default async function ComingUpSection({
     routineEntries(routines)
   );
 
+  const brief = typeof limit === "number" && limit > 0;
+  const shown = brief ? entries.slice(0, limit) : entries;
+  const hidden = brief ? Math.max(0, entries.length - shown.length) : 0;
+
   return (
     <ComingUp
-      entries={entries}
+      entries={shown}
       locale={locale}
       hasPeople={people.length > 0}
       loadFault={loadFault}
+      hiddenCount={hidden}
+      brief={brief}
     />
   );
 }
@@ -156,11 +165,15 @@ function ComingUp({
   locale,
   hasPeople,
   loadFault,
+  hiddenCount = 0,
+  brief = false,
 }: {
   entries: readonly ComingUpEntry[];
   locale: Locale;
   hasPeople: boolean;
   loadFault: string | null;
+  hiddenCount?: number;
+  brief?: boolean;
 }) {
   const months = groupByMonth(entries);
   // Only worth writing the month out when the list actually crosses one.
@@ -174,7 +187,7 @@ function ComingUp({
       title="Coming up"
       action={
         <Link href="/calendar" className="text-action text-xs">
-          Open the calendar
+          {brief ? "See all" : "Open the calendar"}
         </Link>
       }
     >
@@ -228,6 +241,15 @@ function ComingUp({
               </ul>
             </div>
           ))}
+          {hiddenCount > 0 ? (
+            <p className="px-2.5 pt-1">
+              <Link href="/calendar" className="text-action text-xs">
+                {hiddenCount === 1
+                  ? "1 more on the calendar"
+                  : `${hiddenCount} more on the calendar`}
+              </Link>
+            </p>
+          ) : null}
         </div>
       )}
     </Card>

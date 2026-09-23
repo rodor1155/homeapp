@@ -46,11 +46,11 @@ export type ComingUpKind =
 export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
   document: "navy",
   birthday: "sage",
-  event: "lilac",
-  school: "peach",
-  shared: "sky",
+  event: "navy",
+  school: "sage",
+  shared: "navy",
   timetable: "ochre",
-  routine: "lilac",
+  routine: "sage",
 };
 
 export type ComingUpEntry = {

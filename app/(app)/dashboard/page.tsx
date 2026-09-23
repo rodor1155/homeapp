@@ -1,40 +1,26 @@
 import Link from "next/link";
-import { ChevronRight, FileText, Inbox, Users } from "lucide-react";
-import { Card } from "@/components/ui";
+import { FileText, Users } from "lucide-react";
 import { Suspense } from "react";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import ComingUpSection from "./ComingUpSection";
-import FilingSection from "./FilingSection";
-import HelpfulHintsSection from "./HelpfulHintsSection";
 import HeroExport from "./HeroExport";
 import HouseFileSection from "./HouseFileSection";
 import AppMark from "@/components/AppMark";
 import { resolveHomeMap } from "@/lib/home-map";
 import InvitesBanner from "./InvitesBanner";
-import MaintenanceSection from "./MaintenanceSection";
-import ShoppingSection from "./ShoppingSection";
-import WhosWhereSection from "./WhosWhereSection";
 import {
   ComingUpFallback,
   ExportFallback,
-  FilingFallback,
-  HintsFallback,
   HouseFileFallback,
-  ShoppingFallback,
 } from "./Skeletons";
 import { appTitle } from "@/lib/brand";
 
 export const metadata = { title: appTitle("Home overview") };
 
 /**
- * Home paints the hero as soon as the household is known. Everything below —
- * hints, house file, Coming up, shopping, filed lists — streams in behind its
- * own Suspense boundary. Documents are loaded once per request via
- * `loadOverviewDocuments` (React `cache`), so those sections share a round trip
- * without blocking each other or the hero.
- *
- * The map underlay is decorative: resolve it in a child Suspense so postcodes.io
- * cannot hold the first byte of the hero chrome.
+ * Hartley-tight Home: map hero, a short Coming up briefing, one or two
+ * navy/sage CTAs, and a house-file peek. Longer surfaces live on their own
+ * tabs (Family, Lists, Documents, Calendar) — not stacked under the map.
  */
 export default async function DashboardPage() {
   const { user, household, property } = await requireOnboarded();
@@ -88,36 +74,22 @@ export default async function DashboardPage() {
         </Suspense>
       </section>
 
-      <Suspense fallback={<HintsFallback />}>
-        <HelpfulHintsSection householdId={household.id} locale={locale} />
+      <Suspense fallback={<ComingUpFallback />}>
+        <ComingUpSection
+          householdId={household.id}
+          locale={locale}
+          limit={4}
+        />
       </Suspense>
 
-      <HomePromoRow />
+      <HomeCtaRow />
 
       <Suspense fallback={<HouseFileFallback />}>
-        <HouseFileSection householdId={household.id} locale={locale} />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <WhosWhereSection householdId={household.id} />
-      </Suspense>
-
-      <Suspense fallback={<ComingUpFallback />}>
-        <ComingUpSection householdId={household.id} locale={locale} />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <MaintenanceSection householdId={household.id} locale={locale} />
-      </Suspense>
-
-      <Suspense fallback={<ShoppingFallback />}>
-        <ShoppingSection householdId={household.id} />
-      </Suspense>
-
-      <CardLinkInbox />
-
-      <Suspense fallback={<FilingFallback />}>
-        <FilingSection householdId={household.id} locale={locale} />
+        <HouseFileSection
+          householdId={household.id}
+          locale={locale}
+          peek
+        />
       </Suspense>
 
       <p className="px-1 pt-2 text-center text-xs text-ink-faint">
@@ -150,11 +122,11 @@ async function HomeMapCredit({ address }: { address: string }) {
   );
 }
 
-/** Pastel promo tiles — Hartley density without cloning Hartley copy. */
-function HomePromoRow() {
+/** Navy / sage CTAs — ink hierarchy on paper, not a pastel promo rainbow. */
+function HomeCtaRow() {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Link href="/documents?upload=1#upload" className="card-promo card-promo-lilac">
+      <Link href="/documents?upload=1#upload" className="card-promo card-promo-navy">
         <span className="card-promo-kicker">House file</span>
         <span className="flex items-start justify-between gap-2">
           <span className="min-w-0">
@@ -167,13 +139,13 @@ function HomePromoRow() {
           </span>
           <span
             aria-hidden
-            className="icon-well shrink-0 bg-paper-raised/80 text-lilac"
+            className="icon-well shrink-0 bg-navy-tint text-ink ring-1 ring-navy/15"
           >
             <FileText size={17} strokeWidth={1.9} />
           </span>
         </span>
       </Link>
-      <Link href="/family" className="card-promo card-promo-peach">
+      <Link href="/family" className="card-promo card-promo-sage">
         <span className="card-promo-kicker">Household</span>
         <span className="flex items-start justify-between gap-2">
           <span className="min-w-0">
@@ -181,47 +153,17 @@ function HomePromoRow() {
               Keep family close
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
-              People, schools and shared dates
+              People, schools and who&rsquo;s where today
             </span>
           </span>
           <span
             aria-hidden
-            className="icon-well shrink-0 bg-paper-raised/80 text-peach"
+            className="icon-well shrink-0 bg-sage-tint text-sage ring-1 ring-sage-soft/30"
           >
             <Users size={17} strokeWidth={1.9} />
           </span>
         </span>
       </Link>
     </div>
-  );
-}
-
-function CardLinkInbox() {
-  return (
-    <Card padding="none">
-      <Link
-        href="/documents?category=Home%20inbox&upload=1#upload"
-        className="tap-row flex items-center gap-3 px-4 py-3.5"
-      >
-        <span
-          aria-hidden
-          className="icon-well bg-ochre-tint text-ochre"
-        >
-          <Inbox size={17} strokeWidth={1.9} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium text-ink">Home inbox</span>
-          <span className="block truncate text-xs text-ink-faint">
-            Drop a school letter or slip — dated ones show in Coming up
-          </span>
-        </span>
-        <ChevronRight
-          size={16}
-          strokeWidth={1.9}
-          aria-hidden
-          className="shrink-0 text-ink-faint"
-        />
-      </Link>
-    </Card>
   );
 }

@@ -9,10 +9,10 @@ import { Card } from "@/components/ui";
 import { CATEGORIES, type Category } from "@/lib/categories";
 import { TONE_PILL } from "@/lib/tones";
 
-/* The house file: one drawer per filing category, laid out on a ruled grid
-   like the front of a plan chest. A drawer opens its slice of the file; its +
-   opens the uploader already set to that category. Every drawer is shown,
-   empty or not, so the shape of the file never changes under you. */
+/* The house file: one drawer per filing category. Home uses `peek` — a short
+   briefing of the busiest drawers + a clear path into Documents. */
+
+const PEEK_DRAWERS = 4;
 
 function documentsHref(category: Category, upload = false): string {
   const params = new URLSearchParams();
@@ -26,12 +26,27 @@ function filedLabel(n: number): string {
   return `${n} ${n === 1 ? "document" : "documents"}`;
 }
 
+function drawersForVariant(
+  counts: Record<Category, number>,
+  variant: "full" | "peek"
+): Category[] {
+  if (variant === "full") return [...CATEGORIES];
+  // Prefer drawers that already have filings; fill with the rest so the
+  // peek still shows the shape of the file when everything is empty.
+  const ranked = [...CATEGORIES].sort((a, b) => counts[b] - counts[a]);
+  return ranked.slice(0, PEEK_DRAWERS);
+}
+
 export default function PropertyHub({
   counts,
+  variant = "full",
 }: {
   counts: Record<Category, number>;
+  variant?: "full" | "peek";
 }) {
   const total = CATEGORIES.reduce((sum, c) => sum + counts[c], 0);
+  const drawers = drawersForVariant(counts, variant);
+  const peek = variant === "peek";
 
   return (
     <Card padding="none">
@@ -46,7 +61,9 @@ export default function PropertyHub({
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-ink">The house file</h2>
             <p className="text-xs text-ink-faint">
-              Every drawer of the home, ready to browse
+              {peek
+                ? "A quick look — open Documents for every drawer"
+                : "Every drawer of the home, ready to browse"}
             </p>
           </div>
         </div>
@@ -79,14 +96,13 @@ export default function PropertyHub({
       ) : null}
 
       <div className="grid grid-cols-2 border-t border-rule">
-        {CATEGORIES.map((category, i) => {
+        {drawers.map((category, i) => {
           const Icon = CATEGORY_ICON[category];
           const n = counts[category];
           const tone = CATEGORY_TONE[category];
-
-          // Seven drawers into two columns: the odd one out takes the full
-          // width of the bottom row rather than leaving a gap.
-          const full = CATEGORIES.length % 2 === 1 && i === CATEGORIES.length - 1;
+          const last = i === drawers.length - 1;
+          const full =
+            drawers.length % 2 === 1 && last;
           const edges = `${
             !full && i % 2 === 0 ? "border-r border-rule" : ""
           } ${i >= 2 ? "border-t border-rule" : ""}`;
@@ -139,8 +155,19 @@ export default function PropertyHub({
       </div>
 
       <p className="border-t border-rule px-4 py-3 text-xs text-ink-soft">
-        Tap a drawer to browse what&rsquo;s filed, or + to add your first
-        document there.
+        {peek ? (
+          <>
+            <Link href="/documents" className="text-action">
+              Open Documents
+            </Link>
+            {" — "}browse every drawer, or + to file something new.
+          </>
+        ) : (
+          <>
+            Tap a drawer to browse what&rsquo;s filed, or + to add your first
+            document there.
+          </>
+        )}
       </p>
     </Card>
   );

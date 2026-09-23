@@ -35,14 +35,14 @@ export const CATEGORY_SHORT_LABEL: Record<Category, string> = {
   Other: "Other",
 };
 
-/** Pastel drawer colour — filled wells use the tint; empty stays sunk. */
+/** Drawer colour — ink / sage / navy first; pastels only as quiet kind markers. */
 export const CATEGORY_TONE: Record<Category, Tone> = {
-  Insurance: "sky",
+  Insurance: "navy",
   "Utilities & bills": "ochre",
-  Vehicle: "lilac",
+  Vehicle: "navy",
   "Property & compliance": "navy",
-  "Warranties & appliances": "peach",
+  "Warranties & appliances": "sage",
   "Subscriptions & services": "sage",
   "Home inbox": "ochre",
-  Other: "navy",
+  Other: "sage",
 };

@@ -12,6 +12,7 @@ import { isGmailConfigured } from "@/lib/gmail-config";
 import { loadGmailConnectionPublic, loadPendingCandidates } from "@/lib/gmail";
 import { requireOnboarded } from "@/lib/household";
 import { appTitle } from "@/lib/brand";
+import MaintenanceSection from "../dashboard/MaintenanceSection";
 
 export const metadata = { title: appTitle("Documents") };
 
@@ -99,6 +100,15 @@ export default async function DocumentsPage({
           }
         />
       </Suspense>
+
+      {!category ? (
+        <Suspense fallback={null}>
+          <MaintenanceSection
+            householdId={household.id}
+            locale={household.locale ?? "UK"}
+          />
+        </Suspense>
+      ) : null}
 
       <div>
         <SectionHeading
