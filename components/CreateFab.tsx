@@ -13,7 +13,7 @@ export default function CreateFab() {
   return (
     <>
       <div
-        className="pointer-events-none fixed inset-x-0 z-40 flex justify-center"
+        className="hearth-create-fab pointer-events-none fixed inset-x-0 z-40 flex justify-center"
         style={{
           bottom:
             "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 0.55rem)",

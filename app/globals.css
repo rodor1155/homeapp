@@ -218,6 +218,11 @@
   input[type="checkbox"] {
     accent-color: var(--color-sage-soft);
   }
+
+  body[data-hearth-sheet-open] .hearth-create-fab {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 @layer components {
