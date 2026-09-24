@@ -75,6 +75,15 @@ export type CalendarItem = {
   date: string;
   title: string;
   note: string;
+  /** ICS feeds and typed key dates — omitted for birthdays and timetable. */
+  allDay?: boolean;
+  startsAt?: string;
+  endsAt?: string | null;
+  location?: string | null;
+  description?: string | null;
+  url?: string | null;
+  /** Typed household events only. */
+  notes?: string | null;
 };
 
 /** A square in the grid. The leading and trailing ones belong to the months
@@ -208,6 +217,8 @@ export function eventItems(
       ]
         .filter(Boolean)
         .join(" · "),
+      allDay: true,
+      notes: event.notes,
     }));
 }
 
@@ -247,6 +258,12 @@ export function schoolItems(
       title: event.title,
       note: labelById.get(event.school_id) ?? "School calendar",
       date,
+      allDay: event.all_day,
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      location: event.location,
+      description: event.description,
+      url: event.url,
     });
   }
 
@@ -278,6 +295,12 @@ export function sharedItems(
       title: event.title,
       note: labelById.get(event.calendar_id) ?? "Shared calendar",
       date,
+      allDay: event.all_day,
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      location: event.location,
+      description: event.description,
+      url: event.url,
     });
   }
 

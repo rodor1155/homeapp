@@ -1,6 +1,7 @@
 // How a date is written on screen. Client-safe, and shared so the dashboard
 // and the family panels never drift apart on it.
 
+import { APP_CALENDAR_TZ } from "@/lib/family";
 import type { Locale } from "@/lib/household";
 
 export function intlLocale(locale: Locale): string {
@@ -58,6 +59,40 @@ export function weekdayLabels(locale: Locale): string[] {
   return Array.from({ length: 7 }, (_, day) =>
     format.format(new Date(Date.UTC(2024, 0, 7 + first + day)))
   );
+}
+
+/** A timed occurrence's clock time in the household's calendar zone. */
+export function formatEventTime(iso: string, locale: Locale): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: APP_CALENDAR_TZ,
+  }).format(date);
+}
+
+/**
+ * When an event happens — all-day vs a start (and optional end) on the day.
+ * `date` is the YYYY-MM-DD the list already carries.
+ */
+export function formatEventWhen(
+  date: string,
+  locale: Locale,
+  opts: {
+    allDay?: boolean;
+    startsAt?: string;
+    endsAt?: string | null;
+  } = {}
+): string {
+  const day = formatWeekdayDate(date, locale);
+  if (opts.allDay ?? true) return `All day · ${day}`;
+
+  const start = opts.startsAt ? formatEventTime(opts.startsAt, locale) : "";
+  const end = opts.endsAt ? formatEventTime(opts.endsAt, locale) : "";
+  if (start && end && start !== end) return `${day} · ${start} – ${end}`;
+  if (start) return `${day} · ${start}`;
+  return day;
 }
 
 /** The same date said out loud: "tomorrow", "in 12 days", "in about 4 months". */

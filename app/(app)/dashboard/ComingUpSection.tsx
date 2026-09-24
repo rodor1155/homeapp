@@ -1,30 +1,18 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  Backpack,
-  Repeat,
-  Cake,
-  CalendarDays,
-  FileText,
-  GraduationCap,
-  Share2,
-} from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   birthdayEntries,
-  COMING_UP_TONE,
   documentEntries,
   eventEntries,
-  groupByMonth,
   mergeComingUp,
   schoolEntries,
   sharedEntries,
   timetableEntries,
   routineEntries,
   type ComingUpEntry,
-  type ComingUpKind,
 } from "@/lib/coming-up";
-import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import {
   firstFault,
   loadHouseholdCalendarEvents,
@@ -37,7 +25,6 @@ import {
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import type { Locale } from "@/lib/household";
-import { TONE_PILL } from "@/lib/tones";
 import {
   documentLabel,
   upcomingDates,
@@ -45,9 +32,8 @@ import {
   type UpcomingDate,
 } from "@/lib/home-overview";
 import { createClient } from "@/lib/supabase-server";
+import ComingUpList from "./ComingUpList";
 import { loadOverviewDocuments } from "./overview-data";
-
-const SOON_DAYS = 30;
 
 /**
  * How near the first thing has to be before it gets the "coming up in N days"
@@ -55,16 +41,6 @@ const SOON_DAYS = 30;
  * still gets the count — it is the next thing either way.
  */
 const HEADLINE_DAYS = 35;
-
-const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
-  document: FileText,
-  birthday: Cake,
-  event: CalendarDays,
-  school: GraduationCap,
-  shared: Share2,
-  timetable: Backpack,
-  routine: Repeat,
-};
 
 type ReminderRow = {
   document_id: string;
@@ -175,9 +151,6 @@ function ComingUp({
   hiddenCount?: number;
   brief?: boolean;
 }) {
-  const months = groupByMonth(entries);
-  // Only worth writing the month out when the list actually crosses one.
-  const showMonths = months.length > 1;
   const first = entries[0];
   const headlineKey =
     first && first.daysAway <= HEADLINE_DAYS ? first.key : null;
@@ -221,114 +194,15 @@ function ComingUp({
           )}
         </div>
       ) : (
-        <div className="-mx-1 flex flex-col gap-3.5">
-          {months.map((month) => (
-            <div key={month.key}>
-              {showMonths ? (
-                <h3 className="px-2.5 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                  {formatMonth(month.key, locale)}
-                </h3>
-              ) : null}
-              <ul className="flex flex-col gap-1">
-                {month.entries.map((entry) => (
-                  <Entry
-                    key={entry.key}
-                    entry={entry}
-                    locale={locale}
-                    headline={entry.key === headlineKey}
-                  />
-                ))}
-              </ul>
-            </div>
-          ))}
-          {hiddenCount > 0 ? (
-            <p className="px-2.5 pt-1">
-              <Link href="/calendar" className="text-action text-xs">
-                {hiddenCount === 1
-                  ? "1 more on the calendar"
-                  : `${hiddenCount} more on the calendar`}
-              </Link>
-            </p>
-          ) : null}
-        </div>
+        <ComingUpList
+          entries={entries}
+          locale={locale}
+          headlineKey={headlineKey}
+          hiddenCount={hiddenCount}
+        />
       )}
     </Card>
   );
-}
-
-/** One dated thing. The next one wears the countdown and the warm wash. */
-function Entry({
-  entry,
-  locale,
-  headline,
-}: {
-  entry: ComingUpEntry;
-  locale: Locale;
-  headline: boolean;
-}) {
-  const soon = entry.daysAway <= SOON_DAYS;
-  const Icon = COMING_UP_ICON[entry.kind];
-
-  return (
-    <li
-      className={`rounded-[var(--radius)] px-3 py-2.5 ${
-        headline
-          ? "border border-ochre/25 bg-ochre-wash shadow-[var(--shadow-card)]"
-          : "hover:bg-navy-wash/70"
-      }`}
-    >
-      {headline ? (
-        <p className="mark-review mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-ochre" />
-          {countdown(entry.daysAway)}
-        </p>
-      ) : null}
-
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2.5">
-          {/* The next thing wears ochre whatever it is — that is attention,
-              not a kind. Everything below it keeps its own colour. */}
-          <span
-            aria-hidden
-            className={`icon-well ${
-              headline
-                ? "bg-ochre-tint text-ochre"
-                : TONE_PILL[COMING_UP_TONE[entry.kind]]
-            }`}
-          >
-            <Icon size={17} strokeWidth={1.9} />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold leading-snug text-ink">
-              {entry.title}
-            </span>
-            <span className="block text-xs leading-relaxed text-ink-faint">
-              {entry.note}
-            </span>
-          </span>
-        </span>
-        <span className="tnum shrink-0 text-right">
-          <span className="block text-sm text-ink">
-            {formatDate(entry.date, locale)}
-          </span>
-          <span
-            className={`block text-xs ${
-              soon ? "mark-review font-medium" : "text-ink-faint"
-            }`}
-          >
-            {relativeWhen(entry.daysAway)}
-          </span>
-        </span>
-      </div>
-    </li>
-  );
-}
-
-/** The little uppercase line over the next thing: "Coming up in 31 days". */
-function countdown(daysAway: number): string {
-  if (daysAway <= 0) return "Coming up today";
-  if (daysAway === 1) return "Coming up tomorrow";
-  return `Coming up in ${daysAway} days`;
 }
 
 function entryKey(entry: Pick<UpcomingDate, "provider" | "date" | "label">) {

@@ -250,10 +250,12 @@ export type SchoolCalendarEvent = {
   ends_at: string | null;
   all_day: boolean;
   location: string | null;
+  description: string | null;
+  url: string | null;
 };
 
 export const SCHOOL_CALENDAR_SELECT =
-  "id, school_id, title, starts_at, ends_at, all_day, location";
+  "id, school_id, title, starts_at, ends_at, all_day, location, description, url";
 
 /**
  * The calendar date an occurrence falls on, as YYYY-MM-DD, in Europe/London.
@@ -313,7 +315,11 @@ export async function loadSchoolCalendarEventsBetween(
 }
 
 function decodeCalendarEventText<
-  T extends { title: string; location: string | null },
+  T extends {
+    title: string;
+    location: string | null;
+    description?: string | null;
+  },
 >(event: T): T {
   return {
     ...event,
@@ -321,6 +327,9 @@ function decodeCalendarEventText<
     location: event.location
       ? decodeHtmlEntities(event.location)
       : event.location,
+    description: event.description
+      ? decodeHtmlEntities(event.description)
+      : event.description ?? null,
   };
 }
 
@@ -353,10 +362,12 @@ export type HouseholdCalendarEvent = {
   ends_at: string | null;
   all_day: boolean;
   location: string | null;
+  description: string | null;
+  url: string | null;
 };
 
 export const HOUSEHOLD_CALENDAR_EVENTS_SELECT =
-  "id, calendar_id, title, starts_at, ends_at, all_day, location";
+  "id, calendar_id, title, starts_at, ends_at, all_day, location, description, url";
 
 /**
  * The household's linked calendars, oldest first. A failure — including the

@@ -132,6 +132,8 @@ async function replaceHouseholdEvents(
   householdId: string,
   events: ParsedCalendarEvent[]
 ): Promise<{ ok: boolean }> {
+  // Upsert by uid — the next sync (cron or Refresh) backfills description/url
+  // on rows that were cached before those columns existed.
   const rows = events.map((event) => ({
     calendar_id: calendarId,
     household_id: householdId,
@@ -141,6 +143,8 @@ async function replaceHouseholdEvents(
     ends_at: event.endsAt,
     all_day: event.allDay,
     location: event.location,
+    description: event.description,
+    url: event.url,
   }));
   const keep = new Set(rows.map((row) => row.uid));
 

@@ -1,14 +1,5 @@
 import Link from "next/link";
-import {
-  Backpack,
-  Cake,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  GraduationCap,
-  Share2,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
 import {
   birthdayItems,
@@ -29,7 +20,6 @@ import {
   sortItems,
   timetableItems,
   type CalendarItem,
-  type CalendarKind,
   type MonthKey,
 } from "@/lib/calendar-month";
 import {
@@ -50,8 +40,9 @@ import {
 } from "@/lib/family";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import { requireOnboarded, type Locale } from "@/lib/household";
-import { TONE_DOT, TONE_PILL, TONE_WASH } from "@/lib/tones";
+import { TONE_DOT, TONE_WASH } from "@/lib/tones";
 import AddDateCard from "./AddDateCard";
+import CalendarDayList from "./CalendarDayList";
 import SharedCalendarsPanel from "./SharedCalendarsPanel";
 import { appTitle } from "@/lib/brand";
 
@@ -64,14 +55,6 @@ export const metadata = { title: appTitle("Calendar") };
 
    Colour is the only thing telling the kinds apart, and it comes from
    lib/tones.ts through each kind's tone — never a class written here. */
-
-const KIND_ICON: Record<CalendarKind, LucideIcon> = {
-  birthday: Cake,
-  event: CalendarDays,
-  school: GraduationCap,
-  shared: Share2,
-  timetable: Backpack,
-};
 
 const DAY_PARAM = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -259,15 +242,11 @@ export default async function CalendarPage({
             school&rsquo;s terms come from its own calendar.
           </p>
         ) : (
-          <ul className="-mx-1 flex flex-col gap-1">
-            {dayItems.map((item) => (
-              <Row
-                key={item.key}
-                item={item}
-                today={selectedDay === today}
-              />
-            ))}
-          </ul>
+          <CalendarDayList
+            items={dayItems}
+            today={selectedDay === today}
+            locale={locale}
+          />
         )}
       </Card>
 
@@ -452,30 +431,3 @@ function Grid({
   );
 }
 
-function Row({ item, today }: { item: CalendarItem; today: boolean }) {
-  const Icon = KIND_ICON[item.kind];
-  return (
-    <li
-      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ${
-        today ? "bg-ochre-wash" : ""
-      }`}
-    >
-      <span
-        aria-hidden
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill ${
-          TONE_PILL[CALENDAR_KIND_TONE[item.kind]]
-        }`}
-      >
-        <Icon size={17} strokeWidth={1.9} />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium leading-snug text-ink">
-          {item.title}
-        </span>
-        <span className="block text-xs leading-relaxed text-ink-faint">
-          {item.note}
-        </span>
-      </span>
-    </li>
-  );
-}

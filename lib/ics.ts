@@ -358,6 +358,8 @@ export type ParsedCalendarEvent = {
   endsAt: string | null;
   allDay: boolean;
   location: string | null;
+  description: string | null;
+  url: string | null;
 };
 
 export type ParsedCalendar = {
@@ -365,6 +367,19 @@ export type ParsedCalendar = {
   title: string | null;
   events: ParsedCalendarEvent[];
 };
+
+const MAX_DESCRIPTION_CHARS = 4_000;
+const MAX_URL_CHARS = 2_000;
+
+/** Collapse runs of spaces; keep paragraph breaks readable. */
+function normalizeDescription(value: string | null): string | null {
+  if (!value) return null;
+  const collapsed = value
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return collapsed || null;
+}
 
 /** node-ical hands back either the value or `{ val, params }`. */
 function plainValue(value: unknown): string | null {
@@ -432,6 +447,7 @@ export function parseCalendar(
           ? occurrenceInstant(instance.end, allDay)
           : null;
 
+      const source = instance.event;
       const entry: ParsedCalendarEvent = {
         uid: event.uid
           ? instance.isRecurring
@@ -442,7 +458,13 @@ export function parseCalendar(
         startsAt: startsAt.toISOString(),
         endsAt: endsAt ? endsAt.toISOString() : null,
         allDay,
-        location: plainValue(event.location)?.slice(0, 300) ?? null,
+        location: plainValue(source.location)?.slice(0, 300) ?? null,
+        description:
+          normalizeDescription(plainValue(source.description))?.slice(
+            0,
+            MAX_DESCRIPTION_CHARS
+          ) ?? null,
+        url: plainValue(source.url)?.slice(0, MAX_URL_CHARS) ?? null,
       };
 
       if (entry.uid) byKey.set(entry.uid, entry);

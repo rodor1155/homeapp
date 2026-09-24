@@ -61,6 +61,13 @@ export type ComingUpEntry = {
   note: string;
   date: string;
   daysAway: number;
+  /** ICS school / shared feeds — enough to open the same detail sheet. */
+  allDay?: boolean;
+  startsAt?: string;
+  endsAt?: string | null;
+  location?: string | null;
+  description?: string | null;
+  url?: string | null;
 };
 
 /** How far ahead a birthday is worth mentioning. */
@@ -189,6 +196,12 @@ export function schoolEntries(
       note: labelById.get(event.school_id) ?? "School calendar",
       date,
       daysAway,
+      allDay: event.all_day,
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      location: event.location,
+      description: event.description,
+      url: event.url,
     });
     if (entries.length >= limit) break;
   }
@@ -229,6 +242,12 @@ export function sharedEntries(
       note: labelById.get(event.calendar_id) ?? "Shared calendar",
       date,
       daysAway,
+      allDay: event.all_day,
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      location: event.location,
+      description: event.description,
+      url: event.url,
     });
     if (entries.length >= limit) break;
   }
