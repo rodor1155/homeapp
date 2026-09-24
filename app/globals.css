@@ -238,11 +238,21 @@
   }
 
   /* Map-forward home hero: street underlay is the star; a paper scrim keeps
-     address and CTAs readable without fading the map to mush. */
+     address and CTAs readable without fading the map to mush. Bleeds to the
+     top of the viewport — greeting floats on the map, not in AppShell. */
   .home-hero {
-    min-height: 14.5rem;
+    min-height: 16.5rem;
     background-color: color-mix(in oklab, var(--color-sage-tint) 55%, var(--color-paper-sunk));
     background-image: none;
+  }
+  .home-hero-glass {
+    border: 1px solid color-mix(in oklab, var(--color-rule) 65%, transparent);
+    background-color: color-mix(in oklab, var(--color-paper) 78%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+      0 1px 0 rgb(31 42 68 / 0.04),
+      0 2px 8px rgb(31 42 68 / 0.06);
   }
   .home-hero-map {
     position: absolute;
@@ -260,7 +270,8 @@
     background:
       linear-gradient(
         180deg,
-        color-mix(in oklab, var(--color-paper) 55%, transparent) 0%,
+        color-mix(in oklab, var(--color-paper) 72%, transparent) 0%,
+        color-mix(in oklab, var(--color-paper) 28%, transparent) 18%,
         transparent 42%,
         color-mix(in oklab, var(--color-paper) 35%, transparent) 100%
       ),
@@ -278,7 +289,8 @@
       background:
         linear-gradient(
           180deg,
-          color-mix(in oklab, var(--color-paper) 70%, transparent) 0%,
+          color-mix(in oklab, var(--color-paper) 82%, transparent) 0%,
+          color-mix(in oklab, var(--color-paper) 38%, transparent) 20%,
           transparent 45%,
           color-mix(in oklab, var(--color-paper) 50%, transparent) 100%
         ),

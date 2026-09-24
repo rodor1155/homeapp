@@ -24,5 +24,11 @@ export default function ShellRouter({
     return <HubShell householdName={householdName}>{children}</HubShell>;
   }
 
-  return <AppShell user={user}>{children}</AppShell>;
+  const hideHeader = pathname === "/dashboard";
+
+  return (
+    <AppShell user={user} hideHeader={hideHeader}>
+      {children}
+    </AppShell>
+  );
 }

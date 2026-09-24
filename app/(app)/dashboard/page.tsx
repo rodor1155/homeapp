@@ -6,6 +6,7 @@ import ComingUpSection from "./ComingUpSection";
 import HeroExport from "./HeroExport";
 import HouseFileSection from "./HouseFileSection";
 import AppMark from "@/components/AppMark";
+import ShellGreeting from "@/components/ShellGreeting";
 import { resolveHomeMap } from "@/lib/home-map";
 import InvitesBanner from "./InvitesBanner";
 import {
@@ -35,16 +36,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Suspense fallback={null}>
-        <InvitesBanner />
-      </Suspense>
-
-      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 px-5 pb-5 pt-6 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x sm:pt-5">
+      <section className="home-hero card relative left-1/2 w-[100dvw] max-w-none -translate-x-1/2 overflow-hidden rounded-none border-x-0 border-t-0 px-5 pb-5 pt-0 sm:left-auto sm:w-auto sm:max-w-none sm:translate-x-0 sm:rounded-[var(--radius-card)] sm:border-x sm:border-t sm:pt-0">
         <Suspense fallback={null}>
           <HomeMapUnderlay address={property.address} />
         </Suspense>
         <div aria-hidden className="home-hero-scrim" />
-        <div className="relative z-10 flex items-start justify-between gap-3">
+        <ShellGreeting user={user} variant="overlay" />
+        <div className="relative z-10 flex items-start justify-between gap-3 pt-1">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-sage">
               Your home
@@ -74,13 +72,19 @@ export default async function DashboardPage() {
         </Suspense>
       </section>
 
-      <Suspense fallback={<ComingUpFallback />}>
-        <ComingUpSection
-          householdId={household.id}
-          locale={locale}
-          limit={4}
-        />
+      <Suspense fallback={null}>
+        <InvitesBanner />
       </Suspense>
+
+      <div className="-mt-3 relative z-10">
+        <Suspense fallback={<ComingUpFallback />}>
+          <ComingUpSection
+            householdId={household.id}
+            locale={locale}
+            limit={4}
+          />
+        </Suspense>
+      </div>
 
       <HomeCtaRow />
 
