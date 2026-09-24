@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 import {
   Backpack,
@@ -11,7 +8,6 @@ import {
   GraduationCap,
   Share2,
 } from "lucide-react";
-import CalendarEventDetailSheet from "@/components/CalendarEventDetailSheet";
 import {
   COMING_UP_TONE,
   groupByMonth,
@@ -25,6 +21,7 @@ import {
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
+import ComingUpTappableRow from "./ComingUpTappableRow";
 
 const SOON_DAYS = 30;
 
@@ -49,64 +46,40 @@ export default function ComingUpList({
   headlineKey: string | null;
   hiddenCount?: number;
 }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<ComingUpEntry | null>(null);
-  const detail = selected ? detailFromComingUp(selected) : null;
   const months = groupByMonth(entries);
   const showMonths = months.length > 1;
 
-  function openEntry(entry: ComingUpEntry) {
-    if (!isTappableComingUp(entry)) return;
-    setSelected(entry);
-    setOpen(true);
-  }
-
-  function close() {
-    setOpen(false);
-    setSelected(null);
-  }
-
   return (
-    <>
-      <div className="-mx-1 flex flex-col gap-3.5">
-        {months.map((month) => (
-          <div key={month.key}>
-            {showMonths ? (
-              <h3 className="px-2.5 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                {formatMonth(month.key, locale)}
-              </h3>
-            ) : null}
-            <ul className="flex flex-col gap-1">
-              {month.entries.map((entry) => (
-                <EntryRow
-                  key={entry.key}
-                  entry={entry}
-                  locale={locale}
-                  headline={entry.key === headlineKey}
-                  onOpen={() => openEntry(entry)}
-                />
-              ))}
-            </ul>
-          </div>
-        ))}
-        {hiddenCount > 0 ? (
-          <p className="px-2.5 pt-1">
-            <Link href="/calendar" className="text-action text-xs">
-              {hiddenCount === 1
-                ? "1 more on the calendar"
-                : `${hiddenCount} more on the calendar`}
-            </Link>
-          </p>
-        ) : null}
-      </div>
-
-      <CalendarEventDetailSheet
-        open={open}
-        onClose={close}
-        detail={detail}
-        locale={locale}
-      />
-    </>
+    <div className="-mx-1 flex flex-col gap-3.5">
+      {months.map((month) => (
+        <div key={month.key}>
+          {showMonths ? (
+            <h3 className="px-2.5 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+              {formatMonth(month.key, locale)}
+            </h3>
+          ) : null}
+          <ul className="flex flex-col gap-1">
+            {month.entries.map((entry) => (
+              <EntryRow
+                key={entry.key}
+                entry={entry}
+                locale={locale}
+                headline={entry.key === headlineKey}
+              />
+            ))}
+          </ul>
+        </div>
+      ))}
+      {hiddenCount > 0 ? (
+        <p className="px-2.5 pt-1">
+          <Link href="/calendar" className="text-action text-xs">
+            {hiddenCount === 1
+              ? "1 more on the calendar"
+              : `${hiddenCount} more on the calendar`}
+          </Link>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -114,16 +87,15 @@ function EntryRow({
   entry,
   locale,
   headline,
-  onOpen,
 }: {
   entry: ComingUpEntry;
   locale: Locale;
   headline: boolean;
-  onOpen: () => void;
 }) {
   const soon = entry.daysAway <= SOON_DAYS;
   const Icon = COMING_UP_ICON[entry.kind];
   const tappable = isTappableComingUp(entry);
+  const detail = tappable ? detailFromComingUp(entry) : null;
   const shellClass = `rounded-[var(--radius)] px-3 py-2.5 ${
     headline
       ? "border border-ochre/25 bg-ochre-wash shadow-[var(--shadow-card)]"
@@ -180,10 +152,14 @@ function EntryRow({
 
   return (
     <li>
-      {tappable ? (
-        <button type="button" className={`w-full text-left ${shellClass}`} onClick={onOpen}>
+      {tappable && detail ? (
+        <ComingUpTappableRow
+          detail={detail}
+          locale={locale}
+          className={shellClass}
+        >
           {body}
-        </button>
+        </ComingUpTappableRow>
       ) : (
         <div className={shellClass}>{body}</div>
       )}

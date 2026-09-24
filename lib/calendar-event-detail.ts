@@ -1,7 +1,6 @@
 // Detail payload for a calendar / coming-up row. Client-safe.
 
 import type { CalendarItem } from "@/lib/calendar-month";
-import type { ComingUpEntry } from "@/lib/coming-up";
 
 export type CalendarEventDetail = {
   title: string;
@@ -20,7 +19,21 @@ export function isTappableCalendarItem(item: CalendarItem): boolean {
   return item.kind === "school" || item.kind === "shared" || item.kind === "event";
 }
 
-export function isTappableComingUp(entry: ComingUpEntry): boolean {
+/** Enough shape to decide / map a coming-up row without importing server-only code. */
+export type ComingUpDetailSource = {
+  kind: string;
+  title: string;
+  note: string;
+  date: string;
+  allDay?: boolean;
+  startsAt?: string;
+  endsAt?: string | null;
+  location?: string | null;
+  description?: string | null;
+  url?: string | null;
+};
+
+export function isTappableComingUp(entry: { kind: string }): boolean {
   return entry.kind === "school" || entry.kind === "shared";
 }
 
@@ -43,7 +56,7 @@ export function detailFromCalendarItem(
 }
 
 export function detailFromComingUp(
-  entry: ComingUpEntry
+  entry: ComingUpDetailSource
 ): CalendarEventDetail | null {
   if (!isTappableComingUp(entry)) return null;
   return {
