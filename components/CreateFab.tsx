@@ -16,7 +16,7 @@ export default function CreateFab() {
         className="hearth-create-fab pointer-events-none fixed inset-x-0 z-40 flex justify-center"
         style={{
           bottom:
-            "calc(var(--mobile-tab-bar-height) + var(--safe-area-bottom) + 0.55rem)",
+            "calc(var(--mobile-tab-bar-height) + max(12px, var(--safe-area-bottom)) + 0.55rem)",
         }}
       >
         <button
@@ -25,7 +25,7 @@ export default function CreateFab() {
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="pointer-events-auto flex h-[3.5rem] w-[3.5rem] items-center justify-center rounded-full bg-ink text-paper-raised shadow-[var(--shadow-fab)] ring-[5px] ring-paper transition-transform active:scale-95"
+          className="hearth-fab-button pointer-events-auto flex h-[3.5rem] w-[3.5rem] items-center justify-center rounded-full transition-transform active:scale-95"
         >
           <Plus size={28} strokeWidth={2.3} aria-hidden />
         </button>

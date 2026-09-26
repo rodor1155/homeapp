@@ -6,7 +6,9 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
+  type PointerEvent,
   type TouchEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -54,17 +56,17 @@ export default function BottomSheet({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
   const dragStartTime = useRef(0);
   const dragOffset = useRef(0);
   const dragActive = useRef(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -90,14 +92,6 @@ export default function BottomSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!open) {
-      setDragY(0);
-      setIsDragging(false);
-      dragActive.current = false;
-    }
-  }, [open]);
-
   const finishDrag = useCallback(
     (offset: number, velocity: number) => {
       dragActive.current = false;
@@ -112,31 +106,67 @@ export default function BottomSheet({
     [onClose],
   );
 
-  const onHeaderTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
+  const beginDrag = (clientY: number) => {
     dragActive.current = true;
     setIsDragging(true);
-    dragStartY.current = touch.clientY;
+    dragStartY.current = clientY;
     dragStartTime.current = Date.now();
     dragOffset.current = 0;
     setDragY(0);
   };
 
-  const onHeaderTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+  const moveDrag = (clientY: number) => {
     if (!dragActive.current) return;
-    const touch = e.touches[0];
-    const delta = Math.max(0, touch.clientY - dragStartY.current);
+    const delta = Math.max(0, clientY - dragStartY.current);
     dragOffset.current = delta;
     setDragY(delta);
-    if (delta > 0) e.preventDefault();
   };
 
-  const onHeaderTouchEnd = () => {
+  const endDrag = () => {
     if (!dragActive.current) return;
     const offset = dragOffset.current;
     const elapsed = Math.max(Date.now() - dragStartTime.current, 1);
     const velocity = offset / elapsed;
     finishDrag(offset, velocity);
+  };
+
+  const onHeaderTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    beginDrag(touch.clientY);
+  };
+
+  const onHeaderTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (!dragActive.current) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    moveDrag(touch.clientY);
+    if (dragOffset.current > 0) e.preventDefault();
+  };
+
+  const onHeaderTouchEnd = () => {
+    endDrag();
+  };
+
+  const onHeaderPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    beginDrag(e.clientY);
+  };
+
+  const onHeaderPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!dragActive.current || e.pointerType === "touch") return;
+    moveDrag(e.clientY);
+  };
+
+  const onHeaderPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    endDrag();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
   };
 
   if (!open || !mounted || typeof document === "undefined") return null;
@@ -155,7 +185,7 @@ export default function BottomSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transform: open && dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? "none" : "transform 200ms ease-out",
         }}
         className={`relative z-10 flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col rounded-t-2xl border border-rule bg-paper-raised shadow-none ${className}`}
@@ -166,6 +196,10 @@ export default function BottomSheet({
           onTouchMove={onHeaderTouchMove}
           onTouchEnd={onHeaderTouchEnd}
           onTouchCancel={onHeaderTouchEnd}
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerUp}
         >
           <span
             aria-hidden

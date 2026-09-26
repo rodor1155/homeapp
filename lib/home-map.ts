@@ -10,11 +10,16 @@ import { normalisePostcode } from "@/lib/address-lookup";
    route never has to be left open. If we cannot place the home, the hero
    keeps its sage wash and nobody notices. */
 
+export type HomeMapStyle = "light" | "dark";
+
 export type HomeMapPoint = {
   latitude: number;
   longitude: number;
   /** Absolute path the hero uses as a CSS background. */
   imagePath: string;
+  style: HomeMapStyle;
+  /** For attribution: CARTO when the key is set, else OSM-only. */
+  usesCarto: boolean;
 };
 
 const FETCH_TIMEOUT_MS = 5_000;
@@ -39,13 +44,26 @@ export const resolveHomeMap = cache(
     const latitude = roundCoord(point.latitude);
     const longitude = roundCoord(point.longitude);
     const token = mintHomeMapToken(latitude, longitude);
-    const imagePath =
-      `/api/home-map?lat=${latitude.toFixed(HOME_MAP_COORD_DECIMALS)}` +
-      `&lng=${longitude.toFixed(HOME_MAP_COORD_DECIMALS)}` +
-      `&t=${encodeURIComponent(token)}`;
-    return { latitude, longitude, imagePath };
+    const imagePath = homeMapImagePath(latitude, longitude, token, "dark");
+    const usesCarto = Boolean(process.env.CARTO_BASEMAPS_API_KEY?.trim());
+    return { latitude, longitude, imagePath, style: "dark", usesCarto };
   }
 );
+
+export function homeMapImagePath(
+  lat: number,
+  lng: number,
+  token: string,
+  style: HomeMapStyle = "light"
+): string {
+  const params = new URLSearchParams({
+    lat: lat.toFixed(HOME_MAP_COORD_DECIMALS),
+    lng: lng.toFixed(HOME_MAP_COORD_DECIMALS),
+    style,
+  });
+  if (token) params.set("t", token);
+  return `/api/home-map?${params.toString()}`;
+}
 
 export function roundCoord(value: number): number {
   const factor = 10 ** HOME_MAP_COORD_DECIMALS;

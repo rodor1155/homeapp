@@ -71,6 +71,17 @@ One visual system, defined once, used by every screen. **Build new screens
 - `/internal/extraction-test` is deliberately left unstyled beyond the base
   font/colour — do not dress it up.
 
+### Evening map (Home + tab bar)
+
+A separate cinematic direction for **Home only** and the **bottom tab bar** —
+not the rest of the app. Tokens live in `app/globals.css` (`night`, `night-2`,
+`amber`, `slate-muted`, member edge colours, glass fills). Home is full-bleed
+dark map (`/api/home-map?style=dark`), amber house pin, glass greeting + card
+stack, expandable Coming up sheet. Other tabs keep the paper/ink ledger system;
+the tab bar is a floating dark-glass pill everywhere. Do not scatter hex literals
+— use the evening tokens and component classes (`.evening-glass`, `.tab-bar-pill`,
+etc.).
+
 ## Stack
 
 - Next.js 16 (App Router, Turbopack) + React 19

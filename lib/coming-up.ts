@@ -1,5 +1,3 @@
-import "server-only";
-
 import {
   calendarEventDate,
   daysUntil,
@@ -61,6 +59,8 @@ export type ComingUpEntry = {
   note: string;
   date: string;
   daysAway: number;
+  /** When the row belongs to one household person (birthday, event, timetable). */
+  personId?: string | null;
   /** ICS school / shared feeds — enough to open the same detail sheet. */
   allDay?: boolean;
   startsAt?: string;
@@ -121,6 +121,7 @@ export function birthdayEntries(
       note: `Turns ${next.turning}`,
       date: next.date,
       daysAway: next.daysAway,
+      personId: person.id,
     });
   }
 
@@ -148,6 +149,7 @@ export function eventEntries(
       note: [EVENT_TYPE_LABEL[event.event_type], who].filter(Boolean).join(" · "),
       date: event.event_date,
       daysAway,
+      personId: event.person_id,
     });
   }
 
@@ -285,6 +287,7 @@ export function timetableEntries(
     note: entry.note,
     date: entry.date,
     daysAway: entry.daysAway,
+    personId: entry.personId,
   }));
 }
 
