@@ -6,27 +6,27 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
+  RefreshCw,
   Share2,
 } from "lucide-react";
 import {
   COMING_UP_TONE,
+  comingUpHref,
   groupByMonth,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
-import {
-  detailFromComingUp,
-  isTappableComingUp,
-} from "@/lib/calendar-event-detail";
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
+import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
+import { memberEdgeClass } from "@/lib/member-colours";
 import { TONE_PILL } from "@/lib/tones";
-import ComingUpTappableRow from "./ComingUpTappableRow";
 
 const SOON_DAYS = 30;
 
 const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   document: FileText,
+  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,
@@ -37,11 +37,13 @@ const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
 
 export default function ComingUpList({
   entries,
+  people,
   locale,
   headlineKey,
   hiddenCount = 0,
 }: {
   entries: readonly ComingUpEntry[];
+  people: readonly HouseholdPerson[];
   locale: Locale;
   headlineKey: string | null;
   hiddenCount?: number;
@@ -63,6 +65,7 @@ export default function ComingUpList({
               <EntryRow
                 key={entry.key}
                 entry={entry}
+                people={people}
                 locale={locale}
                 headline={entry.key === headlineKey}
               />
@@ -85,21 +88,23 @@ export default function ComingUpList({
 
 function EntryRow({
   entry,
+  people,
   locale,
   headline,
 }: {
   entry: ComingUpEntry;
+  people: readonly HouseholdPerson[];
   locale: Locale;
   headline: boolean;
 }) {
-  const soon = entry.daysAway <= SOON_DAYS;
+  const soon = entry.daysAway <= SOON_DAYS || entry.overdue;
   const Icon = COMING_UP_ICON[entry.kind];
-  const tappable = isTappableComingUp(entry);
-  const detail = tappable ? detailFromComingUp(entry) : null;
-  const shellClass = `rounded-[var(--radius)] px-3 py-2.5 ${
+  const href = comingUpHref(entry);
+  const edge = memberEdgeClass(entry.personId, people);
+  const shellClass = `coming-up-member-edge rounded-[var(--radius)] px-3 py-2.5 ${edge} ${
     headline
       ? "border border-ochre/25 bg-ochre-wash shadow-[var(--shadow-card)]"
-      : tappable
+      : href
         ? "transition-colors hover:bg-navy-wash/70"
         : "hover:bg-navy-wash/70"
   }`;
@@ -109,7 +114,7 @@ function EntryRow({
       {headline ? (
         <p className="mark-review mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
           <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-ochre" />
-          {countdown(entry.daysAway)}
+          {countdown(entry.daysAway, entry.overdue)}
         </p>
       ) : null}
 
@@ -143,7 +148,7 @@ function EntryRow({
               soon ? "mark-review font-medium" : "text-ink-faint"
             }`}
           >
-            {relativeWhen(entry.daysAway)}
+            {entry.overdue ? "Overdue" : relativeWhen(entry.daysAway)}
           </span>
         </span>
       </div>
@@ -152,14 +157,10 @@ function EntryRow({
 
   return (
     <li>
-      {tappable && detail ? (
-        <ComingUpTappableRow
-          detail={detail}
-          locale={locale}
-          className={shellClass}
-        >
+      {href ? (
+        <Link href={href} className={`block ${shellClass}`}>
           {body}
-        </ComingUpTappableRow>
+        </Link>
       ) : (
         <div className={shellClass}>{body}</div>
       )}
@@ -167,7 +168,8 @@ function EntryRow({
   );
 }
 
-function countdown(daysAway: number): string {
+function countdown(daysAway: number, overdue?: boolean): string {
+  if (overdue) return "Overdue";
   if (daysAway <= 0) return "Coming up today";
   if (daysAway === 1) return "Coming up tomorrow";
   return `Coming up in ${daysAway} days`;

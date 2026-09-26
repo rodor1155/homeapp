@@ -52,54 +52,37 @@ export default function BottomTabBar() {
 
   const routeHref =
     tabs.find((tab) => isActive(pathname, tab.href))?.href ?? pathname;
-  // Optimistic highlight until the real route catches up — no effect needed.
   const highlightHref =
     pendingHref && pendingHref !== routeHref ? pendingHref : routeHref;
 
   return (
-    <nav
-      aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule-strong bg-paper-raised/97 shadow-bar backdrop-blur-md"
-      style={{ paddingBottom: "max(0.55rem, env(safe-area-inset-bottom, 0px))" }}
-    >
-      <ul className="mx-auto flex w-full max-w-[32rem] items-stretch px-1 pt-1.5">
+    <nav aria-label="Main" className="tab-bar-pill">
+      <ul className="flex w-full items-stretch px-1.5 py-1">
         {tabs.map((tab) => {
           const active = isActive(highlightHref, tab.href);
           const Icon = tab.icon;
           return (
-            <li key={tab.href} className="flex-1">
+            <li key={tab.href} className="flex flex-1">
               <Link
                 href={tab.href}
-                // Full prefetch so the Client Cache uses the longer static TTL
-                // and a second tap can paint from memory instead of the network.
                 prefetch={true}
                 aria-current={active ? "page" : undefined}
                 onClick={() => {
                   if (isActive(pathname, tab.href)) return;
                   startTransition(() => setPendingHref(tab.href));
                 }}
-                className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-semibold transition-colors active:scale-[0.97] ${
-                  active ? "text-ink" : "text-ink-faint hover:text-ink-soft"
+                className={`tab-bar-pill-link ${
+                  active ? "tab-bar-pill-link--active" : ""
                 }`}
               >
-                <span
-                  className={`flex h-9 w-[4.5rem] items-center justify-center rounded-pill transition-colors ${
-                    active
-                      ? "bg-sage-tint text-sage shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--color-sage-soft)_28%,transparent)]"
-                      : "text-ink-faint"
-                  }`}
-                >
-                  <Icon size={22} strokeWidth={active ? 2.35 : 1.7} aria-hidden />
+                <span className="tab-bar-pill-icon-wrap">
+                  <Icon
+                    size={22}
+                    strokeWidth={active ? 2.35 : 1.7}
+                    aria-hidden
+                  />
                 </span>
-                <span className="relative">
-                  {tab.label}
-                  {active ? (
-                    <span
-                      aria-hidden
-                      className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-pill bg-ink"
-                    />
-                  ) : null}
-                </span>
+                <span>{tab.label}</span>
               </Link>
             </li>
           );

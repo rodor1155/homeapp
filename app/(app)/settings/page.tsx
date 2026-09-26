@@ -8,13 +8,16 @@ import {
   loadSubscription,
 } from "@/lib/billing";
 import { requireOnboarded } from "@/lib/household";
+import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { loadSentInvites } from "@/lib/invites";
 import { loadHouseholdMembers } from "@/lib/members";
+import { loadAccountDeletionPreview } from "@/lib/account-deletion";
 import DeleteAccountPanel from "./DeleteAccountPanel";
 import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
 import PlanPanel from "./PlanPanel";
 import GuestPackPanel from "./GuestPackPanel";
+import CalendarFeedPanel from "./CalendarFeedPanel";
 import HubDisplayLink from "@/components/HubDisplayLink";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { loadGuestPack } from "@/lib/guests";
@@ -27,12 +30,30 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   const { supabase, user, household, property } = await requireOnboarded();
 
   const billingConfigured = isBillingConfigured();
-  const [members, invites, entitlements, guestPackLoad] = await Promise.all([
+  const [
+    members,
+    invites,
+    inviteLinks,
+    entitlements,
+    guestPackLoad,
+    calendarFeedRes,
+    deletionPreview,
+  ] = await Promise.all([
     loadHouseholdMembers(supabase, household.id),
     loadSentInvites(supabase, household.id),
+    loadPendingInviteLinks(supabase, household.id),
     getEntitlements(household.id),
     loadGuestPack(supabase, household.id),
+    supabase
+      .from("household_calendar_feeds")
+      .select("token")
+      .eq("household_id", household.id)
+      .maybeSingle(),
+    loadAccountDeletionPreview(user.id),
   ]);
+
+  const calendarFeedToken =
+    calendarFeedRes.error ? null : (calendarFeedRes.data?.token as string | undefined) ?? null;
 
   // The row is only read for the renewal date on the paid card. A free
   // household has no date to show, and with billing unconfigured there is no
@@ -41,10 +62,6 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
     billingConfigured && entitlements.activeSubscription
       ? await loadSubscription(household.id)
       : null;
-
-  // The member list is the household's own rows, so this is the whole truth
-  // for the household the user is looking at.
-  const soleMember = members.length <= 1;
 
   return (
     <div className="flex flex-col gap-4">
@@ -99,6 +116,12 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         <GuestPackPanel pack={guestPackLoad.pack} />
       </Card>
 
+      <div id="calendar-feed">
+        <Card title="Subscribe in your calendar">
+          <CalendarFeedPanel token={calendarFeedToken} />
+        </Card>
+      </div>
+
       <Card title="Hub display">
         <HubDisplayLink />
       </Card>
@@ -118,6 +141,7 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         <PeoplePanel
           members={members}
           invites={invites}
+          inviteLinks={inviteLinks}
           currentUserId={user.id}
         />
         <p className="mt-4 border-t border-rule pt-3 text-xs text-ink-faint">
@@ -140,10 +164,11 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         </div>
       </Card>
 
-      <Card title="Delete account" className="border-oxblood/40">
+      <Card title="Account" className="border-oxblood/40">
         <DeleteAccountPanel
-          householdName={household.name}
-          soleMember={soleMember}
+          preview={deletionPreview.households}
+          canExport={entitlements.canExport}
+          billingConfigured={billingConfigured}
         />
       </Card>
 

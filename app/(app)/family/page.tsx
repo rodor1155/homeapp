@@ -8,12 +8,17 @@ import {
   loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
+import InviteSomeoneButton from "@/components/InviteSomeoneButton";
+import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadMealPlans, weekStartMonday } from "@/lib/meals";
+import { loadRenewalItems } from "@/lib/renewals";
+import type { DocumentRow } from "@/lib/document-types";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import EventsPanel from "./EventsPanel";
 import PeoplePanel from "./PeoplePanel";
+import RenewalsPanel from "./RenewalsPanel";
 import SchoolsPanel from "./SchoolsPanel";
 import MealsPanel from "./MealsPanel";
 import RoutinesPanel from "./RoutinesPanel";
@@ -36,6 +41,16 @@ export default async function FamilyPage({
   const { supabase, household } = await requireOnboarded();
   const params = await searchParams;
   const startAddingPerson = first(params.add) === "person";
+  const openRenewalId = first(params.renewal);
+  const openPersonId = first(params.person);
+  const openRoutineId = first(params.routine);
+  const openTimetablePersonId = first(params.timetable);
+  const openTimetableWeekdayRaw = first(params.weekday);
+  const openTimetableWeekday =
+    openTimetableWeekdayRaw != null &&
+    /^[0-6]$/.test(openTimetableWeekdayRaw.trim())
+      ? Number(openTimetableWeekdayRaw.trim())
+      : null;
   const locale: Locale = household.locale ?? "UK";
 
   const weekStart = weekStartMonday();
@@ -47,6 +62,10 @@ export default async function FamilyPage({
     timetableLoad,
     routinesLoad,
     mealsLoad,
+    renewalsLoad,
+    documentsResult,
+    inviteLinks,
+    kidLinksResult,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -55,6 +74,17 @@ export default async function FamilyPage({
     loadPersonTimetableSlots(supabase, household.id),
     loadHouseholdRoutines(supabase, household.id),
     loadMealPlans(supabase, household.id, weekStart),
+    loadRenewalItems(supabase, household.id),
+    supabase
+      .from("documents")
+      .select("id, original_filename, category")
+      .eq("household_id", household.id)
+      .order("created_at", { ascending: false }),
+    loadPendingInviteLinks(supabase, household.id),
+    supabase
+      .from("person_kid_links")
+      .select("person_id, token")
+      .eq("household_id", household.id),
   ]);
 
   const people = peopleLoad.items;
@@ -64,6 +94,15 @@ export default async function FamilyPage({
   const timetableSlots = timetableLoad.items;
   const routines = routinesLoad.items;
   const meals = mealsLoad.items;
+  const renewals = renewalsLoad.items;
+  const documents = ((documentsResult.data as DocumentRow[] | null) ?? []).map(
+    (doc) => ({
+      id: doc.id,
+      original_filename: doc.original_filename,
+      category: doc.category,
+    })
+  );
+
   const loadFault = firstFault(
     peopleLoad,
     schoolsLoad,
@@ -71,10 +110,18 @@ export default async function FamilyPage({
     calendarLoad,
     timetableLoad,
     routinesLoad,
-    mealsLoad
+    mealsLoad,
+    renewalsLoad
   );
 
   const children = people.filter((person) => person.kind === "child");
+
+  const kidLinkTokens: Record<string, string | null> = {};
+  if (!kidLinksResult.error) {
+    for (const row of kidLinksResult.data ?? []) {
+      kidLinkTokens[row.person_id as string] = row.token as string;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -117,22 +164,52 @@ export default async function FamilyPage({
         />
       </Card>
 
+      <div id="people">
       <Card
         title="Who lives here"
         action={
+          <div className="flex items-center gap-2">
+            <InviteSomeoneButton pendingLinks={inviteLinks} />
+            <span className="tnum text-xs text-ink-faint">
+              {people.length} {people.length === 1 ? "person" : "people"}
+            </span>
+          </div>
+        }
+      >
+        <Suspense fallback={null}>
+          <PeoplePanel
+            people={people}
+            schools={schools}
+            locale={locale}
+            startAdding={startAddingPerson}
+            kidLinkTokens={kidLinkTokens}
+            initialPersonId={openPersonId}
+          />
+        </Suspense>
+      </Card>
+      </div>
+
+      <Card
+        title="Renewals & deadlines"
+        action={
           <span className="tnum text-xs text-ink-faint">
-            {people.length} {people.length === 1 ? "person" : "people"}
+            {renewals.filter((item) => item.status === "active").length} tracked
           </span>
         }
       >
-        <PeoplePanel
-          people={people}
-          schools={schools}
-          locale={locale}
-          startAdding={startAddingPerson}
-        />
+        <Suspense fallback={null}>
+          <RenewalsPanel
+            items={renewals}
+            people={people}
+            documents={documents}
+            locale={locale}
+            fault={renewalsLoad.fault}
+            initialRenewalId={openRenewalId}
+          />
+        </Suspense>
       </Card>
 
+      <div id="timetable">
       <Card
         title="School timetable"
         action={
@@ -144,13 +221,19 @@ export default async function FamilyPage({
           ) : undefined
         }
       >
-        <TimetablePanel
-          people={people}
-          slots={timetableSlots}
-          fault={timetableLoad.fault}
-        />
+        <Suspense fallback={null}>
+          <TimetablePanel
+            people={people}
+            slots={timetableSlots}
+            fault={timetableLoad.fault}
+            initialPersonId={openTimetablePersonId}
+            initialWeekday={openTimetableWeekday}
+          />
+        </Suspense>
       </Card>
+      </div>
 
+      <div id="routines">
       <Card
         title="Routines"
         action={
@@ -160,8 +243,15 @@ export default async function FamilyPage({
           </span>
         }
       >
-        <RoutinesPanel routines={routines} fault={routinesLoad.fault} />
+        <Suspense fallback={null}>
+          <RoutinesPanel
+            routines={routines}
+            fault={routinesLoad.fault}
+            initialRoutineId={openRoutineId}
+          />
+        </Suspense>
       </Card>
+      </div>
 
       <Card title="This week’s dinners">
         <MealsPanel

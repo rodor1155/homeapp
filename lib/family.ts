@@ -120,10 +120,11 @@ export type HouseholdPerson = {
   notes: string | null;
   user_id: string | null;
   sort_order: number;
+  colour: string | null;
 };
 
 export const PEOPLE_SELECT =
-  "id, name, kind, relation, birthday, school_id, year_group, notes, user_id, sort_order";
+  "id, name, kind, relation, birthday, school_id, year_group, notes, user_id, sort_order, colour";
 
 /**
  * How a person reads on one line under their name: "Daughter · Year 5", or

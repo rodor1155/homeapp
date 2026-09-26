@@ -92,6 +92,7 @@ export const ROUTINE_HORIZON_DAYS = 14;
 
 export type RoutineOccurrence = {
   key: string;
+  routineId: string;
   date: string;
   daysAway: number;
   title: string;
@@ -150,6 +151,7 @@ export function routineComingUpEntries(
 
       entries.push({
         key: `routine-${routine.id}-${date}`,
+        routineId: routine.id,
         date,
         daysAway,
         title: routine.title,

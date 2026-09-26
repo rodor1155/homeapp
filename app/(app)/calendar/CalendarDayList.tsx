@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Backpack,
   Cake,
@@ -19,7 +20,16 @@ import {
   detailFromCalendarItem,
   isTappableCalendarItem,
 } from "@/lib/calendar-event-detail";
+import {
+  calendarItemKey,
+  parseCalendarEventRef,
+} from "@/lib/coming-up";
+import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
+import {
+  memberColourStyle,
+  personColourById,
+} from "@/lib/member-colours";
 import { TONE_PILL } from "@/lib/tones";
 
 const KIND_ICON: Record<CalendarKind, LucideIcon> = {
@@ -32,27 +42,67 @@ const KIND_ICON: Record<CalendarKind, LucideIcon> = {
 
 export default function CalendarDayList({
   items,
+  people,
   today,
   locale,
+  monthParam,
+  initialOpenKey = null,
 }: {
   items: readonly CalendarItem[];
+  people: readonly HouseholdPerson[];
   today: boolean;
   locale: Locale;
+  monthParam: string;
+  /** Opens this item without a `?event=` URL (preview / storybook). */
+  initialOpenKey?: string | null;
 }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<CalendarItem | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const deepLinkItem = useMemo(() => {
+    if (initialOpenKey) {
+      const match = items.find((item) => item.key === initialOpenKey);
+      if (match && isTappableCalendarItem(match)) return match;
+    }
+    const ref = parseCalendarEventRef(searchParams.get("event"));
+    if (!ref) return null;
+    const match = items.find((item) => item.key === calendarItemKey(ref));
+    if (!match || !isTappableCalendarItem(match)) return null;
+    return match;
+  }, [initialOpenKey, items, searchParams]);
+
+  const [picked, setPicked] = useState<CalendarItem | null>(null);
+  const [deepLinkDismissed, setDeepLinkDismissed] = useState(false);
+
+  const selected =
+    picked ??
+    (!deepLinkDismissed && deepLinkItem ? deepLinkItem : null);
+  const open = selected !== null;
   const detail = selected ? detailFromCalendarItem(selected) : null;
 
-  function openItem(item: CalendarItem) {
-    if (!isTappableCalendarItem(item)) return;
-    setSelected(item);
-    setOpen(true);
-  }
+  const stripEventParam = useCallback(() => {
+    if (!searchParams.get("event")) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("event");
+    const qs = next.toString();
+    router.replace(qs ? `/calendar?${qs}` : `/calendar?ym=${monthParam}`, {
+      scroll: false,
+    });
+  }, [monthParam, router, searchParams]);
 
-  function close() {
-    setOpen(false);
-    setSelected(null);
-  }
+  const openItem = useCallback((item: CalendarItem) => {
+    if (!isTappableCalendarItem(item)) return;
+    setPicked(item);
+  }, []);
+
+  const close = useCallback(() => {
+    setPicked(null);
+    setDeepLinkDismissed(true);
+    stripEventParam();
+  }, [stripEventParam]);
+
+  useEffect(() => {
+    if (searchParams.get("event") && !deepLinkItem) stripEventParam();
+  }, [deepLinkItem, searchParams, stripEventParam]);
 
   return (
     <>
@@ -60,9 +110,12 @@ export default function CalendarDayList({
         {items.map((item) => {
           const Icon = KIND_ICON[item.kind];
           const tappable = isTappableCalendarItem(item);
+          const memberColour = personColourById(item.personId, people);
           const rowClass = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left ${
             today ? "bg-ochre-wash" : ""
-          } ${tappable ? "transition-colors hover:bg-navy-wash/70" : ""}`;
+          } ${memberColour ? "calendar-member-edge pl-2" : ""} ${
+            tappable ? "transition-colors hover:bg-navy-wash/70" : ""
+          }`;
 
           const inner = (
             <>
@@ -85,14 +138,25 @@ export default function CalendarDayList({
             </>
           );
 
+          const memberStyle = memberColour
+            ? memberColourStyle(memberColour)
+            : undefined;
+
           return (
             <li key={item.key}>
               {tappable ? (
-                <button type="button" className={rowClass} onClick={() => openItem(item)}>
+                <button
+                  type="button"
+                  className={rowClass}
+                  style={memberStyle}
+                  onClick={() => openItem(item)}
+                >
                   {inner}
                 </button>
               ) : (
-                <div className={rowClass}>{inner}</div>
+                <div className={rowClass} style={memberStyle}>
+                  {inner}
+                </div>
               )}
             </li>
           );

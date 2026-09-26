@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 import type { MemberEmail } from "@/lib/members";
 
@@ -23,7 +24,7 @@ type Caller =
 /**
  * The signed-in user and the household every write here is scoped to. RLS is
  * what actually enforces the scope; this just picks the household the rest of
- * the app assumes — the oldest membership.
+ * the app assumes — the most recently joined membership.
  */
 async function resolveCaller(supabase: SupabaseClient): Promise<Caller> {
   const {
@@ -31,13 +32,10 @@ async function resolveCaller(supabase: SupabaseClient): Promise<Caller> {
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) {
     return { ok: false, error: "No household found for your account." };
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useCallback, useEffect, useState } from "react";
 import {
   deleteHouseholdCalendar,
@@ -63,6 +64,12 @@ export default function SharedCalendarsPanel({
           ))}
         </ul>
       )}
+
+      <p className="text-xs text-ink-faint">
+        <Link href="/settings#calendar-feed" className="text-action text-xs">
+          Show Hearth in your calendar app → Settings
+        </Link>
+      </p>
 
       <div className="border-t border-rule pt-4">
         {adding ? (

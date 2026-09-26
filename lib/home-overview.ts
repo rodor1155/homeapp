@@ -81,6 +81,7 @@ function startOfUtcDay(now: Date): number {
 }
 
 export type UpcomingDate = {
+  documentId: string;
   provider: string;
   label: string;
   date: string;
@@ -107,6 +108,7 @@ export function upcomingDates(
       const daysAway = Math.round((parsed.getTime() - today) / DAY_MS);
       if (daysAway < 0) continue;
       entries.push({
+        documentId: doc.id,
         provider: documentLabel(doc),
         label,
         date: parsed.toISOString().slice(0, 10),

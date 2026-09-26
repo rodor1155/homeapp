@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   confirmExtraction,
   reprocessDocument,
@@ -18,12 +19,24 @@ import {
   type ExtractionConfidence,
 } from "@/lib/document-types";
 import { CATEGORY_ICON } from "@/components/category-icons";
+import CopyButton from "@/components/CopyButton";
+import RenewalEditSheet from "@/components/RenewalEditSheet";
 import {
   Button,
   ConfidencePill,
   StatusMark,
   statusEdgeClass,
 } from "@/components/ui";
+import { formatDate as formatLocaleDate } from "@/lib/dates";
+import type { HouseholdPerson } from "@/lib/family";
+import type { Locale } from "@/lib/household";
+import {
+  documentRenewalDue,
+  draftFromKind,
+  inferRenewalKindFromDocument,
+  renewalStatusLabel,
+  type RenewalItem,
+} from "@/lib/renewals";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June", "July",
@@ -64,6 +77,11 @@ function initialValue(doc: DocumentRow, column: keyof DocumentRow): string {
   return v === null || v === undefined ? "" : String(v);
 }
 
+function isReferenceLikeField(key: string, label: string): boolean {
+  const hay = `${key} ${label}`.toLowerCase();
+  return /reference|policy|plan|account|member|membership/.test(hay);
+}
+
 function ReviewForm({ doc }: { doc: DocumentRow }) {
   const [state, submit, pending] = useActionState<ReviewState, FormData>(
     confirmExtraction,
@@ -101,14 +119,20 @@ function ReviewForm({ doc }: { doc: DocumentRow }) {
                 {f.label}
                 {meta ? <ConfidencePill level={meta.confidence} /> : null}
               </span>
-              <input
-                name={f.key}
-                type="text"
-                inputMode={f.type === "amount" ? "decimal" : undefined}
-                placeholder={f.type === "date" ? "YYYY-MM-DD" : undefined}
-                defaultValue={initialValue(doc, f.column)}
-                className={`field-input ${f.type === "amount" || f.type === "date" ? "tnum" : ""}`}
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  name={f.key}
+                  type="text"
+                  inputMode={f.type === "amount" ? "decimal" : undefined}
+                  placeholder={f.type === "date" ? "YYYY-MM-DD" : undefined}
+                  defaultValue={initialValue(doc, f.column)}
+                  className={`field-input min-w-0 flex-1 ${f.type === "amount" || f.type === "date" ? "tnum" : ""}`}
+                />
+                {isReferenceLikeField(f.key, f.label) &&
+                initialValue(doc, f.column) ? (
+                  <CopyButton value={initialValue(doc, f.column)} />
+                ) : null}
+              </div>
               {meta?.ambiguity ? (
                 <span className="margin-note">{meta.ambiguity}</span>
               ) : null}
@@ -155,9 +179,29 @@ function ReprocessAction({ doc }: { doc: DocumentRow }) {
   );
 }
 
-function Entry({ doc }: { doc: DocumentRow }) {
+type DocOption = Pick<DocumentRow, "id" | "original_filename" | "category">;
+
+function Entry({
+  doc,
+  linkedRenewal,
+  people,
+  docOptions,
+  locale,
+  initialOpen = false,
+  onClosePanel,
+}: {
+  doc: DocumentRow;
+  linkedRenewal?: RenewalItem;
+  people: HouseholdPerson[];
+  docOptions: DocOption[];
+  locale: Locale;
+  initialOpen?: boolean;
+  onClosePanel?: () => void;
+}) {
+  const rowRef = useRef<HTMLLIElement>(null);
   const [open, setOpen] = useState(
-    doc.extraction_status === "needs_review" ||
+    initialOpen ||
+      doc.extraction_status === "needs_review" ||
       doc.extraction_status === "extracted"
   );
   const conf = doc.extraction_confidence;
@@ -172,12 +216,30 @@ function Entry({ doc }: { doc: DocumentRow }) {
   const shownCategory =
     asCategory(doc.category) ?? (reviewable ? categorise(doc) : null);
   const CategoryIcon = shownCategory ? CATEGORY_ICON[shownCategory] : null;
+  const renewalDue = documentRenewalDue(doc);
+  const [trackOpen, setTrackOpen] = useState(false);
+  const trackDraft = renewalDue
+    ? draftFromKind(inferRenewalKindFromDocument(doc), { document: doc })
+    : null;
+
+  useEffect(() => {
+    if (!initialOpen) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [initialOpen]);
+
+  const toggleOpen = () => {
+    setOpen((value) => {
+      const next = !value;
+      if (value && onClosePanel) onClosePanel();
+      return next;
+    });
+  };
 
   return (
-    <li className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
+    <li ref={rowRef} className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-expanded={open}
         className="flex w-full items-start gap-3 px-4 py-3.5 text-left"
       >
@@ -249,6 +311,26 @@ function Entry({ doc }: { doc: DocumentRow }) {
               {summaryLine(conf) ? (
                 <p className="text-sm text-ink-soft">{summaryLine(conf)}</p>
               ) : null}
+              {renewalDue ? (
+                <div className="mb-3">
+                  {linkedRenewal ? (
+                    <p className="text-sm text-ink-soft">
+                      Tracked · {renewalStatusLabel(linkedRenewal)}{" "}
+                      {linkedRenewal.due_date
+                        ? `· ${formatLocaleDate(linkedRenewal.due_date, locale)}`
+                        : ""}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-action text-sm"
+                      onClick={() => setTrackOpen(true)}
+                    >
+                      Track renewal
+                    </button>
+                  )}
+                </div>
+              ) : null}
               <ReviewForm doc={doc} />
               {doc.extraction_status !== "confirmed" && (
                 <ReprocessAction doc={doc} />
@@ -257,19 +339,63 @@ function Entry({ doc }: { doc: DocumentRow }) {
           )}
         </div>
       ) : null}
+
+      {trackDraft ? (
+        <RenewalEditSheet
+          open={trackOpen}
+          onClose={() => setTrackOpen(false)}
+          draft={trackDraft}
+          people={people}
+          documents={docOptions}
+          locale={locale}
+        />
+      ) : null}
     </li>
   );
 }
 
 export default function DocumentsList({
   documents,
+  renewalByDocument,
+  people,
+  docOptions,
+  locale,
+  initialDocId = null,
 }: {
   documents: DocumentRow[];
+  renewalByDocument: Map<string, RenewalItem>;
+  people: HouseholdPerson[];
+  docOptions: DocOption[];
+  locale: Locale;
+  initialDocId?: string | null;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedDoc = initialDocId
+    ? documents.find((doc) => doc.id === initialDocId) ?? null
+    : null;
+
+  const clearDocParam = useCallback(() => {
+    if (!searchParams.get("doc")) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("doc");
+    const qs = next.toString();
+    router.replace(qs ? `/documents?${qs}` : "/documents", { scroll: false });
+  }, [router, searchParams]);
+
   return (
     <ul>
       {documents.map((doc) => (
-        <Entry key={doc.id} doc={doc} />
+        <Entry
+          key={doc.id}
+          doc={doc}
+          linkedRenewal={renewalByDocument.get(doc.id)}
+          people={people}
+          docOptions={docOptions}
+          locale={locale}
+          initialOpen={linkedDoc?.id === doc.id}
+          onClosePanel={clearDocParam}
+        />
       ))}
     </ul>
   );

@@ -8,6 +8,8 @@ import { Card, SectionHeading } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
 import { asCategory, effectiveCategory } from "@/lib/categories";
 import { DOCUMENTS_SELECT, type DocumentRow } from "@/lib/document-types";
+import { loadHouseholdPeople } from "@/lib/family";
+import { loadRenewalItems, renewalByDocumentId } from "@/lib/renewals";
 import { isGmailConfigured } from "@/lib/gmail-config";
 import { loadGmailConnectionPublic, loadPendingCandidates } from "@/lib/gmail";
 import { requireOnboarded } from "@/lib/household";
@@ -32,26 +34,41 @@ export default async function DocumentsPage({
   const params = await searchParams;
   const category = asCategory(first(params.category));
   const startUpload = first(params.upload) === "1";
+  const openDocId = first(params.doc);
   const gmailFlow = first(params.gmail);
   const gmailMessage = first(params.message);
 
-  const [entitlements, { data }, gmailConnection, gmailCandidates] =
-    await Promise.all([
-      getEntitlements(household.id),
-      supabase
-        .from("documents")
-        .select(DOCUMENTS_SELECT)
-        .eq("property_id", property.id)
-        .order("created_at", { ascending: false }),
-      loadGmailConnectionPublic(household.id),
-      loadPendingCandidates(household.id),
-    ]);
+  const [
+    entitlements,
+    { data },
+    gmailConnection,
+    gmailCandidates,
+    peopleLoad,
+    renewalsLoad,
+  ] = await Promise.all([
+    getEntitlements(household.id),
+    supabase
+      .from("documents")
+      .select(DOCUMENTS_SELECT)
+      .eq("property_id", property.id)
+      .order("created_at", { ascending: false }),
+    loadGmailConnectionPublic(household.id),
+    loadPendingCandidates(household.id),
+    loadHouseholdPeople(supabase, household.id),
+    loadRenewalItems(supabase, household.id),
+  ]);
 
   const all = (data as DocumentRow[] | null) ?? [];
   const documents = category
     ? all.filter((doc) => effectiveCategory(doc) === category)
     : all;
   const count = documents.length;
+  const renewalLinks = renewalByDocumentId(renewalsLoad.items);
+  const docOptions = all.map((doc) => ({
+    id: doc.id,
+    original_filename: doc.original_filename,
+    category: doc.category,
+  }));
 
   const gmailCandidatesPublic = gmailCandidates.map((c) => ({
     id: c.id,
@@ -151,7 +168,16 @@ export default async function DocumentsPage({
           </Card>
         ) : (
           <Card padding="none">
-            <DocumentsList documents={documents} />
+            <Suspense fallback={null}>
+              <DocumentsList
+                documents={documents}
+                renewalByDocument={renewalLinks}
+                people={peopleLoad.items}
+                docOptions={docOptions}
+                locale={household.locale ?? "UK"}
+                initialDocId={openDocId}
+              />
+            </Suspense>
           </Card>
         )}
       </div>

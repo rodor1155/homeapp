@@ -24,10 +24,10 @@ export default function ShellRouter({
     return <HubShell householdName={householdName}>{children}</HubShell>;
   }
 
-  const hideHeader = pathname === "/dashboard";
+  const isHome = pathname === "/dashboard";
 
   return (
-    <AppShell user={user} hideHeader={hideHeader}>
+    <AppShell user={user} hideHeader={isHome} isHome={isHome}>
       {children}
     </AppShell>
   );

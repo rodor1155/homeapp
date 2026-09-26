@@ -43,9 +43,10 @@ Set the secrets in the Vercel project settings (Production + Preview).
 Migrations live in [`supabase/migrations/`](./supabase/migrations) and are already applied
 to the linked project. Tables: `households`, `household_members`, `properties`,
 `household_invites`, `documents`, `document_chunks`, `reminder_rules`, `reminders`,
-`reminder_events`, `subscriptions`; plus a private `documents` Storage bucket. Every
-table has row-level security scoped to household membership. The `subscriptions`
-migration is the exception: written, not yet applied.
+`reminder_events`, `subscriptions`, `renewal_items`, `household_calendar_feeds`; plus a
+private `documents` Storage bucket. Every table has row-level security scoped to household
+membership. The `subscriptions`, `renewal_items` and `household_calendar_feeds`
+migrations are written but not yet applied.
 
 ## Gmail import
 
@@ -75,11 +76,16 @@ harness (not linked from any nav).
 
 ## Renewal reminders
 
-Every extracted or confirmed document with a future renewal (or, failing that, end)
-date gets a `reminders` row, written server-side by `syncRemindersForDocument()` in
-[`lib/reminders.ts`](./lib/reminders.ts) whenever extraction finishes or a review is
-confirmed. How far ahead to nudge comes from `reminder_rules`, keyed on the category
-from `lib/home-overview.ts` and the household's locale — 60/30/7/0 days by default.
+**Document email reminders** — every extracted or confirmed document with a future
+renewal (or, failing that, end) date gets a `reminders` row, written server-side by
+`syncRemindersForDocument()` in [`lib/reminders.ts`](./lib/reminders.ts) whenever
+extraction finishes or a review is confirmed. How far ahead to nudge comes from
+`reminder_rules`, keyed on the category from `lib/home-overview.ts` and the household's
+locale — 60/30/7/0 days by default.
+
+**Tracked renewals** (phase 9) — passports, MOT, insurance and the like live in
+`renewal_items`, managed on `/family` and surfaced in Coming up inside each item's
+remind window. They do not send email yet; the cron only covers document `reminders`.
 
 `GET /api/cron/reminders` runs daily at 08:00 UTC (see [`vercel.json`](./vercel.json)),
 emails every household member whose reminder falls due that day via Resend, and logs
@@ -107,9 +113,33 @@ writes the row on the service role. `/settings` shows the plan and the buttons.
 
 The `subscriptions` migration is written but **not yet applied** to the project.
 
+## Household sharing
+
+Invite a partner or another adult from **Family** or **Settings → People**. The app
+creates a single-use link (expires in 7 days) you share yourself — no email is sent.
+The invitee opens `/join/<token>`, signs in or creates an account, and joins as a
+member with full household access. Legacy email invites on `/invite` still work when
+sent to the matching address.
+
+Apply migration `20260926140000_household_invite_links.sql` before link invites work
+in production.
+
+**Kid view** — from Family → People, edit a child and create a kid view link. Anyone
+with the URL sees a read-only schedule for that child only (today + six days, Europe/London):
+school timetable (including kit/ingredients reminders), key dates linked to them, their
+school's cached term dates, who's-where status, and a birthday countdown within two weeks.
+No documents, renewals, routines, meals, other household members, or notes. The link has
+no expiry; regenerate or turn off revokes the old URL. Apply
+`20260926160000_person_kid_links.sql` before it works in production.
+
+For local UI screenshots only (not committed):
+`/dev-sharing-preview?view=invite|join|join-signedout|kid|kidlink`.
+
 ## Supabase config that isn't in code
 
-- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` and
+- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` (and
+  `${NEXT_PUBLIC_SITE_URL}/auth/callback**` or per-path entries if your project needs
+  them for `?next=` on OAuth/magic links), plus
   `${NEXT_PUBLIC_SITE_URL}/auth/native-bridge` (local and prod) to the redirect
   allow-list; set the Site URL to the prod origin. The native-bridge URL is used by
   the Capacitor iOS shell for Google OAuth (in-app browser → deep link back).
@@ -120,6 +150,27 @@ The `subscriptions` migration is written but **not yet applied** to the project.
 - **Vault secrets** `extraction_webhook_url` and `extraction_webhook_secret` are set on
   the project (URL → `https://homeapp-mu.vercel.app/api/extraction`). The secret must
   match Vercel's `EXTRACTION_WEBHOOK_SECRET`.
+
+## Account deletion
+
+App Store requirement (5.1.1(v)): users can delete their account from **Settings →
+Account**. The flow is implemented in [`lib/account-deletion.ts`](./lib/account-deletion.ts)
+(`deleteAccountForUser`) and called from [`app/actions/account.ts`](./app/actions/account.ts).
+
+Before deleting, users can **Download my data** (same zip as `/api/export`). Deletion
+cancels Stripe subscriptions on sole-member households when billing is configured;
+aborts if a live subscription row exists but Stripe is not set up. Gmail tokens are
+revoked best-effort. Storage under sole-member `<household_id>/` prefixes is removed
+before the auth user is deleted (failure aborts). Shared households keep their data;
+if the leaving member was owner, migration
+`20260926170000_household_owner_transfer.sql` promotes the longest-standing remaining
+member.
+
+Public pages: [`/account-deletion`](./app/account-deletion/page.tsx) (instructions),
+[`/account-deleted`](./app/account-deleted/page.tsx) (confirmation after delete).
+
+End-to-end harness (not committed): `npx tsx .agent-logs/account-deletion-e2e.mts` —
+run after applying the owner-transfer migration.
 
 ## Deploy
 

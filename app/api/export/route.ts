@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { getEntitlements } from "@/lib/billing";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
@@ -72,13 +73,10 @@ export async function GET() {
     return Response.json({ error: "You are not signed in." }, { status: 401 });
   }
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) {
     return Response.json(
       { error: "No household found for your account." },

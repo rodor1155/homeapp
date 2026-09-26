@@ -6,7 +6,9 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
+  type PointerEvent,
   type TouchEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -43,28 +45,32 @@ export default function BottomSheet({
   open,
   onClose,
   title,
+  subtitle,
   children,
+  footer,
   className = "",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: ReactNode;
+  footer?: ReactNode;
   className?: string;
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
   const dragStartTime = useRef(0);
   const dragOffset = useRef(0);
   const dragActive = useRef(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -90,14 +96,6 @@ export default function BottomSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!open) {
-      setDragY(0);
-      setIsDragging(false);
-      dragActive.current = false;
-    }
-  }, [open]);
-
   const finishDrag = useCallback(
     (offset: number, velocity: number) => {
       dragActive.current = false;
@@ -112,26 +110,23 @@ export default function BottomSheet({
     [onClose],
   );
 
-  const onHeaderTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
+  const beginDrag = (clientY: number) => {
     dragActive.current = true;
     setIsDragging(true);
-    dragStartY.current = touch.clientY;
+    dragStartY.current = clientY;
     dragStartTime.current = Date.now();
     dragOffset.current = 0;
     setDragY(0);
   };
 
-  const onHeaderTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+  const moveDrag = (clientY: number) => {
     if (!dragActive.current) return;
-    const touch = e.touches[0];
-    const delta = Math.max(0, touch.clientY - dragStartY.current);
+    const delta = Math.max(0, clientY - dragStartY.current);
     dragOffset.current = delta;
     setDragY(delta);
-    if (delta > 0) e.preventDefault();
   };
 
-  const onHeaderTouchEnd = () => {
+  const endDrag = () => {
     if (!dragActive.current) return;
     const offset = dragOffset.current;
     const elapsed = Math.max(Date.now() - dragStartTime.current, 1);
@@ -139,10 +134,51 @@ export default function BottomSheet({
     finishDrag(offset, velocity);
   };
 
+  const onHeaderTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    beginDrag(touch.clientY);
+  };
+
+  const onHeaderTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (!dragActive.current) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    moveDrag(touch.clientY);
+    if (dragOffset.current > 0) e.preventDefault();
+  };
+
+  const onHeaderTouchEnd = () => {
+    endDrag();
+  };
+
+  const onHeaderPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    beginDrag(e.clientY);
+  };
+
+  const onHeaderPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!dragActive.current || e.pointerType === "touch") return;
+    moveDrag(e.clientY);
+  };
+
+  const onHeaderPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") return;
+    endDrag();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+  };
+
   if (!open || !mounted || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center pb-[calc(var(--mobile-tab-bar-height)+max(12px,env(safe-area-inset-bottom,0px)))]"
+    >
       <button
         type="button"
         aria-label="Close"
@@ -155,10 +191,10 @@ export default function BottomSheet({
         aria-modal="true"
         aria-labelledby={titleId}
         style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transform: open && dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? "none" : "transform 200ms ease-out",
         }}
-        className={`relative z-10 flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col rounded-t-2xl border border-rule bg-paper-raised shadow-none ${className}`}
+        className={`relative z-10 flex max-h-[min(85dvh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-rule bg-paper-raised shadow-none ${className}`}
       >
         <div
           className="flex shrink-0 touch-none flex-col items-center px-4 pb-2 pt-3"
@@ -166,13 +202,20 @@ export default function BottomSheet({
           onTouchMove={onHeaderTouchMove}
           onTouchEnd={onHeaderTouchEnd}
           onTouchCancel={onHeaderTouchEnd}
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerUp}
         >
           <span
             aria-hidden
             className="mb-3 h-1 w-10 rounded-pill bg-rule-strong"
           />
-          <div className="grid w-full grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2">
-            <span aria-hidden className="h-9 w-9" />
+          <div className="grid w-full grid-cols-[2.25rem_1fr_2.25rem] items-center gap-x-2 gap-y-0.5">
+            <span
+              aria-hidden
+              className={`h-9 w-9 ${subtitle ? "row-span-2 self-center" : ""}`}
+            />
             <h2
               id={titleId}
               className="truncate text-center text-lg font-semibold text-ink"
@@ -183,15 +226,27 @@ export default function BottomSheet({
               type="button"
               onClick={onClose}
               aria-label="Close panel"
-              className="btn-quiet h-9 w-9 shrink-0 rounded-pill p-0"
+              className={`btn-quiet h-9 w-9 shrink-0 rounded-pill p-0 ${
+                subtitle ? "row-span-2 self-center" : ""
+              }`}
             >
               <X size={18} aria-hidden />
             </button>
+            {subtitle ? (
+              <p className="col-start-2 truncate text-center text-sm text-ink-soft">
+                {subtitle}
+              </p>
+            ) : null}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3">
           {children}
         </div>
+        {footer ? (
+          <div className="shrink-0 border-t border-rule px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

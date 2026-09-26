@@ -54,9 +54,13 @@ export default function AuthPanel({
     }
 
     const supabase = createClient();
+    const callback =
+      next === "/"
+        ? `${publicAppOrigin()}/auth/callback`
+        : `${publicAppOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${publicAppOrigin()}/auth/callback` },
+      options: { redirectTo: callback },
     });
     if (error) {
       setGoogleError(error.message);
@@ -133,6 +137,7 @@ export default function AuthPanel({
 
         <form action={mlSubmit} className="flex flex-col">
           <input type="hidden" name="email" value={email} />
+          <input type="hidden" name="next" value={next} />
           <button
             type="submit"
             disabled={mlPending || email.length === 0}
@@ -172,6 +177,10 @@ export default function AuthPanel({
       <p className="text-center text-xs text-ink-faint">
         <Link href="/privacy" className="text-action text-xs">
           Privacy policy
+        </Link>
+        <span className="mx-2">·</span>
+        <Link href="/account-deletion" className="text-action text-xs">
+          Delete your account
         </Link>
       </p>
     </PreAppShell>

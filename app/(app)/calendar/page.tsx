@@ -45,6 +45,7 @@ import AddDateCard from "./AddDateCard";
 import CalendarDayList from "./CalendarDayList";
 import SharedCalendarsPanel from "./SharedCalendarsPanel";
 import { appTitle } from "@/lib/brand";
+import { Suspense } from "react";
 
 export const metadata = { title: appTitle("Calendar") };
 
@@ -114,6 +115,7 @@ export default async function CalendarPage({
   const params = await searchParams;
   const startAdding = first(params.add) === "1";
   const month = parseMonthKey(first(params.ym));
+  const dayParam = first(params.date) ?? first(params.day);
   const bounds = monthBounds(month);
 
   const fromIso = `${bounds.from}T00:00:00.000Z`;
@@ -166,8 +168,9 @@ export default async function CalendarPage({
   const todayParts = calendarDayParts();
   const today = `${todayParts.year}-${String(todayParts.month).padStart(2, "0")}-${String(todayParts.day).padStart(2, "0")}`;
   const label = formatMonth(monthParam(month), locale);
-  const selectedDay = resolveSelectedDay(first(params.day), month, today);
+  const selectedDay = resolveSelectedDay(dayParam, month, today);
   const dayItems = selectedDay ? byDate.get(selectedDay) ?? [] : [];
+  const ym = monthParam(month);
 
   return (
     <div className="flex flex-col gap-4">
@@ -242,11 +245,15 @@ export default async function CalendarPage({
             school&rsquo;s terms come from its own calendar.
           </p>
         ) : (
-          <CalendarDayList
-            items={dayItems}
-            today={selectedDay === today}
-            locale={locale}
-          />
+          <Suspense fallback={null}>
+            <CalendarDayList
+              items={dayItems}
+              people={people}
+              today={selectedDay === today}
+              locale={locale}
+              monthParam={ym}
+            />
+          </Suspense>
         )}
       </Card>
 
