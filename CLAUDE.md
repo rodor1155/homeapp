@@ -22,6 +22,7 @@ agent (or human) picking up the repo has the same context.
 | 7b | School calendar (ICS) linking — a feed per school, fetched and cached server-side, term dates on the dashboard and `/family`. | done — **`school_calendars` migration not yet applied** |
 | 8 | Shopping lists — several lists per household, checklist items, tick/untick, on `/lists` as a fourth tab. | done — **`shopping_lists` migration not yet applied** |
 | 9 | Renewals & deadlines — passports, licences, MOT, insurance, boiler service etc. per person or house; Coming up surfacing; document "Track renewal" offer. | done — **`renewal_items` migration not yet applied**; renewal rows do not feed the email reminder engine yet |
+| 10 | Calendar subscribe feed — outbound ICS URL per household (key dates, renewals, document dates, birthdays); settings card + public `/api/ics/[token]`. | done — **`household_calendar_feeds` migration not yet applied** |
 | later | The real dashboard. | not started |
 
 Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
@@ -123,15 +124,16 @@ app/
                         `[listId]/` for one of them (ItemsPanel quick-add + tick,
                         ListSettings rename/delete); both client, optimistic
     settings/           household + property + locale (HouseholdForm), plan (PlanPanel),
-                        sign-in members and sent invites (PeoplePanel — the *account*
-                        people, not the family), sign out, account deletion
-                        (DeleteAccountPanel)
+                        calendar subscribe feed (CalendarFeedPanel), sign-in members and
+                        sent invites (PeoplePanel — the *account* people, not the family),
+                        sign out, account deletion (DeleteAccountPanel)
   invite/               pending invites, accept/decline (InviteList); works signed out
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
+  api/ics/[token]/      GET/HEAD public household ICS subscribe feed (token secret, nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
-                        settings.ts, account.ts, family.ts, lists.ts
+                        settings.ts, account.ts, family.ts, lists.ts, calendar-feed.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
                  AppShell.tsx (top bar: sign out + gear to /settings) — rendered
                  once, by `app/(app)/layout.tsx`, never by a page,
@@ -174,6 +176,10 @@ lib/
   school-calendar.ts   server-only: normaliseCalendarUrl / parseCalendar (node-ical) /
                        syncSchoolCalendar(schoolId) — fetch an ICS feed and rebuild the
                        school_calendar_events cache on the admin client
+  ics-export.ts        pure RFC 5545 builder for the outbound household subscribe feed
+                       (no server-only import — fold/escape/date helpers exported for tests)
+  ics-feed-load.ts     server-only: load household rows on the admin client and call
+                       buildHouseholdIcs() for GET /api/ics/[token]
   coming-up.ts         server-only: ComingUpEntry + documentEntries / birthdayEntries /
                        eventEntries / schoolEntries / mergeComingUp — the one dated list
                        the dashboard shows
@@ -250,6 +256,17 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   **does not write `reminders` rows or send email** — that engine stays document-only for
   now. `20260926100000_renewal_items.sql` is **written but not applied** — until it is,
   `/family` renewals and Coming up renewal rows read as empty rather than erroring.
+- `household_calendar_feeds(household_id pk → households, token text unique not null
+  check length ≥ 32, created_at, rotated_at, created_by → auth.users)` — one outbound
+  ICS subscribe URL per household. The token is stored here rather than on `households`
+  so it never rides along with `select *`. Members read/write (to show, copy, regenerate
+  or revoke the link); `GET /api/ics/[token]` looks the row up on the service role with
+  no session. Regenerate replaces the token (old URL 404s); revoke deletes the row. Feed
+  includes `household_events`, active `renewal_items` with due dates (plus VALARM when
+  `remind_days > 0`), document `renewal_date` / `end_date` (skipping superseded docs and
+  docs with a linked active renewal), and recurring birthdays from `household_people`.
+  Excludes school/shared imported calendars, routines, timetable slots and reminder rows.
+  `20260926120000_household_calendar_feed.sql` is **written but not applied**.
 - `household_invites(id, household_id, email, invited_by, status, created_at)` — created
   during onboarding from the partner email. Members-only select, so the invitee reaches
   their own row through `public.pending_invites_for_me()` /

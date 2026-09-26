@@ -15,6 +15,7 @@ import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
 import PlanPanel from "./PlanPanel";
 import GuestPackPanel from "./GuestPackPanel";
+import CalendarFeedPanel from "./CalendarFeedPanel";
 import HubDisplayLink from "@/components/HubDisplayLink";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { loadGuestPack } from "@/lib/guests";
@@ -27,12 +28,21 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   const { supabase, user, household, property } = await requireOnboarded();
 
   const billingConfigured = isBillingConfigured();
-  const [members, invites, entitlements, guestPackLoad] = await Promise.all([
-    loadHouseholdMembers(supabase, household.id),
-    loadSentInvites(supabase, household.id),
-    getEntitlements(household.id),
-    loadGuestPack(supabase, household.id),
-  ]);
+  const [members, invites, entitlements, guestPackLoad, calendarFeedRes] =
+    await Promise.all([
+      loadHouseholdMembers(supabase, household.id),
+      loadSentInvites(supabase, household.id),
+      getEntitlements(household.id),
+      loadGuestPack(supabase, household.id),
+      supabase
+        .from("household_calendar_feeds")
+        .select("token")
+        .eq("household_id", household.id)
+        .maybeSingle(),
+    ]);
+
+  const calendarFeedToken =
+    calendarFeedRes.error ? null : (calendarFeedRes.data?.token as string | undefined) ?? null;
 
   // The row is only read for the renewal date on the paid card. A free
   // household has no date to show, and with billing unconfigured there is no
@@ -98,6 +108,12 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         ) : null}
         <GuestPackPanel pack={guestPackLoad.pack} />
       </Card>
+
+      <div id="calendar-feed">
+        <Card title="Subscribe in your calendar">
+          <CalendarFeedPanel token={calendarFeedToken} />
+        </Card>
+      </div>
 
       <Card title="Hub display">
         <HubDisplayLink />

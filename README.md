@@ -43,9 +43,10 @@ Set the secrets in the Vercel project settings (Production + Preview).
 Migrations live in [`supabase/migrations/`](./supabase/migrations) and are already applied
 to the linked project. Tables: `households`, `household_members`, `properties`,
 `household_invites`, `documents`, `document_chunks`, `reminder_rules`, `reminders`,
-`reminder_events`, `subscriptions`, `renewal_items`; plus a private `documents` Storage
-bucket. Every table has row-level security scoped to household membership. The
-`subscriptions` and `renewal_items` migrations are written but not yet applied.
+`reminder_events`, `subscriptions`, `renewal_items`, `household_calendar_feeds`; plus a
+private `documents` Storage bucket. Every table has row-level security scoped to household
+membership. The `subscriptions`, `renewal_items` and `household_calendar_feeds`
+migrations are written but not yet applied.
 
 ## Gmail import
 
