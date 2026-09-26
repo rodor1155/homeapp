@@ -1,26 +1,31 @@
 "use client";
 
 import { useActionState } from "react";
+import InviteSomeoneButton from "@/components/InviteSomeoneButton";
 import {
-  inviteMember,
   revokeInvite,
   type SettingsState,
 } from "@/app/actions/settings";
+import type { PendingInviteLink } from "@/lib/invite-links";
 import type { SentInvite } from "@/lib/invites";
 import type { HouseholdMember } from "@/lib/members";
-import { Button, Field } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 type Props = {
   members: HouseholdMember[];
   invites: SentInvite[];
+  inviteLinks: PendingInviteLink[];
   currentUserId: string;
 };
 
 export default function PeoplePanel({
   members,
   invites,
+  inviteLinks,
   currentUserId,
 }: Props) {
+  const emailInvites = invites.filter((invite) => invite.email);
+
   return (
     <div className="flex flex-col gap-4">
       <ul className="divide-y divide-rule">
@@ -41,12 +46,18 @@ export default function PeoplePanel({
           </li>
         ))}
 
-        {invites.map((invite) => (
+        {emailInvites.map((invite) => (
           <InviteRow key={invite.id} invite={invite} />
         ))}
       </ul>
 
-      <InviteForm />
+      <div className="flex flex-col gap-3 border-t border-rule pt-4">
+        <p className="text-sm text-ink-soft">
+          Invite a partner or another adult with a shareable link. They join
+          with full access to everything in this household.
+        </p>
+        <InviteSomeoneButton pendingLinks={inviteLinks} variant="primary" />
+      </div>
     </div>
   );
 }
@@ -68,63 +79,15 @@ function InviteRow({ invite }: { invite: SentInvite }) {
             state?.error ? "mark-fault" : "mark-review"
           }`}
         >
-          {state?.error ?? "Invited, not joined yet"}
+          {state?.error ?? "Email invite, not joined yet"}
         </span>
       </span>
       <form action={submit} className="shrink-0">
         <input type="hidden" name="invite_id" value={invite.id} />
-        <button
-          type="submit"
-          disabled={pending}
-          className="text-action text-sm disabled:opacity-40"
-        >
+        <Button type="submit" variant="quiet" disabled={pending} className="min-h-11 text-sm">
           {pending ? "Revoking…" : "Revoke"}
-        </button>
+        </Button>
       </form>
     </li>
-  );
-}
-
-function InviteForm() {
-  const [state, submit, pending] = useActionState<SettingsState, FormData>(
-    inviteMember,
-    undefined
-  );
-
-  return (
-    <form
-      action={submit}
-      className="flex flex-col gap-3 border-t border-rule pt-4"
-    >
-      <Field
-        label="Invite someone else"
-        note="They will see the same documents, dates and contacts you do."
-      >
-        <input
-          name="email"
-          type="email"
-          autoComplete="off"
-          required
-          className="field-input"
-          placeholder="partner@example.com"
-        />
-      </Field>
-
-      {state?.error ? (
-        <p className="text-sm mark-fault">{state.error}</p>
-      ) : null}
-      {state?.ok ? (
-        <p className="text-sm mark-filed">
-          Invitation noted. They can accept it once they sign in with that
-          address.
-        </p>
-      ) : null}
-
-      <div>
-        <Button type="submit" variant="quiet" disabled={pending}>
-          {pending ? "Sending…" : "Send invitation"}
-        </Button>
-      </div>
-    </form>
   );
 }

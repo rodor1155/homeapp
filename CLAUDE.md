@@ -15,6 +15,7 @@ agent (or human) picking up the repo has the same context.
 | 1b | Embeddings for `document_chunks` + retrieval. | next |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — migrations applied |
+| 3d | Household link sharing (`/join/[token]`, invite sheet, `invite_link_preview` / `accept_household_invite_link`). | done — **`20260926140000_household_invite_links` migration not yet applied** |
 | 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — migrations applied; Resend + `CRON_SECRET` not set on Vercel yet |
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
@@ -127,13 +128,15 @@ app/
                         calendar subscribe feed (CalendarFeedPanel), sign-in members and
                         sent invites (PeoplePanel — the *account* people, not the family),
                         sign out, account deletion (DeleteAccountPanel)
-  invite/               pending invites, accept/decline (InviteList); works signed out
+  invite/               pending email invites, accept/decline (InviteList); works signed out
+  join/[token]/         link-invite landing + join confirm; public, robots noindex
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   api/ics/[token]/      GET/HEAD public household ICS subscribe feed (token secret, nodejs)
-  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, extraction-test.ts,
-                        settings.ts, account.ts, family.ts, lists.ts, calendar-feed.ts
+  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, invite-links.ts,
+                        extraction-test.ts, settings.ts, account.ts, family.ts, lists.ts,
+                        calendar-feed.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
                  AppShell.tsx (top bar: sign out + gear to /settings) — rendered
                  once, by `app/(app)/layout.tsx`, never by a page,
@@ -147,10 +150,13 @@ lib/
   supabase-server.ts   server client with cookie bridge (server-only)
   supabase-admin.ts    service-role client (server-only, bypasses RLS)
   supabase.ts          deprecated re-export of supabase-client
-  household.ts         server-only: loadHouseholdContext / isOnboarded / requireOnboarded.
-                       loadHouseholdContext is wrapped in React `cache()` and gets the
-                       membership, household and property in one embedded query, so the
-                       (app) layout and the page inside it share a single round trip
+  household.ts         server-only: loadHouseholdContext / isOnboarded / requireOnboarded /
+                       queryActiveMembership. loadHouseholdContext is wrapped in React
+                       `cache()` and gets the membership, household and property in one
+                       embedded query, so the (app) layout and the page inside it share a
+                       single round trip. Active household = most recently joined membership.
+  invite-links.ts      client-safe: InviteLinkPreview / PendingInviteLink shapes,
+                       loadInviteLinkPreview / loadPendingInviteLinks, expiry labels
   extraction.ts        server-only: extractDocument() (pure Claude call) +
                        runExtractionForDocument() (download → extract → persist) + chunkText()
   document-types.ts    client-safe row/confidence shapes + REVIEW_FIELDS + DOCUMENTS_SELECT
@@ -267,15 +273,23 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   docs with a linked active renewal), and recurring birthdays from `household_people`.
   Excludes school/shared imported calendars, routines, timetable slots and reminder rows.
   `20260926120000_household_calendar_feed.sql` is **written but not applied**.
-- `household_invites(id, household_id, email, invited_by, status, created_at)` — created
-  during onboarding from the partner email. Members-only select, so the invitee reaches
-  their own row through `public.pending_invites_for_me()` /
-  `accept_household_invite(uuid)` / `decline_household_invite(uuid)` — SECURITY DEFINER,
-  `authenticated` only. Accepting also inserts the `household_members` row (no insert
-  policy exists) and, if the caller never used the household they were given at signup
-  (no property, no documents, sole member), drops that membership so they still hold
-  exactly one household — every other query assumes the oldest membership is the right
-  one. `/onboarding` redirects to `/invite` when pending invites exist (same as `/`).
+- `household_invites(id, household_id, email null, token text unique null, expires_at,
+  invited_by, accepted_by, accepted_at, status, created_at)` — email rows from onboarding
+  or legacy settings; link rows carry a single-use `token` (≥32 chars) and `expires_at`.
+  Check: `email` or `token` must be set. Members-only select/insert/update/delete on the
+  table; invitees reach email invites through `public.pending_invites_for_me()` /
+  `accept_household_invite(uuid)` / `decline_household_invite(uuid)` (`authenticated`
+  only). Link invites use `public.invite_link_preview(p_token)` (`anon` + `authenticated`)
+  and `public.accept_household_invite_link(p_token)` (`authenticated`). Accepting inserts
+  `household_members` (role `member`) and calls `private.leave_empty_household_if_applicable`
+  — drops the joiner's signup household only when `private.household_is_empty` (no other
+  members, no properties/documents/people/schools/events/lists/renewals/calendar feed/
+  reminders/subscriptions/routines/meals/timetable/who's-where/guest-pack notes/gmail
+  connection, or outstanding invites). Two households is allowed when the joiner already
+  has content. Active household everywhere is the **most recently joined** membership
+  (`queryActiveMembership` / `loadHouseholdContext`). `/onboarding` redirects to `/invite`
+  when pending email invites exist (same as `/`). `20260926140000_household_invite_links.sql`
+  is **written but not applied**.
 - `documents(...)` — upload lands `extraction_status = 'pending'`; the worker fills
   `doc_type / provider / reference / start_date / end_date / renewal_date / amount /
   currency / key_contact_name / key_contact_phone` and the `extraction_confidence`
@@ -374,8 +388,9 @@ cleaned up — a known gap for a later lifecycle job.
   bar — deliberately *not* a bottom tab). Five cards: "Your household", "Plan" (phase 6),
   "People", "Sign out", "Delete account".
 - **`app/actions/settings.ts`** — all on the cookie client, so RLS decides the scope;
-  each action resolves the caller's oldest membership the same way the rest of the app
-  does. `updateHousehold()` repeats onboarding's validation shape (name, `UK|US`,
+  each action resolves the caller's active (most recently joined) membership the same way
+  the rest of the app does. `updateHousehold()` repeats onboarding's validation shape
+  (name, `UK|US`,
   address, 1000–2100 year) and writes `households` + `properties`. `inviteMember()`
   inserts a `household_invites` row with `invited_by = caller` — the same rule
   onboarding uses — after rejecting the caller's own address, an existing member and a
@@ -390,6 +405,28 @@ cleaned up — a known gap for a later lifecycle job.
   which is why it is done by hand, and the whole cleanup is wrapped: a failure there is
   logged and the deletion still goes through. Finally `signOut()` and `redirect("/")`.
 - Households the caller **shares** with someone else are never touched.
+
+## Household sharing (phase 3d)
+
+Link invites let a household owner invite a partner or another adult without email
+delivery. Email invites from onboarding/settings remain but nothing is sent.
+
+- **`InviteSomeoneSheet`** (Family + Settings → People): creates a single-use link
+  (32-byte base64url token, 7-day expiry, max 10 outstanding per household). Share via
+  `navigator.share` when available, always copy. Pending links list with inline revoke
+  confirm.
+- **`/join/[token]`** (outside `(app)`, public, `robots: noindex`): server-renders
+  `invite_link_preview`. Unknown token → 404. Expired/used/revoked → friendly card.
+  Signed out → household name + inviter, Create account / Sign in with
+  `?next=/join/<token>` (validated by `safeNextPath`). Signed in → confirm + Join /
+  Not now. Already a member → Go to Home (invite not consumed). Join →
+  `accept_household_invite_link` → `/dashboard`.
+- **`app/actions/invite-links.ts`**: `createInviteLink`, `revokeInviteLink`,
+  `listInviteLinks`, `acceptInviteLink`. URLs built with `publicAppOrigin()` like the
+  ICS feed.
+- **Auth `next`**: password, magic link, OAuth and email-confirm callbacks all carry
+  `?next=` through `/auth/callback` when the target is a same-site path.
+- **`/join/*`** is not in `proxy.ts`'s protected prefixes (reachable signed out).
 
 ## Billing (phase 6)
 
@@ -676,10 +713,9 @@ limit until custom SMTP is configured.
   for now), and its list is a client component (`DocumentsList`) for the review forms.
 - Model is pinned to `claude-sonnet-4-6` for the extraction benchmark (not the
   newer default) — `EXTRACTION_MODEL` in `lib/extraction.ts`.
-- `/sign-in` + `/sign-up` take `?next=`, and only the **password** flows honour it.
-  Supabase matches `emailRedirectTo` / OAuth `redirectTo` against the redirect
-  allow-list as whole strings (query included), so magic link and Google come back
-  to the bare `/auth/callback` and `/` re-routes from there. Adding
-  `<SITE>/auth/callback**` to the allow-list would let `next` survive those two.
-- `/invite` is deliberately **not** in `proxy.ts`'s protected prefixes — an invite
-  link has to render for a signed-out visitor.
+- `/sign-in` + `/sign-up` take `?next=` (sanitised by `safeNextPath`). Password,
+  magic link, OAuth and email confirmation all honour it via
+  `/auth/callback?next=…` — add `<SITE>/auth/callback**` to the Supabase redirect
+  allow-list if a wildcard is needed.
+- `/invite` and `/join/*` are deliberately **not** in `proxy.ts`'s protected prefixes —
+  invite links have to render for a signed-out visitor.

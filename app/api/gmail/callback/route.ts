@@ -6,6 +6,7 @@ import {
   saveGmailConnection,
 } from "@/lib/gmail";
 import { isGmailConfigured } from "@/lib/gmail-config";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
 function siteOrigin(): string {
@@ -49,13 +50,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/sign-in?next=/documents", origin));
   }
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) {
     return fail("No household found for your account.");
   }

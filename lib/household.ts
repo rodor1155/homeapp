@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-server";
 
 export type Locale = "UK" | "US";
@@ -34,8 +35,30 @@ type MembershipRow = {
 const MEMBERSHIP_SELECT =
   "households(id, name, locale, properties(id, address, type, year_built, created_at))";
 
+export type ActiveMembership = {
+  household_id: string;
+};
+
 /**
- * Loads the signed-in user together with their (first) household and property.
+ * The household the signed-in user is treated as belonging to. Most recently
+ * joined membership wins so a link invite lands in the household they just joined.
+ */
+export async function queryActiveMembership(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ data: ActiveMembership | null; error: PostgrestError | null }> {
+  const { data, error } = await supabase
+    .from("household_members")
+    .select("household_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return { data: data as ActiveMembership | null, error };
+}
+
+/**
+ * Loads the signed-in user together with their active household and property.
  * Returns nulls rather than redirecting so callers can decide what to do.
  *
  * Memoised for the length of a request, so a layout and the page inside it
@@ -58,7 +81,7 @@ export const loadHouseholdContext = cache(async () => {
     .from("household_members")
     .select(MEMBERSHIP_SELECT)
     .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

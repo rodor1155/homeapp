@@ -12,6 +12,7 @@ import {
 } from "@/lib/gmail";
 import { gmailSetupMessage, isGmailConfigured } from "@/lib/gmail-config";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
 type ResolvedHousehold =
@@ -26,13 +27,10 @@ async function resolveHousehold(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You are not signed in." };
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) {
     return { ok: false, error: "No household found for your account." };
   }

@@ -64,11 +64,15 @@ export async function signUpWithPassword(
   }
 
   const next = readNext(formData);
+  const callback =
+    next === "/"
+      ? `${siteUrl()}/auth/callback`
+      : `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+    options: { emailRedirectTo: callback },
   });
   if (error) return { error: error.message };
 
@@ -122,11 +126,16 @@ export async function sendMagicLink(
   const email = readEmail(formData);
   if (!email) return { error: "Enter your email address." };
 
+  const next = readNext(formData);
+  const callback =
+    next === "/"
+      ? `${siteUrl()}/auth/callback`
+      : `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${siteUrl()}/auth/callback`,
+      emailRedirectTo: callback,
       shouldCreateUser: true,
     },
   });

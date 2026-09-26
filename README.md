@@ -113,9 +113,22 @@ writes the row on the service role. `/settings` shows the plan and the buttons.
 
 The `subscriptions` migration is written but **not yet applied** to the project.
 
+## Household sharing
+
+Invite a partner or another adult from **Family** or **Settings → People**. The app
+creates a single-use link (expires in 7 days) you share yourself — no email is sent.
+The invitee opens `/join/<token>`, signs in or creates an account, and joins as a
+member with full household access. Legacy email invites on `/invite` still work when
+sent to the matching address.
+
+Apply migration `20260926140000_household_invite_links.sql` before link invites work
+in production. For local UI screenshots only (not committed): `/dev-sharing-preview?view=invite|join|join-signedout`.
+
 ## Supabase config that isn't in code
 
-- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` and
+- **Auth → URL Configuration**: add `${NEXT_PUBLIC_SITE_URL}/auth/callback` (and
+  `${NEXT_PUBLIC_SITE_URL}/auth/callback**` or per-path entries if your project needs
+  them for `?next=` on OAuth/magic links), plus
   `${NEXT_PUBLIC_SITE_URL}/auth/native-bridge` (local and prod) to the redirect
   allow-list; set the Site URL to the prod origin. The native-bridge URL is used by
   the Capacitor iOS shell for Google OAuth (in-app browser → deep link back).

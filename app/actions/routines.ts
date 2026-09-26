@@ -8,6 +8,7 @@ import {
   type RoutineCadence,
 } from "@/lib/routines";
 import { asWeekday } from "@/lib/timetable";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
 export type RoutineState = { error?: string; ok?: boolean } | undefined;
@@ -17,13 +18,10 @@ async function resolveHousehold(supabase: SupabaseClient) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) return { error: "No household found for your account." as const };
   return { householdId: membership.household_id as string };
 }

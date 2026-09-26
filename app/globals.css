@@ -638,6 +638,7 @@
   /* --- buttons: pills ----------------------------------------------------- */
 
   .btn,
+  .btn-accent,
   .btn-quiet,
   .btn-ghost,
   .btn-danger {
@@ -656,12 +657,14 @@
       color 0.14s ease, transform 0.06s ease;
   }
   .btn:active,
+  .btn-accent:active,
   .btn-quiet:active,
   .btn-ghost:active,
   .btn-danger:active {
     transform: translateY(0.5px);
   }
   .btn:disabled,
+  .btn-accent:disabled,
   .btn-quiet:disabled,
   .btn-ghost:disabled,
   .btn-danger:disabled {
@@ -679,6 +682,19 @@
   .btn:hover:not(:disabled) {
     background-color: var(--color-navy-soft);
     border-color: var(--color-navy-soft);
+  }
+
+  /* Primary CTA — amber accent, same tokens as the Home FAB. */
+  .btn-accent {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--map-pin-icon-on);
+    box-shadow:
+      0 4px 18px color-mix(in oklab, var(--accent) 45%, transparent),
+      0 1px 2px rgb(31 42 68 / 0.12);
+  }
+  .btn-accent:hover:not(:disabled) {
+    filter: brightness(1.05);
   }
 
   /* Secondary: a white pill with a hairline. */

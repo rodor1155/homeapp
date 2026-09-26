@@ -99,11 +99,12 @@ export function Card({
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "solid" | "quiet" | "ghost" | "danger";
+  variant?: "solid" | "accent" | "quiet" | "ghost" | "danger";
 };
 
 const BUTTON_CLASS: Record<NonNullable<ButtonProps["variant"]>, string> = {
   solid: "btn",
+  accent: "btn-accent",
   quiet: "btn-quiet",
   ghost: "btn-ghost",
   danger: "btn-danger",

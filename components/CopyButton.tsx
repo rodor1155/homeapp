@@ -6,9 +6,11 @@ import { Copy, Check } from "lucide-react";
 export default function CopyButton({
   value,
   label = "Copy",
+  className = "",
 }: {
   value: string;
   label?: string;
+  className?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,7 +40,7 @@ export default function CopyButton({
       type="button"
       onClick={onCopy}
       aria-label={copied ? "Copied" : label}
-      className="btn-quiet inline-flex min-h-11 min-w-11 items-center justify-center gap-1 px-2 text-xs"
+      className={`btn-quiet inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 px-2 text-xs ${className}`}
     >
       <span aria-live="polite" className="sr-only">
         {copied ? "Copied" : ""}

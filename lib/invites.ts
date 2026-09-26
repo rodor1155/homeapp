@@ -43,6 +43,7 @@ export async function loadSentInvites(
     .select("id, email")
     .eq("household_id", householdId)
     .eq("status", "pending")
+    .not("email", "is", null)
     .order("created_at", { ascending: true });
   if (error) return [];
   return (data as SentInvite[] | null) ?? [];

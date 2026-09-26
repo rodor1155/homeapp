@@ -13,12 +13,13 @@ import {
 import { syncHouseholdCalendar } from "@/lib/household-calendar";
 import { normaliseCalendarUrl } from "@/lib/ics";
 import { syncSchoolCalendar } from "@/lib/school-calendar";
+import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
 /* People, schools, key dates and the household's own linked calendars.
    Everything here runs on the cookie client, so RLS decides what the caller
    can touch; the household is resolved the same way the rest of the app
-   resolves it — the oldest membership. */
+   resolves it — the most recently joined membership. */
 
 export type FamilyState = { error?: string; ok?: boolean } | undefined;
 
@@ -32,13 +33,10 @@ async function resolveCaller(supabase: SupabaseClient): Promise<Caller> {
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");
 
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: membership } = await queryActiveMembership(
+    supabase,
+    user.id
+  );
   if (!membership) {
     return { ok: false, error: "No household found for your account." };
   }

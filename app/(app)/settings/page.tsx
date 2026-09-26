@@ -8,6 +8,7 @@ import {
   loadSubscription,
 } from "@/lib/billing";
 import { requireOnboarded } from "@/lib/household";
+import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { loadSentInvites } from "@/lib/invites";
 import { loadHouseholdMembers } from "@/lib/members";
 import DeleteAccountPanel from "./DeleteAccountPanel";
@@ -28,10 +29,11 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   const { supabase, user, household, property } = await requireOnboarded();
 
   const billingConfigured = isBillingConfigured();
-  const [members, invites, entitlements, guestPackLoad, calendarFeedRes] =
+  const [members, invites, inviteLinks, entitlements, guestPackLoad, calendarFeedRes] =
     await Promise.all([
       loadHouseholdMembers(supabase, household.id),
       loadSentInvites(supabase, household.id),
+      loadPendingInviteLinks(supabase, household.id),
       getEntitlements(household.id),
       loadGuestPack(supabase, household.id),
       supabase
@@ -134,6 +136,7 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         <PeoplePanel
           members={members}
           invites={invites}
+          inviteLinks={inviteLinks}
           currentUserId={user.id}
         />
         <p className="mt-4 border-t border-rule pt-3 text-xs text-ink-faint">

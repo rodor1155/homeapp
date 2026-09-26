@@ -8,6 +8,8 @@ import {
   loadSchoolCalendarEvents,
   loadSchools,
 } from "@/lib/family";
+import InviteSomeoneButton from "@/components/InviteSomeoneButton";
+import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadMealPlans, weekStartMonday } from "@/lib/meals";
 import { loadRenewalItems } from "@/lib/renewals";
@@ -53,6 +55,7 @@ export default async function FamilyPage({
     mealsLoad,
     renewalsLoad,
     documentsResult,
+    inviteLinks,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -67,6 +70,7 @@ export default async function FamilyPage({
       .select("id, original_filename, category")
       .eq("household_id", household.id)
       .order("created_at", { ascending: false }),
+    loadPendingInviteLinks(supabase, household.id),
   ]);
 
   const people = peopleLoad.items;
@@ -142,9 +146,12 @@ export default async function FamilyPage({
       <Card
         title="Who lives here"
         action={
-          <span className="tnum text-xs text-ink-faint">
-            {people.length} {people.length === 1 ? "person" : "people"}
-          </span>
+          <div className="flex items-center gap-2">
+            <InviteSomeoneButton pendingLinks={inviteLinks} />
+            <span className="tnum text-xs text-ink-faint">
+              {people.length} {people.length === 1 ? "person" : "people"}
+            </span>
+          </div>
         }
       >
         <PeoplePanel
