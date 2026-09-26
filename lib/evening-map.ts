@@ -1,8 +1,9 @@
 // Evening map Home helpers — client-safe.
 
-import type { ComingUpEntry } from "@/lib/coming-up";
+import { COMING_UP_TONE, type ComingUpEntry } from "@/lib/coming-up";
 import { formatDate, relativeWhen } from "@/lib/dates";
 import type { Locale } from "@/lib/household";
+import type { Tone } from "@/lib/tones";
 
 /** Stable member edge colours (amber / dusty rose / sky). */
 export const MEMBER_EDGE_CLASSES = [
@@ -30,6 +31,36 @@ export function memberEdgeClass(
   const idx = sorted.findIndex((p) => p.id === personId);
   if (idx < 0) return "evening-edge-neutral";
   return MEMBER_EDGE_CLASSES[idx % MEMBER_EDGE_CLASSES.length];
+}
+
+const MEMBER_EDGE_TINT: Record<
+  Exclude<MemberEdgeClass, "evening-edge-neutral">,
+  string
+> = {
+  "evening-edge-amber": "var(--member-amber)",
+  "evening-edge-rose": "var(--member-rose)",
+  "evening-edge-sky": "var(--member-sky)",
+};
+
+const TONE_HUE_TINT: Record<Tone, string> = {
+  sage: "var(--hue-sage)",
+  ochre: "var(--hue-ochre)",
+  navy: "var(--hue-navy)",
+  lilac: "var(--hue-lilac)",
+  peach: "var(--hue-peach)",
+  sky: "var(--hue-sky)",
+};
+
+/** CSS colour for `--card-tint` on peeking deck cards. */
+export function cardTintForEntry(
+  entry: ComingUpEntry,
+  people: readonly PersonSortable[]
+): string {
+  const edge = memberEdgeClass(entry.personId, people);
+  if (edge !== "evening-edge-neutral") {
+    return MEMBER_EDGE_TINT[edge];
+  }
+  return TONE_HUE_TINT[COMING_UP_TONE[entry.kind]];
 }
 
 function todayEntryCount(entries: readonly ComingUpEntry[]): number {

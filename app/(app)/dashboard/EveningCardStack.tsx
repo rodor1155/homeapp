@@ -14,6 +14,7 @@ import {
   Backpack,
   Cake,
   CalendarDays,
+  ChevronRight,
   FileText,
   GraduationCap,
   RefreshCw,
@@ -26,7 +27,13 @@ import {
   COMING_UP_TONE,
   type ComingUpEntry,
 } from "@/lib/coming-up";
-import { eveningCardWhen, eveningStackEntries, memberEdgeClass, type PersonSortable } from "@/lib/evening-map";
+import {
+  cardTintForEntry,
+  eveningCardWhen,
+  eveningStackEntries,
+  memberEdgeClass,
+  type PersonSortable,
+} from "@/lib/evening-map";
 import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
 import EveningCardDetailOverlay, { type CardDetailRect } from "./EveningCardDetailOverlay";
@@ -50,13 +57,13 @@ const SPRING = "cubic-bezier(0.2, 0.9, 0.25, 1.15)";
 const SHUFFLE_MS = 340;
 
 const STACK_TRANSFORMS = [
-  { y: 0, scale: 1, rotate: 0, opacity: 1, z: 30 },
-  { y: -18, scale: 0.95, rotate: -2, opacity: 1, z: 20 },
-  { y: -34, scale: 0.9, rotate: 2.5, opacity: 1, z: 10 },
+  { y: 0, scale: 1, rotate: 0, opacity: 1, z: 30, peekBand: 0 },
+  { y: -26, scale: 0.94, rotate: -2.5, opacity: 1, z: 20, peekBand: 26 },
+  { y: -50, scale: 0.88, rotate: 2.5, opacity: 1, z: 10, peekBand: 24 },
 ] as const;
 
-/** Headroom above peek translateY for rotated corner lift (bottom-center origin). */
-const PEEK_ROTATION_LIFT_PX = 8;
+const DECK_PEEK_HEADROOM =
+  "calc(var(--deck-peek-offset-far) + var(--deck-peek-rotation-lift))";
 
 function subscribeReducedMotion(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
@@ -72,6 +79,7 @@ function clientReducedMotion(): boolean {
 function EveningDeckCard({
   entry,
   edge,
+  cardTint,
   locale,
   stackIndex,
   isFront,
@@ -88,6 +96,7 @@ function EveningDeckCard({
 }: {
   entry: ComingUpEntry;
   edge: string;
+  cardTint: string;
   locale: Locale;
   stackIndex: number;
   isFront: boolean;
@@ -136,6 +145,8 @@ function EveningDeckCard({
         zIndex: t.z,
         opacity,
         transform,
+        ["--card-tint" as string]: cardTint,
+        ["--peek-band" as string]: t.peekBand ? `${t.peekBand}px` : undefined,
         pointerEvents: isFront ? "auto" : "none",
         willChange: isFront && (dragX !== 0 || exiting) ? "transform, opacity" : undefined,
         transition:
@@ -151,13 +162,9 @@ function EveningDeckCard({
       onPointerCancel={isFront ? onFrontPointerCancel : undefined}
     >
       {!isFront ? (
-        <div className="evening-card-ghost" aria-hidden>
-          <span className="evening-card-ghost-icon" />
-          <div className="evening-card-ghost-lines">
-            <span className="evening-card-ghost-bar evening-card-ghost-bar--title" />
-            <span className="evening-card-ghost-bar" />
-          </div>
-        </div>
+        <p className="evening-card-peek-title" aria-hidden>
+          {entry.title}
+        </p>
       ) : null}
 
       <div
@@ -239,7 +246,6 @@ export default function EveningCardStack({
   const visible = deckEntries.slice(0, 3);
   const frontEntry = visible[0];
   const frontEntryKey = frontEntry?.key;
-  const moreCount = Math.max(0, deckEntries.length - 3);
 
   const measureCardWidth = useCallback(() => {
     const w = frontCardRef.current?.offsetWidth;
@@ -407,63 +413,55 @@ export default function EveningCardStack({
     <>
       <div className="evening-card-stack">
         <div className="evening-deck-toolbar">
-          <button
-            type="button"
-            className="evening-deck-see-all"
-            aria-expanded={sheetOpen}
-            aria-controls="evening-coming-up-sheet"
-            onClick={() => setSheetOpen(true)}
-          >
-            See all
-          </button>
+          <div className="evening-deck-toolbar-actions">
+            <button
+              type="button"
+              className="evening-deck-shuffle"
+              aria-label="Next reminder"
+              disabled={deckEntries.length <= 1 || isShuffling}
+              onClick={onShuffleClick}
+            >
+              <Shuffle size={20} strokeWidth={2} aria-hidden />
+            </button>
 
-          {moreCount > 0 ? (
-            <span className="evening-deck-more" aria-live="polite">
-              +{moreCount} more
-            </span>
-          ) : (
-            <span aria-hidden className="evening-deck-more evening-deck-more--empty" />
-          )}
-
-          <button
-            type="button"
-            className="evening-deck-shuffle"
-            aria-label="Next reminder"
-            disabled={deckEntries.length <= 1 || isShuffling}
-            onClick={onShuffleClick}
-          >
-            <Shuffle size={20} strokeWidth={2} aria-hidden />
-          </button>
+            <button
+              type="button"
+              className="evening-deck-see-all-pill"
+              aria-expanded={sheetOpen}
+              aria-controls="evening-coming-up-sheet"
+              onClick={() => setSheetOpen(true)}
+            >
+              See all ({entries.length})
+              <ChevronRight size={18} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
         </div>
 
         <div
           ref={deckRef}
           className="evening-deck"
+          style={{
+            ["--deck-peek-headroom" as string]:
+              visible.length > 1 ? DECK_PEEK_HEADROOM : "0px",
+          }}
           tabIndex={0}
           role="group"
           aria-label="Coming up reminders"
           onKeyDown={onDeckKeyDown}
         >
-          <div
-            ref={frontFocusRef}
-            className="evening-deck-stage"
-            style={{
-              paddingTop:
-                visible.length > 1
-                  ? `${Math.abs(STACK_TRANSFORMS[visible.length - 1].y) + PEEK_ROTATION_LIFT_PX}px`
-                  : undefined,
-            }}
-          >
+          <div ref={frontFocusRef} className="evening-deck-stage">
             {[...visible].reverse().map((entry) => {
               const stackIndex = visible.findIndex((v) => v.key === entry.key);
               const isFront = stackIndex === 0;
               const edge = memberEdgeClass(entry.personId, people);
+              const cardTint = cardTintForEntry(entry, people);
 
               return (
                 <EveningDeckCard
                   key={entry.key}
                   entry={entry}
                   edge={edge}
+                  cardTint={cardTint}
                   locale={locale}
                   stackIndex={stackIndex}
                   isFront={isFront}

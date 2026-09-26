@@ -25,8 +25,12 @@
   --surface-glass: rgb(255 255 255 / 0.72);
   --surface-glass-strong: rgb(255 255 255 / 0.85);
   --surface-glass-card: rgb(255 255 255 / 0.78);
+  --surface-glass-card-front: #ffffff;
   --surface-glass-peek-near: rgb(255 255 255 / 0.55);
   --surface-glass-peek-far: rgb(255 255 255 / 0.4);
+  --surface-deck-control: rgb(255 255 255 / 0.94);
+  --surface-deck-control-hover: rgb(255 255 255 / 0.97);
+  --deck-control-border: rgb(31 42 68 / 0.14);
 
   --glass-border: rgb(31 42 68 / 0.08);
   --glass-shadow: 0 8px 24px rgb(31 42 68 / 0.12);
@@ -85,6 +89,18 @@
   --shadow-bar: 0 -1px 0 var(--border), 0 -8px 24px -16px rgb(31 42 68 / 0.12);
   --shadow-fab: 0 4px 14px rgb(31 42 68 / 0.28), 0 12px 28px -10px rgb(31 42 68 / 0.35);
   --shadow-evening-card: var(--glass-shadow);
+  --shadow-deck-peek-near: 0 6px 18px rgb(31 42 68 / 0.14);
+  --shadow-deck-peek-far: 0 10px 28px rgb(31 42 68 / 0.18);
+  --shadow-deck-control: 0 2px 8px rgb(31 42 68 / 0.1), 0 1px 2px rgb(31 42 68 / 0.06);
+
+  --deck-peek-offset-far: 50px;
+  --deck-peek-rotation-lift: 12px;
+  --deck-peek-headroom: calc(
+    var(--deck-peek-offset-far) + var(--deck-peek-rotation-lift)
+  );
+  --deck-controls-gap: 0.6875rem;
+  --deck-peek-edge-width: 6px;
+  --deck-front-edge-width: 5px;
 
   --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231f2a44' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 
@@ -125,8 +141,12 @@
     --surface-glass: rgb(20 28 46 / 0.62);
     --surface-glass-strong: rgb(20 28 46 / 0.72);
     --surface-glass-card: rgb(20 28 46 / 0.78);
+    --surface-glass-card-front: #1e2a44;
     --surface-glass-peek-near: rgb(30 42 68 / 0.55);
     --surface-glass-peek-far: rgb(30 42 68 / 0.4);
+    --surface-deck-control: rgb(30 42 68 / 0.94);
+    --surface-deck-control-hover: rgb(36 48 76 / 0.97);
+    --deck-control-border: rgb(255 255 255 / 0.2);
 
     --glass-border: rgb(255 255 255 / 0.1);
     --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.28);
@@ -180,6 +200,9 @@
     --shadow-raised: 0 2px 6px rgb(0 0 0 / 0.4), 0 12px 28px -12px rgb(0 0 0 / 0.55);
     --shadow-fab: 0 4px 14px rgb(0 0 0 / 0.45), 0 14px 32px -10px rgb(0 0 0 / 0.55);
     --shadow-evening-card: var(--glass-shadow);
+    --shadow-deck-peek-near: 0 8px 24px rgb(0 0 0 / 0.32);
+    --shadow-deck-peek-far: 0 14px 36px rgb(0 0 0 / 0.42);
+    --shadow-deck-control: 0 2px 10px rgb(0 0 0 / 0.28), 0 1px 2px rgb(0 0 0 / 0.18);
 
     --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e8eaf0' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 
@@ -1050,40 +1073,51 @@
   }
 
   .evening-glass-card-front {
-    background-color: rgb(255 255 255 / 0.94);
+    background-color: var(--surface-glass-card-front);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow:
+      var(--shadow-evening-card),
+      inset var(--deck-front-edge-width) 0 0 0 var(--card-tint);
+  }
+
+  .evening-glass-card-peek-near,
+  .evening-glass-card-peek-far {
+    border-color: color-mix(in oklab, var(--card-tint) 32%, var(--glass-border));
+    overflow: hidden;
   }
 
   .evening-glass-card-peek-near {
-    background-color: rgb(255 255 255 / 0.86);
-    box-shadow:
-      var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.12);
+    --card-tint-mix: 26%;
+    --deck-depth-shadow: var(--shadow-deck-peek-near);
+    background:
+      linear-gradient(
+        color-mix(in oklab, var(--card-tint) var(--card-tint-mix), transparent),
+        color-mix(in oklab, var(--card-tint) var(--card-tint-mix), transparent)
+      ),
+      var(--surface-glass-peek-near);
   }
 
   .evening-glass-card-peek-far {
-    background-color: rgb(255 255 255 / 0.78);
-    box-shadow:
-      var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.1);
+    --card-tint-mix: 22%;
+    --deck-depth-shadow: var(--shadow-deck-peek-far);
+    background:
+      linear-gradient(
+        color-mix(in oklab, var(--card-tint) var(--card-tint-mix), transparent),
+        color-mix(in oklab, var(--card-tint) var(--card-tint-mix), transparent)
+      ),
+      var(--surface-glass-peek-far);
   }
 
   @media (prefers-color-scheme: dark) {
-    .evening-glass-card-front {
-      background-color: rgb(20 28 46 / 0.92);
-    }
-
     .evening-glass-card-peek-near {
-      background-color: rgb(30 42 68 / 0.88);
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.22);
+      --card-tint-mix: 28%;
     }
 
     .evening-glass-card-peek-far {
-      background-color: rgb(30 42 68 / 0.8);
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.18);
+      --card-tint-mix: 24%;
     }
   }
 
@@ -1105,44 +1139,24 @@
     opacity: 1;
   }
 
-  .evening-card--back .evening-card-ghost {
+  .evening-card-peek-title {
     position: absolute;
-    inset: 0.9375rem 1rem;
+    top: 0;
+    inset-inline: 0 1rem;
+    height: var(--peek-band, 1.625rem);
+    margin: 0;
     display: flex;
-    align-items: flex-start;
-    gap: 0.65rem;
+    align-items: flex-end;
+    padding-inline-start: calc(var(--deck-peek-edge-width) + 0.625rem);
+    padding-bottom: 0.2rem;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: color-mix(in oklab, var(--map-text) 70%, transparent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     pointer-events: none;
-  }
-
-  .evening-card-ghost-icon {
-    flex: none;
-    width: 2rem;
-    height: 2rem;
-    margin-top: 0.05rem;
-    border-radius: 0.5rem;
-    background: color-mix(in oklab, var(--map-text) 7%, transparent);
-  }
-
-  .evening-card-ghost-lines {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding-top: 0.15rem;
-  }
-
-  .evening-card-ghost-bar {
-    display: block;
-    height: 0.4375rem;
-    width: 42%;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--map-text) 6%, transparent);
-  }
-
-  .evening-card-ghost-bar--title {
-    height: 0.5625rem;
-    width: 58%;
-    background: color-mix(in oklab, var(--map-text) 9%, transparent);
   }
 
   .evening-card-row {
@@ -1164,84 +1178,31 @@
     cursor: grabbing;
   }
 
-  .evening-edge-amber,
-  .evening-edge-rose,
-  .evening-edge-sky,
-  .evening-edge-neutral {
-    border-left: none;
-  }
-
   .evening-edge-amber {
-    box-shadow:
-      var(--shadow-evening-card),
-      inset 4px 0 0 0 var(--member-amber);
+    --card-edge-color: var(--member-amber);
   }
   .evening-edge-rose {
-    box-shadow:
-      var(--shadow-evening-card),
-      inset 4px 0 0 0 var(--member-rose);
+    --card-edge-color: var(--member-rose);
   }
   .evening-edge-sky {
-    box-shadow:
-      var(--shadow-evening-card),
-      inset 4px 0 0 0 var(--member-sky);
+    --card-edge-color: var(--member-sky);
   }
   .evening-edge-neutral {
-    box-shadow:
-      var(--shadow-evening-card),
-      inset 4px 0 0 0 var(--member-neutral);
+    --card-edge-color: var(--card-tint, var(--member-neutral));
   }
 
-  .evening-card--back.evening-edge-amber {
+  .evening-glass-card-peek-near.evening-edge-amber,
+  .evening-glass-card-peek-near.evening-edge-rose,
+  .evening-glass-card-peek-near.evening-edge-sky,
+  .evening-glass-card-peek-near.evening-edge-neutral,
+  .evening-glass-card-peek-far.evening-edge-amber,
+  .evening-glass-card-peek-far.evening-edge-rose,
+  .evening-glass-card-peek-far.evening-edge-sky,
+  .evening-glass-card-peek-far.evening-edge-neutral {
     box-shadow:
       var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.12),
-      inset 4px 0 0 0 var(--member-amber);
-  }
-  .evening-card--back.evening-edge-rose {
-    box-shadow:
-      var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.12),
-      inset 4px 0 0 0 var(--member-rose);
-  }
-  .evening-card--back.evening-edge-sky {
-    box-shadow:
-      var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.12),
-      inset 4px 0 0 0 var(--member-sky);
-  }
-  .evening-card--back.evening-edge-neutral {
-    box-shadow:
-      var(--shadow-evening-card),
-      0 2px 10px rgb(31 42 68 / 0.12),
-      inset 4px 0 0 0 var(--member-neutral);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .evening-card--back.evening-edge-amber {
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.22),
-        inset 4px 0 0 0 var(--member-amber);
-    }
-    .evening-card--back.evening-edge-rose {
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.22),
-        inset 4px 0 0 0 var(--member-rose);
-    }
-    .evening-card--back.evening-edge-sky {
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.22),
-        inset 4px 0 0 0 var(--member-sky);
-    }
-    .evening-card--back.evening-edge-neutral {
-      box-shadow:
-        var(--shadow-evening-card),
-        0 2px 12px rgb(0 0 0 / 0.22),
-        inset 4px 0 0 0 var(--member-neutral);
-    }
+      var(--deck-depth-shadow, 0 0 0 0 transparent),
+      inset var(--deck-peek-edge-width) 0 0 0 var(--card-edge-color);
   }
 
   .evening-card-title {
@@ -1265,43 +1226,51 @@
   }
 
   .evening-deck-toolbar {
-    position: relative;
-    z-index: 40;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
+    margin-bottom: var(--deck-controls-gap);
+  }
+
+  .evening-deck-toolbar-actions {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
-    padding-bottom: 0.5rem;
   }
 
-  .evening-deck-see-all {
-    padding: 0.35rem 0;
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--map-text-muted);
-    background: none;
-    border: 0;
+  .evening-deck-see-all-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--deck-control-border);
+    background-color: var(--surface-deck-control);
+    color: var(--text);
     font-family: inherit;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 0.15em;
-    text-decoration-color: color-mix(in oklab, var(--map-text-muted) 45%, transparent);
-  }
-
-  .evening-deck-see-all:hover {
-    color: var(--map-text);
-  }
-
-  .evening-deck-more {
-    flex: 1;
-    text-align: center;
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--map-text-subtle);
+    line-height: 1.2;
+    cursor: pointer;
+    box-shadow: var(--shadow-deck-control);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    transition:
+      background-color 0.14s ease,
+      color 0.14s ease,
+      border-color 0.14s ease,
+      box-shadow 0.14s ease;
   }
 
-  .evening-deck-more--empty {
-    visibility: hidden;
+  .evening-deck-see-all-pill:hover {
+    border-color: color-mix(in oklab, var(--text) 22%, var(--deck-control-border));
+    background-color: var(--surface-deck-control-hover);
+  }
+
+  .evening-deck-see-all-pill:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .evening-deck-shuffle {
@@ -1309,20 +1278,35 @@
     align-items: center;
     justify-content: center;
     width: 2.75rem;
+    min-width: 2.75rem;
     height: 2.75rem;
+    min-height: 2.75rem;
     flex: none;
     border-radius: 50%;
-    border: 1px solid var(--glass-border);
-    background-color: var(--surface-glass);
-    color: var(--map-text);
+    border: 1px solid var(--deck-control-border);
+    background-color: var(--surface-deck-control);
+    color: var(--text);
     cursor: pointer;
+    box-shadow: var(--shadow-deck-control);
     backdrop-filter: blur(12px) saturate(1.3);
     -webkit-backdrop-filter: blur(12px) saturate(1.3);
-    transition: background-color 0.14s ease, color 0.14s ease, opacity 0.14s ease;
+    transition:
+      background-color 0.14s ease,
+      color 0.14s ease,
+      border-color 0.14s ease,
+      box-shadow 0.14s ease,
+      opacity 0.14s ease;
   }
 
   .evening-deck-shuffle:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--text) 22%, var(--deck-control-border));
+    background-color: var(--surface-deck-control-hover);
     color: var(--accent-text);
+  }
+
+  .evening-deck-shuffle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .evening-deck-shuffle:disabled {
@@ -1332,8 +1316,8 @@
 
   .evening-deck {
     position: relative;
-    z-index: 1;
     outline: none;
+    padding-top: var(--deck-peek-headroom, 0px);
   }
 
   .evening-deck:focus-visible {
@@ -1351,7 +1335,14 @@
     position: absolute;
     inset-inline: 0;
     bottom: 0;
+  }
+
+  .evening-deck-stage .evening-card--front {
     transform-origin: bottom center;
+  }
+
+  .evening-deck-stage .evening-card--back {
+    transform-origin: top center;
   }
 
   @media (prefers-reduced-motion: reduce) {
