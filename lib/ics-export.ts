@@ -14,6 +14,8 @@ export function isValidFeedToken(token: string): boolean {
 
 const CRLF = "\r\n";
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Stable DTSTAMP when a row has no timestamp (RFC 5545 UTC basic format). */
+export const ICS_FALLBACK_DTSTAMP = "20240101T000000Z";
 const FEED_WINDOW_PAST_DAYS = 90;
 const FEED_WINDOW_FUTURE_DAYS = 730;
 const LONDON_TZ = "Europe/London";
@@ -66,6 +68,7 @@ export type IcsPerson = {
   id: string;
   name: string;
   birthday: string | null;
+  created_at?: string | null;
 };
 
 export type IcsFeedInput = {
@@ -211,10 +214,16 @@ function textProperty(name: string, value: string): string {
   return property(name, escapeIcsText(value));
 }
 
-function lastModified(source: string | null | undefined, generatedAt: Date): string {
+/** Row updated_at / created_at → DTSTAMP / LAST-MODIFIED, else a fixed epoch. */
+export function sourceDtStamp(source: string | null | undefined): string {
   const parsed = source ? Date.parse(source) : NaN;
-  const at = Number.isFinite(parsed) ? new Date(parsed) : generatedAt;
-  return formatIcsDateTimeUtc(at);
+  if (Number.isFinite(parsed)) return formatIcsDateTimeUtc(new Date(parsed));
+  return ICS_FALLBACK_DTSTAMP;
+}
+
+function maxDtStamp(stamps: readonly string[]): string {
+  if (stamps.length === 0) return ICS_FALLBACK_DTSTAMP;
+  return stamps.reduce((max, stamp) => (stamp > max ? stamp : max));
 }
 
 function documentTitle(doc: IcsDocument): string {
@@ -242,7 +251,8 @@ type VEventBlock = {
   uid: string;
   summary: string;
   startDate: string;
-  lastModified?: string | null;
+  /** updated_at, else created_at — drives DTSTAMP and LAST-MODIFIED. */
+  stampSource?: string | null;
   description?: string | null;
   categories?: string | null;
   url?: string | null;
@@ -250,18 +260,20 @@ type VEventBlock = {
   alarmDays?: number;
 };
 
-function buildVEvent(block: VEventBlock, generatedAt: Date): string[] {
+function buildVEvent(block: VEventBlock): { lines: string[]; dtStamp: string } {
   const dtStart = formatIcsDate(block.startDate);
   const dtEnd = addCalendarDays(block.startDate, 1);
-  if (!dtStart || !dtEnd) return [];
+  if (!dtStart || !dtEnd) return { lines: [], dtStamp: ICS_FALLBACK_DTSTAMP };
   const end = formatIcsDate(dtEnd);
-  if (!end) return [];
+  if (!end) return { lines: [], dtStamp: ICS_FALLBACK_DTSTAMP };
+
+  const dtStamp = sourceDtStamp(block.stampSource);
 
   const lines = [
     "BEGIN:VEVENT",
     property("UID", block.uid),
-    property("DTSTAMP", formatIcsDateTimeUtc(generatedAt)),
-    property("LAST-MODIFIED", lastModified(block.lastModified, generatedAt)),
+    property("DTSTAMP", dtStamp),
+    property("LAST-MODIFIED", dtStamp),
     property("SEQUENCE", "0"),
     property("DTSTART;VALUE=DATE", dtStart),
     property("DTEND;VALUE=DATE", end),
@@ -285,7 +297,7 @@ function buildVEvent(block: VEventBlock, generatedAt: Date): string[] {
   }
 
   lines.push("END:VEVENT");
-  return lines;
+  return { lines, dtStamp };
 }
 
 function birthdayRrule(parts: DateParts): string {
@@ -309,8 +321,6 @@ export function buildHouseholdIcs(
   now: Date = input.generatedAt
 ): string {
   const window = feedWindow(now);
-  const generatedAt = input.generatedAt;
-  const dtStamp = formatIcsDateTimeUtc(generatedAt);
   const peopleById = new Map(input.people.map((person) => [person.id, person.name]));
   const linkedDocIds = new Set(
     input.renewals
@@ -328,29 +338,26 @@ export function buildHouseholdIcs(
     property("X-WR-TIMEZONE", LONDON_TZ),
     property("X-PUBLISHED-TTL", "PT6H"),
     property("REFRESH-INTERVAL;VALUE=DURATION", "PT6H"),
-    property("DTSTAMP", dtStamp),
   ];
 
   const vevents: string[] = [];
+  const veventDtStamps: string[] = [];
 
   for (const event of input.events) {
     if (!dateInWindow(event.event_date, window)) continue;
     const category =
       input.eventTypeLabels[event.event_type] ?? event.event_type;
-    vevents.push(
-      ...buildVEvent(
-        {
-          uid: `event-${event.id}@hearth-home`,
-          summary: sanitizeIcsText(event.title) || "Key date",
-          startDate: event.event_date,
-          lastModified: event.created_at,
-          description: sanitizeIcsText(event.notes) || null,
-          categories: category,
-          url: `${input.appOrigin}/family`,
-        },
-        generatedAt
-      )
-    );
+    const built = buildVEvent({
+      uid: `event-${event.id}@hearth-home`,
+      summary: sanitizeIcsText(event.title) || "Key date",
+      startDate: event.event_date,
+      stampSource: event.created_at,
+      description: sanitizeIcsText(event.notes) || null,
+      categories: category,
+      url: `${input.appOrigin}/family`,
+    });
+    veventDtStamps.push(built.dtStamp);
+    vevents.push(...built.lines);
   }
 
   for (const item of input.renewals) {
@@ -358,21 +365,18 @@ export function buildHouseholdIcs(
     const personName = item.person_id
       ? peopleById.get(item.person_id) ?? null
       : null;
-    vevents.push(
-      ...buildVEvent(
-        {
-          uid: `renewal-${item.id}@hearth-home`,
-          summary: renewalSummary(item, personName, input.renewalKindLabels),
-          startDate: item.due_date,
-          lastModified: item.updated_at ?? item.created_at,
-          description: renewalDescription(item),
-          categories: "Renewal",
-          url: `${input.appOrigin}/family?renewal=${item.id}`,
-          alarmDays: item.remind_days,
-        },
-        generatedAt
-      )
-    );
+    const built = buildVEvent({
+      uid: `renewal-${item.id}@hearth-home`,
+      summary: renewalSummary(item, personName, input.renewalKindLabels),
+      startDate: item.due_date,
+      stampSource: item.updated_at ?? item.created_at,
+      description: renewalDescription(item),
+      categories: "Renewal",
+      url: `${input.appOrigin}/family?renewal=${item.id}`,
+      alarmDays: item.remind_days,
+    });
+    veventDtStamps.push(built.dtStamp);
+    vevents.push(...built.lines);
   }
 
   for (const doc of input.documents) {
@@ -380,38 +384,32 @@ export function buildHouseholdIcs(
     if (linkedDocIds.has(doc.id)) continue;
 
     const title = documentTitle(doc) || "Document";
-    const lastMod = doc.created_at;
+    const stampSource = doc.created_at;
 
     if (doc.renewal_date && dateInWindow(doc.renewal_date, window)) {
-      vevents.push(
-        ...buildVEvent(
-          {
-            uid: `doc-${doc.id}-renewal@hearth-home`,
-            summary: `Renews: ${title}`,
-            startDate: doc.renewal_date,
-            lastModified: lastMod,
-            categories: "Document",
-            url: `${input.appOrigin}/documents`,
-          },
-          generatedAt
-        )
-      );
+      const built = buildVEvent({
+        uid: `doc-${doc.id}-renewal@hearth-home`,
+        summary: `Renews: ${title}`,
+        startDate: doc.renewal_date,
+        stampSource,
+        categories: "Document",
+        url: `${input.appOrigin}/documents`,
+      });
+      veventDtStamps.push(built.dtStamp);
+      vevents.push(...built.lines);
     }
 
     if (doc.end_date && dateInWindow(doc.end_date, window)) {
-      vevents.push(
-        ...buildVEvent(
-          {
-            uid: `doc-${doc.id}-end@hearth-home`,
-            summary: `Ends: ${title}`,
-            startDate: doc.end_date,
-            lastModified: lastMod,
-            categories: "Document",
-            url: `${input.appOrigin}/documents`,
-          },
-          generatedAt
-        )
-      );
+      const built = buildVEvent({
+        uid: `doc-${doc.id}-end@hearth-home`,
+        summary: `Ends: ${title}`,
+        startDate: doc.end_date,
+        stampSource,
+        categories: "Document",
+        url: `${input.appOrigin}/documents`,
+      });
+      veventDtStamps.push(built.dtStamp);
+      vevents.push(...built.lines);
     }
   }
 
@@ -419,21 +417,20 @@ export function buildHouseholdIcs(
     const start = birthdayStartDate(person.birthday ?? "");
     const parts = parseDateParts(person.birthday);
     if (!start || !parts) continue;
-    vevents.push(
-      ...buildVEvent(
-        {
-          uid: `birthday-${person.id}@hearth-home`,
-          summary: `${sanitizeIcsText(person.name)}'s birthday`,
-          startDate: start,
-          categories: "Birthday",
-          url: `${input.appOrigin}/family`,
-          rrule: birthdayRrule(parts),
-        },
-        generatedAt
-      )
-    );
+    const built = buildVEvent({
+      uid: `birthday-${person.id}@hearth-home`,
+      summary: `${sanitizeIcsText(person.name)}'s birthday`,
+      startDate: start,
+      stampSource: person.created_at,
+      categories: "Birthday",
+      url: `${input.appOrigin}/family`,
+      rrule: birthdayRrule(parts),
+    });
+    veventDtStamps.push(built.dtStamp);
+    vevents.push(...built.lines);
   }
 
+  events.push(property("DTSTAMP", maxDtStamp(veventDtStamps)));
   events.push(...vevents);
   events.push("END:VCALENDAR");
 

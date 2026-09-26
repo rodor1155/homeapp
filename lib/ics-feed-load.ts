@@ -19,7 +19,7 @@ const RENEWALS_SELECT =
   "id, person_id, title, kind, due_date, remind_days, reference, provider, notes, document_id, updated_at, created_at";
 const DOCUMENTS_SELECT =
   "id, original_filename, doc_type, provider, renewal_date, end_date, superseded_by, created_at";
-const PEOPLE_SELECT = "id, name, birthday";
+const PEOPLE_SELECT = "id, name, birthday, created_at";
 
 export async function buildIcsFeedForToken(
   householdId: string,

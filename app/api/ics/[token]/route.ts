@@ -19,6 +19,14 @@ function notFound() {
   return new NextResponse("Not found", { status: 404 });
 }
 
+/** If-None-Match may be a comma list; weak tags use a W/ prefix. */
+function etagMatches(ifNoneMatch: string, etag: string): boolean {
+  return ifNoneMatch
+    .split(",")
+    .map((tag) => tag.trim())
+    .some((tag) => (tag.startsWith("W/") ? tag.slice(2) : tag) === etag);
+}
+
 async function serveFeed(
   request: Request,
   token: string,
@@ -56,30 +64,34 @@ async function serveFeed(
     feed.household_id as string,
     householdName
   );
+  const bodyBytes = Buffer.byteLength(body, "utf8");
   const etag = `"${createHash("sha256").update(body).digest("hex")}"`;
 
   const ifNoneMatch = request.headers.get("if-none-match");
-  if (ifNoneMatch && ifNoneMatch === etag) {
+  if (ifNoneMatch && etagMatches(ifNoneMatch, etag)) {
     return new NextResponse(null, {
       status: 304,
-      headers: responseHeaders(etag, headOnly),
+      headers: responseHeaders(etag, headOnly ? bodyBytes : null),
     });
   }
 
   if (headOnly) {
     return new NextResponse(null, {
       status: 200,
-      headers: responseHeaders(etag, true),
+      headers: responseHeaders(etag, bodyBytes),
     });
   }
 
   return new NextResponse(body, {
     status: 200,
-    headers: responseHeaders(etag, false),
+    headers: responseHeaders(etag, null),
   });
 }
 
-function responseHeaders(etag: string, headOnly: boolean): HeadersInit {
+function responseHeaders(
+  etag: string,
+  contentLength: number | null
+): HeadersInit {
   const headers: HeadersInit = {
     "Content-Type": "text/calendar; charset=utf-8",
     "Content-Disposition": 'inline; filename="hearth.ics"',
@@ -87,8 +99,8 @@ function responseHeaders(etag: string, headOnly: boolean): HeadersInit {
     "X-Robots-Tag": "noindex",
     ETag: etag,
   };
-  if (headOnly) {
-    headers["Content-Length"] = "0";
+  if (contentLength !== null) {
+    headers["Content-Length"] = String(contentLength);
   }
   return headers;
 }
