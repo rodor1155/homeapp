@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   confirmExtraction,
   reprocessDocument,
@@ -186,15 +187,21 @@ function Entry({
   people,
   docOptions,
   locale,
+  initialOpen = false,
+  onClosePanel,
 }: {
   doc: DocumentRow;
   linkedRenewal?: RenewalItem;
   people: HouseholdPerson[];
   docOptions: DocOption[];
   locale: Locale;
+  initialOpen?: boolean;
+  onClosePanel?: () => void;
 }) {
+  const rowRef = useRef<HTMLLIElement>(null);
   const [open, setOpen] = useState(
-    doc.extraction_status === "needs_review" ||
+    initialOpen ||
+      doc.extraction_status === "needs_review" ||
       doc.extraction_status === "extracted"
   );
   const conf = doc.extraction_confidence;
@@ -215,11 +222,24 @@ function Entry({
     ? draftFromKind(inferRenewalKindFromDocument(doc), { document: doc })
     : null;
 
+  useEffect(() => {
+    if (!initialOpen) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [initialOpen]);
+
+  const toggleOpen = () => {
+    setOpen((value) => {
+      const next = !value;
+      if (value && onClosePanel) onClosePanel();
+      return next;
+    });
+  };
+
   return (
-    <li className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
+    <li ref={rowRef} className={`entry ${statusEdgeClass(doc.extraction_status)}`}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-expanded={open}
         className="flex w-full items-start gap-3 px-4 py-3.5 text-left"
       >
@@ -340,13 +360,29 @@ export default function DocumentsList({
   people,
   docOptions,
   locale,
+  initialDocId = null,
 }: {
   documents: DocumentRow[];
   renewalByDocument: Map<string, RenewalItem>;
   people: HouseholdPerson[];
   docOptions: DocOption[];
   locale: Locale;
+  initialDocId?: string | null;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedDoc = initialDocId
+    ? documents.find((doc) => doc.id === initialDocId) ?? null
+    : null;
+
+  const clearDocParam = useCallback(() => {
+    if (!searchParams.get("doc")) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("doc");
+    const qs = next.toString();
+    router.replace(qs ? `/documents?${qs}` : "/documents", { scroll: false });
+  }, [router, searchParams]);
+
   return (
     <ul>
       {documents.map((doc) => (
@@ -357,6 +393,8 @@ export default function DocumentsList({
           people={people}
           docOptions={docOptions}
           locale={locale}
+          initialOpen={linkedDoc?.id === doc.id}
+          onClosePanel={clearDocParam}
         />
       ))}
     </ul>

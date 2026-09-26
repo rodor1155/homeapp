@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deletePerson,
   savePerson,
@@ -38,6 +39,7 @@ type Props = {
   locale: Locale;
   startAdding?: boolean;
   kidLinkTokens?: Record<string, string | null>;
+  initialPersonId?: string | null;
 };
 
 export default function PeoplePanel({
@@ -46,7 +48,24 @@ export default function PeoplePanel({
   locale,
   startAdding = false,
   kidLinkTokens = {},
+  initialPersonId = null,
 }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedPerson = initialPersonId
+    ? people.find((person) => person.id === initialPersonId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!linkedPerson) return;
+    document.getElementById("people")?.scrollIntoView({ behavior: "smooth" });
+  }, [linkedPerson]);
+
+  const clearPersonParam = useCallback(() => {
+    if (!searchParams.get("person")) return;
+    router.replace("/family", { scroll: false });
+  }, [router, searchParams]);
+
   const [adding, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
 
@@ -76,6 +95,8 @@ export default function PeoplePanel({
               schools={schools}
               locale={locale}
               kidLinkToken={kidLinkTokens[person.id] ?? null}
+              initialOpen={linkedPerson?.id === person.id}
+              onCloseEdit={clearPersonParam}
             />
           ))}
         </ul>
@@ -102,15 +123,22 @@ function PersonRow({
   schools,
   locale,
   kidLinkToken,
+  initialOpen = false,
+  onCloseEdit,
 }: {
   person: HouseholdPerson;
   people: HouseholdPerson[];
   schools: School[];
   locale: Locale;
   kidLinkToken: string | null;
+  initialOpen?: boolean;
+  onCloseEdit?: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const stopEditing = useCallback(() => setEditing(false), []);
+  const [editing, setEditing] = useState(initialOpen);
+  const stopEditing = useCallback(() => {
+    setEditing(false);
+    onCloseEdit?.();
+  }, [onCloseEdit]);
 
   const school = schools.find((s) => s.id === person.school_id) ?? null;
   const birthday = nextBirthday(person.birthday);
@@ -139,7 +167,9 @@ function PersonRow({
         </div>
         <button
           type="button"
-          onClick={() => setEditing((open) => !open)}
+          onClick={() =>
+            editing ? stopEditing() : setEditing(true)
+          }
           className="text-action shrink-0 text-sm"
         >
           {editing ? "Close" : "Edit"}

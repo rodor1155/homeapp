@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deleteTimetableSlot,
   extractTimetableAction,
@@ -25,20 +26,54 @@ type Props = {
   slots: PersonTimetableSlot[];
   /** Soft-fail sentence when the table isn't deployed yet. */
   fault: string | null;
+  initialPersonId?: string | null;
+  initialWeekday?: number | null;
 };
 
 const SCHOOL_DAYS = WEEKDAYS.filter((d) => d <= 4);
 
-export default function TimetablePanel({ people, slots, fault }: Props) {
+export default function TimetablePanel({
+  people,
+  slots,
+  fault,
+  initialPersonId = null,
+  initialWeekday = null,
+}: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const children = useMemo(
     () => people.filter((p) => p.kind === "child"),
     [people]
   );
-  const [personIdRaw, setPersonId] = useState<string>(children[0]?.id ?? "");
+  const linkedChild = initialPersonId
+    ? children.find((c) => c.id === initialPersonId) ?? null
+    : null;
+  const [personIdRaw, setPersonId] = useState<string>(
+    linkedChild?.id ?? children[0]?.id ?? ""
+  );
   const personId =
     children.some((c) => c.id === personIdRaw)
       ? personIdRaw
       : (children[0]?.id ?? "");
+
+  const clearTimetableParams = useCallback(() => {
+    if (!searchParams.get("timetable") && !searchParams.get("weekday")) return;
+    router.replace("/family#timetable", { scroll: false });
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (!linkedChild && initialWeekday == null) return;
+    document.getElementById("timetable")?.scrollIntoView({ behavior: "smooth" });
+    if (
+      initialWeekday != null &&
+      initialWeekday >= 0 &&
+      initialWeekday <= 6
+    ) {
+      document
+        .getElementById(`timetable-day-${initialWeekday}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [initialWeekday, linkedChild]);
 
   if (children.length === 0) {
     return (
@@ -68,7 +103,10 @@ export default function TimetablePanel({ people, slots, fault }: Props) {
           id="tt-child"
           className="field-input max-w-full"
           value={personId}
-          onChange={(e) => setPersonId(e.target.value)}
+          onChange={(e) => {
+            setPersonId(e.target.value);
+            clearTimetableParams();
+          }}
         >
           {children.map((c) => (
             <option key={c.id} value={c.id}>
@@ -88,6 +126,7 @@ export default function TimetablePanel({ people, slots, fault }: Props) {
             day={day}
             personId={personId}
             slots={byDay[day]}
+            highlight={initialWeekday === day}
           />
         ))}
       </div>
@@ -100,6 +139,7 @@ export default function TimetablePanel({ people, slots, fault }: Props) {
               day={day as Weekday}
               personId={personId}
               slots={byDay[day as Weekday]}
+              highlight={initialWeekday === day}
             />
           ))}
         </div>
@@ -114,13 +154,20 @@ function DayColumn({
   day,
   personId,
   slots,
+  highlight = false,
 }: {
   day: Weekday;
   personId: string;
   slots: PersonTimetableSlot[];
+  highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-rule bg-paper-raised p-2.5">
+    <div
+      id={`timetable-day-${day}`}
+      className={`rounded-lg border bg-paper-raised p-2.5 ${
+        highlight ? "border-amber ring-2 ring-amber/25" : "border-rule"
+      }`}
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
         <span className="sm:hidden">{WEEKDAY_LABEL[day]}</span>
         <span className="hidden sm:inline">{WEEKDAY_SHORT[day]}</span>

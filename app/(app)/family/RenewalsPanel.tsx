@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   useTransition,
@@ -94,6 +95,11 @@ export default function RenewalsPanel({
   const [draft, setDraft] = useState<ReturnType<typeof draftFromKind> | null>(
     null
   );
+
+  useEffect(() => {
+    if (!linkedItem) return;
+    document.getElementById("renewals")?.scrollIntoView({ behavior: "smooth" });
+  }, [linkedItem]);
 
   const activeItems = items.filter((item) => item.status === "active");
 

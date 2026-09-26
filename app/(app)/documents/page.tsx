@@ -34,6 +34,7 @@ export default async function DocumentsPage({
   const params = await searchParams;
   const category = asCategory(first(params.category));
   const startUpload = first(params.upload) === "1";
+  const openDocId = first(params.doc);
   const gmailFlow = first(params.gmail);
   const gmailMessage = first(params.message);
 
@@ -167,13 +168,16 @@ export default async function DocumentsPage({
           </Card>
         ) : (
           <Card padding="none">
-            <DocumentsList
-              documents={documents}
-              renewalByDocument={renewalLinks}
-              people={peopleLoad.items}
-              docOptions={docOptions}
-              locale={household.locale ?? "UK"}
-            />
+            <Suspense fallback={null}>
+              <DocumentsList
+                documents={documents}
+                renewalByDocument={renewalLinks}
+                people={peopleLoad.items}
+                docOptions={docOptions}
+                locale={household.locale ?? "UK"}
+                initialDocId={openDocId}
+              />
+            </Suspense>
           </Card>
         )}
       </div>

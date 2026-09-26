@@ -20,7 +20,7 @@ import type { Tone } from "@/lib/tones";
 import type { HouseholdRoutine } from "@/lib/routines";
 import { routineComingUpEntries } from "@/lib/routines";
 import type { PersonTimetableSlot } from "@/lib/timetable";
-import { timetableComingUpEntries } from "@/lib/timetable";
+import { timetableComingUpEntries, weekdayForDate } from "@/lib/timetable";
 import {
   renewalStatusLabel,
   renewalWindow,
@@ -66,8 +66,14 @@ export type ComingUpEntry = {
   note: string;
   date: string;
   daysAway: number;
+  /** Primary row id — event, school/shared feed row, document, routine. */
+  recordId?: string;
   /** When the row belongs to one household person (birthday, event, timetable). */
   personId?: string | null;
+  /** Timetable slot when the row is a lesson / kit cue. */
+  slotId?: string;
+  /** London weekday 0=Mon … 6=Sun for timetable deep links. */
+  weekday?: number;
   /** Tracked renewal rows — link target on /family. */
   renewalId?: string;
   /** Reference number for renewal detail (CopyButton). */
@@ -102,17 +108,73 @@ export const SCHOOL_ENTRY_LIMIT = 8;
 export const SHARED_HORIZON_DAYS = 21;
 export const SHARED_ENTRY_LIMIT = 6;
 
+/** Calendar deep-link token: `event`, `school`, or `shared`, plus row id. */
+export type CalendarEventRef = {
+  kind: "event" | "school" | "shared";
+  id: string;
+};
+
+const CALENDAR_EVENT_REF = /^(event|school|shared):([0-9a-f-]{36})$/i;
+
+/** Parse `?event=school:<uuid>` from the calendar URL. */
+export function parseCalendarEventRef(
+  value: string | null | undefined
+): CalendarEventRef | null {
+  const match = CALENDAR_EVENT_REF.exec((value ?? "").trim());
+  if (!match) return null;
+  return { kind: match[1]!.toLowerCase() as CalendarEventRef["kind"], id: match[2]! };
+}
+
+/** The calendar item key for a coming-up / deep-link ref. */
+export function calendarItemKey(ref: CalendarEventRef): string {
+  return `${ref.kind}-${ref.id}`;
+}
+
+/**
+ * Where a Coming up row should land. Returns null when the entry lacks the
+ * ids needed — callers treat that as non-navigable.
+ */
+export function comingUpHref(entry: ComingUpEntry): string | null {
+  switch (entry.kind) {
+    case "event":
+    case "school":
+    case "shared": {
+      if (!entry.recordId) return null;
+      const ym = entry.date.slice(0, 7);
+      return `/calendar?ym=${ym}&date=${entry.date}&event=${entry.kind}:${entry.recordId}`;
+    }
+    case "renewal":
+      return entry.renewalId
+        ? `/family?renewal=${entry.renewalId}#renewals`
+        : null;
+    case "document":
+      return entry.recordId ? `/documents?doc=${entry.recordId}` : null;
+    case "birthday":
+      return entry.personId ? `/family?person=${entry.personId}` : null;
+    case "routine":
+      return entry.recordId
+        ? `/family?routine=${entry.recordId}#routines`
+        : null;
+    case "timetable":
+      if (!entry.personId || entry.weekday == null) return null;
+      return `/family?timetable=${entry.personId}&weekday=${entry.weekday}#timetable`;
+    default:
+      return null;
+  }
+}
+
 export function documentEntries(
   dates: readonly UpcomingDate[],
   isReminded: (entry: UpcomingDate) => boolean = () => false
 ): ComingUpEntry[] {
   return dates.map((entry, i) => ({
-    key: `document-${entry.date}-${entry.label}-${i}`,
+    key: `document-${entry.documentId}-${entry.date}-${entry.label}-${i}`,
     kind: "document" as const,
     title: entry.provider,
     note: isReminded(entry) ? `${entry.label} · reminders on` : entry.label,
     date: entry.date,
     daysAway: entry.daysAway,
+    recordId: entry.documentId,
   }));
 }
 
@@ -163,6 +225,7 @@ export function eventEntries(
       date: event.event_date,
       daysAway,
       personId: event.person_id,
+      recordId: event.id,
     });
   }
 
@@ -211,6 +274,7 @@ export function schoolEntries(
       note: labelById.get(event.school_id) ?? "School calendar",
       date,
       daysAway,
+      recordId: event.id,
       allDay: event.all_day,
       startsAt: event.starts_at,
       endsAt: event.ends_at,
@@ -257,6 +321,7 @@ export function sharedEntries(
       note: labelById.get(event.calendar_id) ?? "Shared calendar",
       date,
       daysAway,
+      recordId: event.id,
       allDay: event.all_day,
       startsAt: event.starts_at,
       endsAt: event.ends_at,
@@ -285,6 +350,7 @@ export function routineEntries(
     note: entry.note,
     date: entry.date,
     daysAway: entry.daysAway,
+    recordId: entry.routineId,
   }));
 }
 
@@ -301,6 +367,8 @@ export function timetableEntries(
     date: entry.date,
     daysAway: entry.daysAway,
     personId: entry.personId,
+    slotId: entry.slotId,
+    weekday: weekdayForDate(entry.date) ?? undefined,
   }));
 }
 

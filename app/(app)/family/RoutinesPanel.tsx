@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deleteRoutine,
   saveRoutine,
@@ -18,10 +19,28 @@ import { WEEKDAY_LABEL, WEEKDAYS, type Weekday } from "@/lib/timetable";
 export default function RoutinesPanel({
   routines,
   fault,
+  initialRoutineId = null,
 }: {
   routines: HouseholdRoutine[];
   fault: string | null;
+  initialRoutineId?: string | null;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedRoutine = initialRoutineId
+    ? routines.find((routine) => routine.id === initialRoutineId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!linkedRoutine) return;
+    document.getElementById("routines")?.scrollIntoView({ behavior: "smooth" });
+  }, [linkedRoutine]);
+
+  const clearRoutineParam = useCallback(() => {
+    if (!searchParams.get("routine")) return;
+    router.replace("/family#routines", { scroll: false });
+  }, [router, searchParams]);
+
   const [adding, setAdding] = useState(false);
   const stop = useCallback(() => setAdding(false), []);
 
@@ -49,7 +68,12 @@ export default function RoutinesPanel({
       ) : routines.length > 0 ? (
         <ul className="divide-y divide-rule">
           {routines.map((routine) => (
-            <RoutineRow key={routine.id} routine={routine} />
+            <RoutineRow
+              key={routine.id}
+              routine={routine}
+              initialOpen={linkedRoutine?.id === routine.id}
+              onCloseEdit={clearRoutineParam}
+            />
           ))}
         </ul>
       ) : null}
@@ -68,9 +92,20 @@ export default function RoutinesPanel({
   );
 }
 
-function RoutineRow({ routine }: { routine: HouseholdRoutine }) {
-  const [editing, setEditing] = useState(false);
-  const stop = useCallback(() => setEditing(false), []);
+function RoutineRow({
+  routine,
+  initialOpen = false,
+  onCloseEdit,
+}: {
+  routine: HouseholdRoutine;
+  initialOpen?: boolean;
+  onCloseEdit?: () => void;
+}) {
+  const [editing, setEditing] = useState(initialOpen);
+  const stop = useCallback(() => {
+    setEditing(false);
+    onCloseEdit?.();
+  }, [onCloseEdit]);
   const when =
     routine.cadence === "monthly"
       ? `Day ${routine.day_of_month}`
@@ -97,7 +132,7 @@ function RoutineRow({ routine }: { routine: HouseholdRoutine }) {
         <button
           type="button"
           className="text-action shrink-0 text-sm"
-          onClick={() => setEditing((o) => !o)}
+          onClick={() => (editing ? stop() : setEditing(true))}
         >
           {editing ? "Close" : "Edit"}
         </button>

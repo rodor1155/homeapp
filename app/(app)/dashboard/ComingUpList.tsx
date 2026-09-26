@@ -11,20 +11,16 @@ import {
 } from "lucide-react";
 import {
   COMING_UP_TONE,
+  comingUpHref,
   groupByMonth,
   type ComingUpEntry,
   type ComingUpKind,
 } from "@/lib/coming-up";
-import {
-  detailFromComingUp,
-  isTappableComingUp,
-} from "@/lib/calendar-event-detail";
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
 import { memberEdgeClass } from "@/lib/member-colours";
 import { TONE_PILL } from "@/lib/tones";
-import ComingUpTappableRow from "./ComingUpTappableRow";
 
 const SOON_DAYS = 30;
 
@@ -103,14 +99,12 @@ function EntryRow({
 }) {
   const soon = entry.daysAway <= SOON_DAYS || entry.overdue;
   const Icon = COMING_UP_ICON[entry.kind];
-  const renewalId = entry.kind === "renewal" ? entry.renewalId : undefined;
-  const tappable = !renewalId && isTappableComingUp(entry);
-  const detail = tappable ? detailFromComingUp(entry) : null;
+  const href = comingUpHref(entry);
   const edge = memberEdgeClass(entry.personId, people);
   const shellClass = `coming-up-member-edge rounded-[var(--radius)] px-3 py-2.5 ${edge} ${
     headline
       ? "border border-ochre/25 bg-ochre-wash shadow-[var(--shadow-card)]"
-      : tappable
+      : href
         ? "transition-colors hover:bg-navy-wash/70"
         : "hover:bg-navy-wash/70"
   }`;
@@ -163,16 +157,8 @@ function EntryRow({
 
   return (
     <li>
-      {tappable && detail ? (
-        <ComingUpTappableRow
-          detail={detail}
-          locale={locale}
-          className={shellClass}
-        >
-          {body}
-        </ComingUpTappableRow>
-      ) : renewalId ? (
-        <Link href={`/family?renewal=${renewalId}#renewals`} className={shellClass}>
+      {href ? (
+        <Link href={href} className={`block ${shellClass}`}>
           {body}
         </Link>
       ) : (

@@ -172,7 +172,9 @@ export default function BottomSheet({
   if (!open || !mounted || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center pb-[calc(var(--mobile-tab-bar-height)+max(12px,env(safe-area-inset-bottom,0px)))]"
+    >
       <button
         type="button"
         aria-label="Close"
@@ -188,7 +190,7 @@ export default function BottomSheet({
           transform: open && dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: isDragging ? "none" : "transform 200ms ease-out",
         }}
-        className={`relative z-10 flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col rounded-t-2xl border border-rule bg-paper-raised shadow-none ${className}`}
+        className={`relative z-10 flex max-h-[min(85dvh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-rule bg-paper-raised shadow-none ${className}`}
       >
         <div
           className="flex shrink-0 touch-none flex-col items-center px-4 pb-2 pt-3"
@@ -223,7 +225,7 @@ export default function BottomSheet({
             </button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           {children}
         </div>
       </div>

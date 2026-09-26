@@ -7,9 +7,11 @@ import {
   useState,
   useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Backpack,
   Cake,
@@ -25,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   COMING_UP_TONE,
+  comingUpHref,
   type ComingUpEntry,
 } from "@/lib/coming-up";
 import {
@@ -83,12 +86,15 @@ function EveningDeckCard({
   locale,
   stackIndex,
   isFront,
+  href,
   dragX,
   dragRotate,
   exiting,
   crossfading,
   reducedMotion,
   cardRef,
+  onFrontClick,
+  onFrontKeyDown,
   onFrontPointerDown,
   onFrontPointerMove,
   onFrontPointerUp,
@@ -100,16 +106,19 @@ function EveningDeckCard({
   locale: Locale;
   stackIndex: number;
   isFront: boolean;
+  href: string | null;
   dragX: number;
   dragRotate: number;
   exiting: "left" | "right" | null;
   crossfading?: boolean;
   reducedMotion: boolean;
-  cardRef?: React.RefObject<HTMLDivElement | null>;
-  onFrontPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  onFrontPointerMove?: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  onFrontPointerUp?: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  onFrontPointerCancel?: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  cardRef?: React.RefObject<HTMLElement | null>;
+  onFrontClick?: (e: ReactMouseEvent<HTMLAnchorElement>) => void;
+  onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLAnchorElement>) => void;
+  onFrontPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerMove?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerUp?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerCancel?: (e: ReactPointerEvent<HTMLElement>) => void;
 }) {
   const Icon = COMING_UP_ICON[entry.kind] ?? CalendarDays;
   const tone = TONE_PILL[COMING_UP_TONE[entry.kind]];
@@ -136,41 +145,15 @@ function EveningDeckCard({
       ? "evening-glass-card-peek-near"
       : "evening-glass-card-peek-far";
 
-  return (
-    <div
-      ref={isFront ? cardRef : undefined}
-      data-evening-deck-card={isFront ? "front" : stackIndex}
-      className={`evening-card evening-card-front evening-glass-card ${surfaceClass} ${edge}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`}
-      style={{
-        zIndex: t.z,
-        opacity,
-        transform,
-        ["--card-tint" as string]: cardTint,
-        ["--peek-band" as string]: t.peekBand ? `${t.peekBand}px` : undefined,
-        pointerEvents: isFront ? "auto" : "none",
-        willChange: isFront && (dragX !== 0 || exiting) ? "transform, opacity" : undefined,
-        transition:
-          isFront && (exiting || (dragX === 0 && !reducedMotion))
-            ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
-            : !isFront && !reducedMotion
-              ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
-              : undefined,
-      }}
-      onPointerDown={isFront ? onFrontPointerDown : undefined}
-      onPointerMove={isFront ? onFrontPointerMove : undefined}
-      onPointerUp={isFront ? onFrontPointerUp : undefined}
-      onPointerCancel={isFront ? onFrontPointerCancel : undefined}
-    >
+  const cardBody = (
+    <>
       {!isFront ? (
         <p className="evening-card-peek-title" aria-hidden>
           {entry.title}
         </p>
       ) : null}
 
-      <div
-        className="evening-card-content"
-        aria-hidden={!isFront}
-      >
+      <div className="evening-card-content" aria-hidden={!isFront}>
         <div className="evening-card-row">
           <span
             aria-hidden
@@ -187,7 +170,67 @@ function EveningDeckCard({
           </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+
+  const sharedProps = {
+    "data-evening-deck-card": isFront ? "front" : stackIndex,
+    className: `evening-card evening-card-front evening-glass-card ${surfaceClass} ${edge}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`,
+    style: {
+      zIndex: t.z,
+      opacity,
+      transform,
+      ["--card-tint" as string]: cardTint,
+      ["--peek-band" as string]: t.peekBand ? `${t.peekBand}px` : undefined,
+      pointerEvents: isFront ? ("auto" as const) : ("none" as const),
+      willChange:
+        isFront && (dragX !== 0 || exiting)
+          ? ("transform, opacity" as const)
+          : undefined,
+      transition:
+        isFront && (exiting || (dragX === 0 && !reducedMotion))
+          ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
+          : !isFront && !reducedMotion
+            ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
+            : undefined,
+    },
+  };
+
+  if (isFront && href) {
+    return (
+      <Link
+        ref={cardRef as React.RefObject<HTMLAnchorElement | null>}
+        href={href}
+        {...sharedProps}
+        onClick={onFrontClick}
+        onKeyDown={onFrontKeyDown}
+        onPointerDown={onFrontPointerDown}
+        onPointerMove={onFrontPointerMove}
+        onPointerUp={onFrontPointerUp}
+        onPointerCancel={onFrontPointerCancel}
+      >
+        {cardBody}
+      </Link>
+    );
+  }
+
+  if (isFront) {
+    return (
+      <div
+        ref={cardRef as React.RefObject<HTMLDivElement | null>}
+        {...sharedProps}
+        onPointerDown={onFrontPointerDown}
+        onPointerMove={onFrontPointerMove}
+        onPointerUp={onFrontPointerUp}
+        onPointerCancel={onFrontPointerCancel}
+      >
+        {cardBody}
+      </div>
+    );
+  }
+
+  return (
+    <div {...sharedProps}>{cardBody}</div>
   );
 }
 
@@ -213,21 +256,23 @@ export default function EveningCardStack({
   }
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [detailEntry, setDetailEntry] = useState<ComingUpEntry | null>(null);
+  const [navEntry, setNavEntry] = useState<ComingUpEntry | null>(null);
+  const [navHref, setNavHref] = useState<string | null>(null);
   const [detailRect, setDetailRect] = useState<CardDetailRect | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [dragX, setDragX] = useState(0);
   const [exiting, setExiting] = useState<"left" | "right" | null>(null);
   const [fadeKey, setFadeKey] = useState<string | null>(null);
   const [isShuffling, setIsShuffling] = useState(false);
 
   const deckRef = useRef<HTMLDivElement>(null);
-  const frontCardRef = useRef<HTMLDivElement>(null);
+  const frontCardRef = useRef<HTMLElement>(null);
   const frontFocusRef = useRef<HTMLDivElement>(null);
   const pointerStart = useRef<{ x: number; y: number; t: number } | null>(null);
   const pointerLast = useRef<{ x: number; t: number } | null>(null);
   const cardWidth = useRef(320);
 
+  const router = useRouter();
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     clientReducedMotion,
@@ -246,6 +291,11 @@ export default function EveningCardStack({
   const visible = deckEntries.slice(0, 3);
   const frontEntry = visible[0];
   const frontEntryKey = frontEntry?.key;
+  const frontHref = frontEntry ? comingUpHref(frontEntry) : null;
+
+  useEffect(() => {
+    if (frontHref) router.prefetch(frontHref);
+  }, [frontHref, router]);
 
   const measureCardWidth = useCallback(() => {
     const w = frontCardRef.current?.offsetWidth;
@@ -295,9 +345,12 @@ export default function EveningCardStack({
     return false;
   };
 
-  const openDetail = () => {
+  const startNavigate = (entry: ComingUpEntry, href: string) => {
     const el = frontCardRef.current;
-    if (!el || !frontEntry) return;
+    if (!el) {
+      router.push(href);
+      return;
+    }
     const r = el.getBoundingClientRect();
     setDetailRect({
       top: r.top,
@@ -305,25 +358,27 @@ export default function EveningCardStack({
       width: r.width,
       height: r.height,
     });
-    setDetailEntry(frontEntry);
-    setDetailOpen(true);
+    setNavEntry(entry);
+    setNavHref(href);
+    setNavOpen(true);
   };
 
-  const closeDetail = () => {
-    setDetailOpen(false);
-    setDetailEntry(null);
+  const finishNavigate = () => {
+    setNavOpen(false);
+    setNavEntry(null);
+    setNavHref(null);
     setDetailRect(null);
   };
 
-  const onFrontPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || isShuffling || detailOpen) return;
+  const onFrontPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || isShuffling || navOpen) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pointerStart.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
     pointerLast.current = { x: e.clientX, t: e.timeStamp };
     setDragX(0);
   };
 
-  const onFrontPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const onFrontPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
     if (!pointerStart.current || reducedMotion) return;
     const dx = e.clientX - pointerStart.current.x;
     setDragX(dx);
@@ -331,7 +386,7 @@ export default function EveningCardStack({
     if (Math.abs(dx) > 8) e.preventDefault();
   };
 
-  const onFrontPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const onFrontPointerUp = (e: ReactPointerEvent<HTMLElement>) => {
     if (!pointerStart.current) return;
 
     const dx = e.clientX - pointerStart.current.x;
@@ -356,7 +411,9 @@ export default function EveningCardStack({
     }
 
     if (dist < TAP_PX) {
-      openDetail();
+      if (frontEntry && frontHref) {
+        startNavigate(frontEntry, frontHref);
+      }
       setDragX(0);
       return;
     }
@@ -377,8 +434,18 @@ export default function EveningCardStack({
     finishShuffle("right");
   };
 
+  const onFrontClick = (e: ReactMouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+  };
+
+  const onFrontKeyDown = (e: ReactKeyboardEvent<HTMLAnchorElement>) => {
+    if (e.key !== "Enter" || !frontEntry || !frontHref) return;
+    e.preventDefault();
+    startNavigate(frontEntry, frontHref);
+  };
+
   const onDeckKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (detailOpen) return;
+    if (navOpen) return;
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       finishShuffle("left");
@@ -465,12 +532,15 @@ export default function EveningCardStack({
                   locale={locale}
                   stackIndex={stackIndex}
                   isFront={isFront}
+                  href={isFront ? frontHref : null}
                   dragX={isFront ? dragX : 0}
                   dragRotate={isFront ? dragRotate : 0}
                   exiting={isFront ? exiting : null}
                   crossfading={isFront && fadeKey === entry.key}
                   reducedMotion={reducedMotion}
                   cardRef={isFront ? frontCardRef : undefined}
+                  onFrontClick={isFront ? onFrontClick : undefined}
+                  onFrontKeyDown={isFront ? onFrontKeyDown : undefined}
                   onFrontPointerDown={isFront ? onFrontPointerDown : undefined}
                   onFrontPointerMove={isFront ? onFrontPointerMove : undefined}
                   onFrontPointerUp={isFront ? onFrontPointerUp : undefined}
@@ -491,16 +561,19 @@ export default function EveningCardStack({
         locale={locale}
       />
 
-      <EveningCardDetailOverlay
-        key={detailEntry?.key ?? "closed"}
-        open={detailOpen}
-        entry={detailEntry}
-        locale={locale}
-        originRect={detailRect}
-        reducedMotion={reducedMotion}
-        onClose={closeDetail}
-        returnFocusRef={frontFocusRef}
-      />
+      {navEntry && navHref ? (
+        <EveningCardDetailOverlay
+          key={navEntry.key}
+          open={navOpen}
+          entry={navEntry}
+          locale={locale}
+          originRect={detailRect}
+          reducedMotion={reducedMotion}
+          href={navHref}
+          onDone={finishNavigate}
+          returnFocusRef={frontFocusRef}
+        />
+      ) : null}
     </>
   );
 }

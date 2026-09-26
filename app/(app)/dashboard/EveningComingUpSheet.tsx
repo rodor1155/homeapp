@@ -1,21 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import {
   COMING_UP_TONE,
+  comingUpHref,
   groupByMonth,
   type ComingUpEntry,
 } from "@/lib/coming-up";
-import {
-  detailFromComingUp,
-  isTappableComingUp,
-} from "@/lib/calendar-event-detail";
 import { formatDate, formatMonth, relativeWhen } from "@/lib/dates";
 import { memberEdgeClass, type PersonSortable } from "@/lib/evening-map";
 import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
 import BottomSheet from "@/components/BottomSheet";
-import ComingUpTappableRow from "./ComingUpTappableRow";
-import Link from "next/link";
 import {
   Backpack,
   Cake,
@@ -82,6 +78,7 @@ export default function EveningComingUpSheet({
                     entry={entry}
                     locale={locale}
                     people={people}
+                    onNavigate={onClose}
                   />
                 ))}
               </ul>
@@ -97,17 +94,17 @@ function SheetRow({
   entry,
   locale,
   people,
+  onNavigate,
 }: {
   entry: ComingUpEntry;
   locale: Locale;
   people: readonly PersonSortable[];
+  onNavigate: () => void;
 }) {
   const Icon = COMING_UP_ICON[entry.kind] ?? CalendarDays;
-  const renewalId = entry.kind === "renewal" ? entry.renewalId : undefined;
-  const tappable = !renewalId && isTappableComingUp(entry);
-  const detail = tappable ? detailFromComingUp(entry) : null;
+  const href = comingUpHref(entry);
   const edge = memberEdgeClass(entry.personId, people);
-  const shellClass = `evening-card evening-glass-card ${edge} rounded-[var(--radius-evening-card)] px-3.5 py-3`;
+  const shellClass = `evening-card evening-glass-card ${edge} rounded-[var(--radius-evening-card)] px-3.5 py-3 transition-colors hover:bg-navy-wash/70`;
 
   const body = (
     <div className="flex items-center justify-between gap-3">
@@ -140,16 +137,8 @@ function SheetRow({
 
   return (
     <li>
-      {tappable && detail ? (
-        <ComingUpTappableRow
-          detail={detail}
-          locale={locale}
-          className={`w-full text-left ${shellClass}`}
-        >
-          {body}
-        </ComingUpTappableRow>
-      ) : renewalId ? (
-        <Link href={`/family?renewal=${renewalId}#renewals`} className={shellClass}>
+      {href ? (
+        <Link href={href} className={shellClass} onClick={onNavigate}>
           {body}
         </Link>
       ) : (

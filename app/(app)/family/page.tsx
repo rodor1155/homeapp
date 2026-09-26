@@ -42,6 +42,15 @@ export default async function FamilyPage({
   const params = await searchParams;
   const startAddingPerson = first(params.add) === "person";
   const openRenewalId = first(params.renewal);
+  const openPersonId = first(params.person);
+  const openRoutineId = first(params.routine);
+  const openTimetablePersonId = first(params.timetable);
+  const openTimetableWeekdayRaw = first(params.weekday);
+  const openTimetableWeekday =
+    openTimetableWeekdayRaw != null &&
+    /^[0-6]$/.test(openTimetableWeekdayRaw.trim())
+      ? Number(openTimetableWeekdayRaw.trim())
+      : null;
   const locale: Locale = household.locale ?? "UK";
 
   const weekStart = weekStartMonday();
@@ -155,6 +164,7 @@ export default async function FamilyPage({
         />
       </Card>
 
+      <div id="people">
       <Card
         title="Who lives here"
         action={
@@ -166,14 +176,18 @@ export default async function FamilyPage({
           </div>
         }
       >
-        <PeoplePanel
-          people={people}
-          schools={schools}
-          locale={locale}
-          startAdding={startAddingPerson}
-          kidLinkTokens={kidLinkTokens}
-        />
+        <Suspense fallback={null}>
+          <PeoplePanel
+            people={people}
+            schools={schools}
+            locale={locale}
+            startAdding={startAddingPerson}
+            kidLinkTokens={kidLinkTokens}
+            initialPersonId={openPersonId}
+          />
+        </Suspense>
       </Card>
+      </div>
 
       <Card
         title="Renewals & deadlines"
@@ -195,6 +209,7 @@ export default async function FamilyPage({
         </Suspense>
       </Card>
 
+      <div id="timetable">
       <Card
         title="School timetable"
         action={
@@ -206,13 +221,19 @@ export default async function FamilyPage({
           ) : undefined
         }
       >
-        <TimetablePanel
-          people={people}
-          slots={timetableSlots}
-          fault={timetableLoad.fault}
-        />
+        <Suspense fallback={null}>
+          <TimetablePanel
+            people={people}
+            slots={timetableSlots}
+            fault={timetableLoad.fault}
+            initialPersonId={openTimetablePersonId}
+            initialWeekday={openTimetableWeekday}
+          />
+        </Suspense>
       </Card>
+      </div>
 
+      <div id="routines">
       <Card
         title="Routines"
         action={
@@ -222,8 +243,15 @@ export default async function FamilyPage({
           </span>
         }
       >
-        <RoutinesPanel routines={routines} fault={routinesLoad.fault} />
+        <Suspense fallback={null}>
+          <RoutinesPanel
+            routines={routines}
+            fault={routinesLoad.fault}
+            initialRoutineId={openRoutineId}
+          />
+        </Suspense>
       </Card>
+      </div>
 
       <Card title="This week’s dinners">
         <MealsPanel

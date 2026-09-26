@@ -107,8 +107,13 @@ export async function loadComingUpData(
   return { entries, people, loadFault };
 }
 
-function entryKey(entry: { provider: string; date: string; label: string }) {
-  return `${entry.provider}|${entry.date}|${entry.label}`;
+function entryKey(entry: {
+  documentId: string;
+  provider: string;
+  date: string;
+  label: string;
+}) {
+  return `${entry.documentId}|${entry.provider}|${entry.date}|${entry.label}`;
 }
 
 async function scheduledReminders(
@@ -136,6 +141,7 @@ function remindedEntries(
     if (!doc || !label) continue;
     keys.add(
       entryKey({
+        documentId: doc.id,
         provider: documentLabel(doc),
         date: row.due_date,
         label,
