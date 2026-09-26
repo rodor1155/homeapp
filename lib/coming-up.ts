@@ -70,6 +70,8 @@ export type ComingUpEntry = {
   personId?: string | null;
   /** Tracked renewal rows — link target on /family. */
   renewalId?: string;
+  /** Reference number for renewal detail (CopyButton). */
+  renewalReference?: string | null;
   /** Overdue renewals sort first and read as "today" on the evening map. */
   overdue?: boolean;
   /** ICS school / shared feeds — enough to open the same detail sheet. */
@@ -328,6 +330,7 @@ export function renewalEntries(
       daysAway,
       personId: item.person_id,
       renewalId: item.id,
+      renewalReference: item.reference,
       overdue,
     });
   }
