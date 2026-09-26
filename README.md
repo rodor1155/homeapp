@@ -122,7 +122,18 @@ member with full household access. Legacy email invites on `/invite` still work 
 sent to the matching address.
 
 Apply migration `20260926140000_household_invite_links.sql` before link invites work
-in production. For local UI screenshots only (not committed): `/dev-sharing-preview?view=invite|join|join-signedout`.
+in production.
+
+**Kid view** — from Family → People, edit a child and create a kid view link. Anyone
+with the URL sees a read-only schedule for that child only (today + six days, Europe/London):
+school timetable (including kit/ingredients reminders), key dates linked to them, their
+school's cached term dates, who's-where status, and a birthday countdown within two weeks.
+No documents, renewals, routines, meals, other household members, or notes. The link has
+no expiry; regenerate or turn off revokes the old URL. Apply
+`20260926160000_person_kid_links.sql` before it works in production.
+
+For local UI screenshots only (not committed):
+`/dev-sharing-preview?view=invite|join|join-signedout|kid|kidlink`.
 
 ## Supabase config that isn't in code
 

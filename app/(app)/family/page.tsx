@@ -56,6 +56,7 @@ export default async function FamilyPage({
     renewalsLoad,
     documentsResult,
     inviteLinks,
+    kidLinksResult,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -71,6 +72,10 @@ export default async function FamilyPage({
       .eq("household_id", household.id)
       .order("created_at", { ascending: false }),
     loadPendingInviteLinks(supabase, household.id),
+    supabase
+      .from("person_kid_links")
+      .select("person_id, token")
+      .eq("household_id", household.id),
   ]);
 
   const people = peopleLoad.items;
@@ -101,6 +106,13 @@ export default async function FamilyPage({
   );
 
   const children = people.filter((person) => person.kind === "child");
+
+  const kidLinkTokens: Record<string, string | null> = {};
+  if (!kidLinksResult.error) {
+    for (const row of kidLinksResult.data ?? []) {
+      kidLinkTokens[row.person_id as string] = row.token as string;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,6 +171,7 @@ export default async function FamilyPage({
           schools={schools}
           locale={locale}
           startAdding={startAddingPerson}
+          kidLinkTokens={kidLinkTokens}
         />
       </Card>
 

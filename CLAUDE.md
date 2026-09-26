@@ -15,7 +15,7 @@ agent (or human) picking up the repo has the same context.
 | 1b | Embeddings for `document_chunks` + retrieval. | next |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — migrations applied |
-| 3d | Household link sharing (`/join/[token]`, invite sheet, `invite_link_preview` / `accept_household_invite_link`). | done — **`20260926140000_household_invite_links` migration not yet applied** |
+| 3d | Household sharing — link invites (`/join/[token]`), member colours, kid view (`/kid/[token]`). | done — **`20260926140000_household_invite_links` and `20260926160000_person_kid_links` migrations not yet applied** |
 | 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — migrations applied; Resend + `CRON_SECRET` not set on Vercel yet |
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
@@ -130,13 +130,14 @@ app/
                         sign out, account deletion (DeleteAccountPanel)
   invite/               pending email invites, accept/decline (InviteList); works signed out
   join/[token]/         link-invite landing + join confirm; public, robots noindex
+  kid/[token]/          read-only kid schedule page; public, robots noindex, no app chrome
   internal/extraction-test/   benchmark harness — NOT linked from any nav
   api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
   api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
   api/ics/[token]/      GET/HEAD public household ICS subscribe feed (token secret, nodejs)
   actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, invite-links.ts,
-                        extraction-test.ts, settings.ts, account.ts, family.ts, lists.ts,
-                        calendar-feed.ts
+                        kid-links.ts, extraction-test.ts, settings.ts, account.ts, family.ts,
+                        lists.ts, calendar-feed.ts
 components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
                  AppShell.tsx (top bar: sign out + gear to /settings) — rendered
                  once, by `app/(app)/layout.tsx`, never by a page,
@@ -283,6 +284,16 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   docs with a linked active renewal), and recurring birthdays from `household_people`.
   Excludes school/shared imported calendars, routines, timetable slots and reminder rows.
   `20260926120000_household_calendar_feed.sql` is **written but not applied**.
+- `person_kid_links(person_id pk → household_people on delete cascade, household_id →
+  households on delete cascade, token text unique not null check length ≥ 32, created_at,
+  rotated_at, created_by → auth.users)` — one secret read-only URL per child. Insert/update
+  policies require the person to be `kind = 'child'` in the same household. Members
+  read/write; `GET /kid/[token]` resolves the token on the service role with no session.
+  Regenerate replaces the token (old URL 404s); revoke deletes the row. Exposes only that
+  child's schedule for today + six London days: timetable slots (incl. kit/ingredients),
+  key dates linked to them, their school's cached ICS dates, who's-where status, and their
+  birthday countdown — not documents, renewals, routines, meals, other people or notes.
+  `20260926160000_person_kid_links.sql` is **written but not applied**.
 - `household_invites(id, household_id, email null, token text unique null, expires_at,
   invited_by, accepted_by, accepted_at, status, created_at)` — email rows from onboarding
   or legacy settings; link rows carry a single-use `token` (≥32 chars) and `expires_at`.
@@ -441,6 +452,15 @@ delivery. Email invites from onboarding/settings remain but nothing is sent.
   People; tints Who's-where chips, evening deck edges, Coming up rows, person-linked
   calendar items and renewal group headers. Tokens: `--member-<key>` and
   `--member-<key>-soft` in `app/globals.css`.
+- **Kid view** (sharing slice 3): **`KidViewLinkPanel`** on Family → People when editing a
+  child — create / copy / share / open / regenerate / turn off a link (32-byte base64url
+  token, no expiry). **`/kid/[token]`** (outside `(app)`, public, `robots: noindex`,
+  `X-Robots-Tag` + `Referrer-Policy: no-referrer` via `next.config.ts`, in-memory rate
+  limit like the ICS feed): server-renders `loadKidViewForToken()` → `KidView` — large
+  friendly type, today's items in time order, next six days as simpler cards, auto-refresh
+  every 15 minutes. No app chrome, no links into the signed-in app. **`app/actions/kid-links.ts`**
+  and **`lib/kid-view-load.ts`** (admin client). **`/kid/*`** is not in `proxy.ts`'s
+  protected prefixes (reachable signed out).
 
 ## Billing (phase 6)
 

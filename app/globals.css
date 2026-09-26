@@ -75,20 +75,28 @@
 
   --member-amber: #e8b35a;
   --member-amber-soft: color-mix(in oklab, var(--member-amber) 24%, transparent);
+  --member-amber-ink: color-mix(in oklab, var(--member-amber) 60%, var(--text));
   --member-rose: #c98b9b;
   --member-rose-soft: color-mix(in oklab, var(--member-rose) 24%, transparent);
+  --member-rose-ink: color-mix(in oklab, var(--member-rose) 60%, var(--text));
   --member-sky: #7fb2d9;
   --member-sky-soft: color-mix(in oklab, var(--member-sky) 24%, transparent);
+  --member-sky-ink: color-mix(in oklab, var(--member-sky) 60%, var(--text));
   --member-sage: #6f9272;
   --member-sage-soft: color-mix(in oklab, var(--member-sage) 24%, transparent);
+  --member-sage-ink: color-mix(in oklab, var(--member-sage) 60%, var(--text));
   --member-lilac: #8f87b8;
   --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 24%, transparent);
+  --member-lilac-ink: color-mix(in oklab, var(--member-lilac) 60%, var(--text));
   --member-coral: #d4897a;
   --member-coral-soft: color-mix(in oklab, var(--member-coral) 24%, transparent);
+  --member-coral-ink: color-mix(in oklab, var(--member-coral) 60%, var(--text));
   --member-teal: #5a9e9e;
   --member-teal-soft: color-mix(in oklab, var(--member-teal) 24%, transparent);
+  --member-teal-ink: color-mix(in oklab, var(--member-teal) 60%, var(--text));
   --member-slate: #7a8499;
   --member-slate-soft: color-mix(in oklab, var(--member-slate) 24%, transparent);
+  --member-slate-ink: color-mix(in oklab, var(--member-slate) 60%, var(--text));
   --member-neutral: #8b93a5;
 
   --pin-halo: rgb(232 179 90 / 0.45);
@@ -204,20 +212,28 @@
 
     --member-amber: #e8b35a;
     --member-amber-soft: color-mix(in oklab, var(--member-amber) 28%, transparent);
+    --member-amber-ink: var(--member-amber);
     --member-rose: #d9a0ad;
     --member-rose-soft: color-mix(in oklab, var(--member-rose) 28%, transparent);
+    --member-rose-ink: var(--member-rose);
     --member-sky: #8fc0e3;
     --member-sky-soft: color-mix(in oklab, var(--member-sky) 28%, transparent);
+    --member-sky-ink: var(--member-sky);
     --member-sage: #9dbb9f;
     --member-sage-soft: color-mix(in oklab, var(--member-sage) 28%, transparent);
+    --member-sage-ink: var(--member-sage);
     --member-lilac: #b0a8d4;
     --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 28%, transparent);
+    --member-lilac-ink: var(--member-lilac);
     --member-coral: #e0a090;
     --member-coral-soft: color-mix(in oklab, var(--member-coral) 28%, transparent);
+    --member-coral-ink: var(--member-coral);
     --member-teal: #6eb8b8;
     --member-teal-soft: color-mix(in oklab, var(--member-teal) 28%, transparent);
+    --member-teal-ink: var(--member-teal);
     --member-slate: #9aa5b8;
     --member-slate-soft: color-mix(in oklab, var(--member-slate) 28%, transparent);
+    --member-slate-ink: var(--member-slate);
     --member-neutral: #8b9ab5;
 
     --pin-halo: rgb(232 179 90 / 0.45);
@@ -331,13 +347,21 @@
   --color-amber: var(--accent);
   --color-slate-muted: var(--map-text-muted);
   --color-member-amber: var(--member-amber);
+  --color-member-amber-ink: var(--member-amber-ink);
   --color-member-rose: var(--member-rose);
+  --color-member-rose-ink: var(--member-rose-ink);
   --color-member-sky: var(--member-sky);
+  --color-member-sky-ink: var(--member-sky-ink);
   --color-member-sage: var(--member-sage);
+  --color-member-sage-ink: var(--member-sage-ink);
   --color-member-lilac: var(--member-lilac);
+  --color-member-lilac-ink: var(--member-lilac-ink);
   --color-member-coral: var(--member-coral);
+  --color-member-coral-ink: var(--member-coral-ink);
   --color-member-teal: var(--member-teal);
+  --color-member-teal-ink: var(--member-teal-ink);
   --color-member-slate: var(--member-slate);
+  --color-member-slate-ink: var(--member-slate-ink);
   --color-glass-fill: var(--surface-glass);
   --color-glass-fill-strong: var(--surface-glass-strong);
   --color-glass-fill-card: var(--surface-glass-card);
@@ -1285,6 +1309,21 @@
   }
   .evening-edge-neutral {
     --card-edge-color: var(--card-tint, var(--member-neutral));
+  }
+
+  .kid-hero-heading {
+    color: var(--kid-member-ink);
+  }
+
+  .kid-birthday-pill {
+    background-color: var(--kid-member-soft);
+    color: var(--text);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .kid-birthday-pill {
+      color: var(--kid-member);
+    }
   }
 
   .coming-up-member-edge[class*="evening-edge-"] {

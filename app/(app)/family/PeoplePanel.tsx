@@ -22,6 +22,7 @@ import {
   type PersonKind,
   type School,
 } from "@/lib/family";
+import KidViewLinkPanel from "@/components/kid/KidViewLinkPanel";
 import type { Locale } from "@/lib/household";
 import {
   asMemberColour,
@@ -36,6 +37,7 @@ type Props = {
   schools: School[];
   locale: Locale;
   startAdding?: boolean;
+  kidLinkTokens?: Record<string, string | null>;
 };
 
 export default function PeoplePanel({
@@ -43,6 +45,7 @@ export default function PeoplePanel({
   schools,
   locale,
   startAdding = false,
+  kidLinkTokens = {},
 }: Props) {
   const [adding, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
@@ -72,6 +75,7 @@ export default function PeoplePanel({
               people={people}
               schools={schools}
               locale={locale}
+              kidLinkToken={kidLinkTokens[person.id] ?? null}
             />
           ))}
         </ul>
@@ -97,11 +101,13 @@ function PersonRow({
   people,
   schools,
   locale,
+  kidLinkToken,
 }: {
   person: HouseholdPerson;
   people: HouseholdPerson[];
   schools: School[];
   locale: Locale;
+  kidLinkToken: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const stopEditing = useCallback(() => setEditing(false), []);
@@ -148,6 +154,13 @@ function PersonRow({
             schools={schools}
             onDone={stopEditing}
           />
+          {person.kind === "child" ? (
+            <KidViewLinkPanel
+              personId={person.id}
+              personName={person.name}
+              token={kidLinkToken}
+            />
+          ) : null}
           <RemovePerson person={person} />
         </div>
       ) : null}

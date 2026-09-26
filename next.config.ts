@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  async headers() {
+    return [
+      {
+        source: "/kid/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+    ];
+  },
   experimental: {
     // Tab switches felt like a full page load because dynamic routes default
     // to staleTimes.dynamic = 0 (no Client Cache). Keep recently visited tabs

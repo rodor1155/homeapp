@@ -106,6 +106,10 @@ export function memberColourSoftVar(key: MemberColourKey): string {
   return `var(--member-${key}-soft)`;
 }
 
+export function memberColourInkVar(key: MemberColourKey): string {
+  return `var(--member-${key}-ink)`;
+}
+
 export type MemberEdgeClass =
   | `evening-edge-${MemberColourKey}`
   | "evening-edge-neutral";
