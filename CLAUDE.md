@@ -127,7 +127,9 @@ app/
     settings/           household + property + locale (HouseholdForm), plan (PlanPanel),
                         calendar subscribe feed (CalendarFeedPanel), sign-in members and
                         sent invites (PeoplePanel — the *account* people, not the family),
-                        sign out, account deletion (DeleteAccountPanel)
+                        sign out, account download + deletion (DeleteAccountPanel)
+  account-deletion/     public instructions for deleting an account
+  account-deleted/      public confirmation after account deletion
   invite/               pending email invites, accept/decline (InviteList); works signed out
   join/[token]/         link-invite landing + join confirm; public, robots noindex
   kid/[token]/          read-only kid schedule page; public, robots noindex, no app chrome
@@ -170,6 +172,9 @@ lib/
   billing.ts           server-only: isBillingConfigured / getEntitlements /
                        createStripeClient / priceIdFor + the `subscriptions` read+write
                        helpers. Unconfigured = paid entitlements, so gates are inert
+  account-deletion.ts  server-only: loadAccountDeletionPreview / deleteAccountForUser
+                       (Stripe cancel, Gmail revoke, Storage purge, auth delete) +
+                       DeletionReport; see Settings + account deletion section
   property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
   family.ts            client-safe: HouseholdPerson / School / HouseholdEvent /
                        SchoolCalendarEvent shapes, PERSON_KINDS + EVENT_TYPES picklists
@@ -204,12 +209,14 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 ## Database (all in `supabase/migrations/`)
 
 - `households(id, name, locale check UK|US, created_at)`
-- `household_members(household_id, user_id, role, pk(household_id,user_id))` — members can
-  read the rows, but `auth.users` is not exposed, so the settings "People" list gets
-  addresses from `public.household_member_emails(uuid)` — SECURITY DEFINER, guarded on
+- `household_members(household_id, user_id, role, created_at, pk(household_id,user_id))` —
+  members can read the rows, but `auth.users` is not exposed, so the settings "People" list
+  gets addresses from `public.household_member_emails(uuid)` — SECURITY DEFINER, guarded on
   `private.is_household_member`, `authenticated` only. This is the only privilege phase 5
   adds. `20260909171500_household_member_emails.sql` is **written but not applied**; until
-  it is, the list still renders with the emails blank.
+  it is, the list still renders with the emails blank. **`private.transfer_household_ownership()`
+  trigger** (`20260926170000_household_owner_transfer.sql`, **not yet applied**) promotes the
+  longest-standing member when an owner leaves a household that still has members.
 - `properties(id, household_id, address, type, year_built, created_at)`
 - `household_people(id, household_id, user_id null → auth.users, name, kind check
   adult|child|other, birthday date null, school_id null → schools, year_group null,
@@ -406,8 +413,8 @@ cleaned up — a known gap for a later lifecycle job.
 ## Settings + account deletion (phase 5)
 
 - **`/settings`** (inside `AppShell`, `requireOnboarded`, reached from the gear in the top
-  bar — deliberately *not* a bottom tab). Five cards: "Your household", "Plan" (phase 6),
-  "People", "Sign out", "Delete account".
+  bar — deliberately *not* a bottom tab). Cards include "Your household", "Plan" (phase 6),
+  "People", "Sign out", and **"Account"** (download + delete).
 - **`app/actions/settings.ts`** — all on the cookie client, so RLS decides the scope;
   each action resolves the caller's active (most recently joined) membership the same way
   the rest of the app does. `updateHousehold()` repeats onboarding's validation shape
@@ -417,15 +424,24 @@ cleaned up — a known gap for a later lifecycle job.
   onboarding uses — after rejecting the caller's own address, an existing member and a
   duplicate pending invite. `revokeInvite()` updates `status` to `'revoked'`, which the
   existing member update policy already allows.
-- **`app/actions/account.ts`** — `deleteAccount(confirmText)` refuses anything but
-  `DELETE`, then on the **admin client**: find the households where the caller is the
-  only member, delete every Storage object under each `<household_id>/` prefix, and
-  `auth.admin.deleteUser()`. The FK cascades plus `prune_empty_household()` clear
-  `household_members`, `households`, `properties`, `documents`, `document_chunks`,
-  invites and reminders — no migration needed for any of it. Storage has no cascade,
-  which is why it is done by hand, and the whole cleanup is wrapped: a failure there is
-  logged and the deletion still goes through. Finally `signOut()` and `redirect("/")`.
-- Households the caller **shares** with someone else are never touched.
+- **`lib/account-deletion.ts`** (server-only, admin client) — `loadAccountDeletionPreview(userId)`
+  and `deleteAccountForUser(userId): Promise<DeletionReport>`. Steps, in order: resolve
+  sole-member vs shared households; cancel Stripe subscriptions on sole-member households
+  with a live `stripe_subscription_id` (abort if billing is unconfigured but a row looks
+  active; abort on other Stripe errors); best-effort revoke Gmail tokens then delete
+  `gmail_connections` rows; recursively remove every Storage object under each sole-member
+  `<household_id>/` prefix (abort before deleting the user if removal fails); delete the
+  auth user (FK cascades + `prune_empty_household()`); post-check memberships and sole
+  households gone. Shared households keep their data and subscription; `household_people.user_id`
+  is SET NULL. **`20260926170000_household_owner_transfer` migration not yet applied** —
+  promotes the longest-standing member when an owner leaves a household that still has members.
+- **`app/actions/account.ts`** — `deleteAccount(confirmText)` authenticates the caller,
+  checks `DELETE`, calls `deleteAccountForUser()`, then `signOut()` and `redirect("/account-deleted")`.
+- **`/account-deletion`** — public, indexable instructions (linked from privacy + sign-in).
+  **`/account-deleted`** — public confirmation page after deletion. Neither is in
+  `proxy.ts`'s protected prefixes.
+- Test harness: `.agent-logs/account-deletion-e2e.mts` (not committed) — run with
+  `npx tsx .agent-logs/account-deletion-e2e.mts` after applying the owner-transfer migration.
 
 ## Household sharing (phase 3d)
 

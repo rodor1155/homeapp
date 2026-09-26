@@ -11,6 +11,7 @@ import { requireOnboarded } from "@/lib/household";
 import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { loadSentInvites } from "@/lib/invites";
 import { loadHouseholdMembers } from "@/lib/members";
+import { loadAccountDeletionPreview } from "@/lib/account-deletion";
 import DeleteAccountPanel from "./DeleteAccountPanel";
 import HouseholdForm from "./HouseholdForm";
 import PeoplePanel from "./PeoplePanel";
@@ -29,19 +30,27 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   const { supabase, user, household, property } = await requireOnboarded();
 
   const billingConfigured = isBillingConfigured();
-  const [members, invites, inviteLinks, entitlements, guestPackLoad, calendarFeedRes] =
-    await Promise.all([
-      loadHouseholdMembers(supabase, household.id),
-      loadSentInvites(supabase, household.id),
-      loadPendingInviteLinks(supabase, household.id),
-      getEntitlements(household.id),
-      loadGuestPack(supabase, household.id),
-      supabase
-        .from("household_calendar_feeds")
-        .select("token")
-        .eq("household_id", household.id)
-        .maybeSingle(),
-    ]);
+  const [
+    members,
+    invites,
+    inviteLinks,
+    entitlements,
+    guestPackLoad,
+    calendarFeedRes,
+    deletionPreview,
+  ] = await Promise.all([
+    loadHouseholdMembers(supabase, household.id),
+    loadSentInvites(supabase, household.id),
+    loadPendingInviteLinks(supabase, household.id),
+    getEntitlements(household.id),
+    loadGuestPack(supabase, household.id),
+    supabase
+      .from("household_calendar_feeds")
+      .select("token")
+      .eq("household_id", household.id)
+      .maybeSingle(),
+    loadAccountDeletionPreview(user.id),
+  ]);
 
   const calendarFeedToken =
     calendarFeedRes.error ? null : (calendarFeedRes.data?.token as string | undefined) ?? null;
@@ -53,10 +62,6 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
     billingConfigured && entitlements.activeSubscription
       ? await loadSubscription(household.id)
       : null;
-
-  // The member list is the household's own rows, so this is the whole truth
-  // for the household the user is looking at.
-  const soleMember = members.length <= 1;
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,10 +164,11 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
         </div>
       </Card>
 
-      <Card title="Delete account" className="border-oxblood/40">
+      <Card title="Account" className="border-oxblood/40">
         <DeleteAccountPanel
-          householdName={household.name}
-          soleMember={soleMember}
+          preview={deletionPreview.households}
+          canExport={entitlements.canExport}
+          billingConfigured={billingConfigured}
         />
       </Card>
 

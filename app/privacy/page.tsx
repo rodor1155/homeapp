@@ -167,7 +167,17 @@ export default function PrivacyPage() {
               documents in storage. If you share a household, deleting your
               account removes your access but leaves the shared household data
               for other members. Gmail connection tokens are removed when you
-              disconnect Gmail or delete your account.
+              disconnect Gmail or delete your account. Deletion is immediate;
+              copies in our provider&apos;s backups are overwritten on their
+              normal schedule.
+            </p>
+            <p>
+              See{" "}
+              <Link href="/account-deletion" className="text-action">
+                Delete your account
+              </Link>{" "}
+              for step-by-step instructions and what happens to subscriptions in
+              shared households.
             </p>
           </section>
 
@@ -181,7 +191,12 @@ export default function PrivacyPage() {
               <Link href="/settings" className="text-action">
                 Settings
               </Link>{" "}
-              and use <strong>Delete account</strong> (you must be signed in).
+              → <strong>Account</strong> → <strong>Delete my account</strong> (you
+              must be signed in), or read{" "}
+              <Link href="/account-deletion" className="text-action">
+                Delete your account
+              </Link>
+              .
             </p>
             <p>
               You may also lodge a complaint with the Information

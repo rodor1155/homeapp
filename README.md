@@ -151,6 +151,27 @@ For local UI screenshots only (not committed):
   the project (URL → `https://homeapp-mu.vercel.app/api/extraction`). The secret must
   match Vercel's `EXTRACTION_WEBHOOK_SECRET`.
 
+## Account deletion
+
+App Store requirement (5.1.1(v)): users can delete their account from **Settings →
+Account**. The flow is implemented in [`lib/account-deletion.ts`](./lib/account-deletion.ts)
+(`deleteAccountForUser`) and called from [`app/actions/account.ts`](./app/actions/account.ts).
+
+Before deleting, users can **Download my data** (same zip as `/api/export`). Deletion
+cancels Stripe subscriptions on sole-member households when billing is configured;
+aborts if a live subscription row exists but Stripe is not set up. Gmail tokens are
+revoked best-effort. Storage under sole-member `<household_id>/` prefixes is removed
+before the auth user is deleted (failure aborts). Shared households keep their data;
+if the leaving member was owner, migration
+`20260926170000_household_owner_transfer.sql` promotes the longest-standing remaining
+member.
+
+Public pages: [`/account-deletion`](./app/account-deletion/page.tsx) (instructions),
+[`/account-deleted`](./app/account-deleted/page.tsx) (confirmation after delete).
+
+End-to-end harness (not committed): `npx tsx .agent-logs/account-deletion-e2e.mts` —
+run after applying the owner-transfer migration.
+
 ## Deploy
 
 Vercel builds from `main`.

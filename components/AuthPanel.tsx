@@ -178,6 +178,10 @@ export default function AuthPanel({
         <Link href="/privacy" className="text-action text-xs">
           Privacy policy
         </Link>
+        <span className="mx-2">·</span>
+        <Link href="/account-deletion" className="text-action text-xs">
+          Delete your account
+        </Link>
       </p>
     </PreAppShell>
   );
