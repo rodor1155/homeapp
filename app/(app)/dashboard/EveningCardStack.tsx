@@ -25,6 +25,29 @@ import EveningComingUpSheet from "./EveningComingUpSheet";
 
 const EXPAND_DRAG_PX = 40;
 
+function EveningFrontCard({
+  entry,
+  edge,
+  locale,
+}: {
+  entry: ComingUpEntry;
+  edge: string;
+  locale: Locale;
+}) {
+  return (
+    <div
+      className={`evening-card evening-card-front evening-glass-card ${edge}`}
+      style={{ zIndex: 10 }}
+    >
+      <p className="evening-card-title">{entry.title}</p>
+      <p className="evening-card-meta">{entry.note}</p>
+      <p className="evening-card-when tnum">
+        {eveningCardWhen(entry, locale)}
+      </p>
+    </div>
+  );
+}
+
 function subscribeReducedMotion(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -143,7 +166,10 @@ export default function EveningCardStack({
   const frontEdge = frontEntry
     ? memberEdgeClass(frontEntry.personId, people)
     : "evening-edge-neutral";
-  const frontTappable = frontEntry ? isTappableComingUp(frontEntry) : false;
+  const frontRenewalId =
+    frontEntry?.kind === "renewal" ? frontEntry.renewalId : undefined;
+  const frontTappable =
+    frontEntry && !frontRenewalId ? isTappableComingUp(frontEntry) : false;
   const frontDetail =
     frontEntry && frontTappable ? detailFromComingUp(frontEntry) : null;
 
@@ -218,39 +244,38 @@ export default function EveningCardStack({
             })}
 
             {frontEntry ? (
-              frontTappable && frontDetail ? (
-                <div data-evening-front-card className="relative z-10">
+              <div data-evening-front-card className="relative z-10">
+                {frontTappable && frontDetail ? (
                   <ComingUpTappableRow
                     detail={frontDetail}
                     locale={locale}
                     className="block w-full text-left"
                   >
-                    <div
-                      className={`evening-card evening-card-front evening-glass-card ${frontEdge}`}
-                      style={{ zIndex: 10 }}
-                    >
-                      <p className="evening-card-title">{frontEntry.title}</p>
-                      <p className="evening-card-meta">{frontEntry.note}</p>
-                      <p className="evening-card-when tnum">
-                        {eveningCardWhen(frontEntry, locale)}
-                      </p>
-                    </div>
+                    <EveningFrontCard
+                      entry={frontEntry}
+                      edge={frontEdge}
+                      locale={locale}
+                    />
                   </ComingUpTappableRow>
-                </div>
-              ) : (
-                <div data-evening-front-card>
-                  <div
-                    className={`evening-card evening-card-front evening-glass-card ${frontEdge}`}
-                    style={{ zIndex: 10 }}
+                ) : frontRenewalId ? (
+                  <Link
+                    href={`/family?renewal=${frontRenewalId}#renewals`}
+                    className="block w-full text-left"
                   >
-                    <p className="evening-card-title">{frontEntry.title}</p>
-                    <p className="evening-card-meta">{frontEntry.note}</p>
-                    <p className="evening-card-when tnum">
-                      {eveningCardWhen(frontEntry, locale)}
-                    </p>
-                  </div>
-                </div>
-              )
+                    <EveningFrontCard
+                      entry={frontEntry}
+                      edge={frontEdge}
+                      locale={locale}
+                    />
+                  </Link>
+                ) : (
+                  <EveningFrontCard
+                    entry={frontEntry}
+                    edge={frontEdge}
+                    locale={locale}
+                  />
+                )}
+              </div>
             ) : null}
           </div>
         </div>

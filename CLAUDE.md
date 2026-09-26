@@ -21,6 +21,7 @@ agent (or human) picking up the repo has the same context.
 | 7 | Home solution slice 1 — household people + schools + key dates, birthdays on the dashboard, property hub redesigned off the radial layout. | done — **`household_people` / `schools` / `household_events` migration not yet applied** |
 | 7b | School calendar (ICS) linking — a feed per school, fetched and cached server-side, term dates on the dashboard and `/family`. | done — **`school_calendars` migration not yet applied** |
 | 8 | Shopping lists — several lists per household, checklist items, tick/untick, on `/lists` as a fourth tab. | done — **`shopping_lists` migration not yet applied** |
+| 9 | Renewals & deadlines — passports, licences, MOT, insurance, boiler service etc. per person or house; Coming up surfacing; document "Track renewal" offer. | done — **`renewal_items` migration not yet applied**; renewal rows do not feed the email reminder engine yet |
 | later | The real dashboard. | not started |
 
 Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
@@ -230,6 +231,21 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
   `(list_id, sort_order)` (the list screen) and `(household_id, checked)` (the counts).
   `20260911210000_shopping_lists.sql` is **written but not applied** — until it is,
   `/lists` shows no lists rather than erroring.
+- `renewal_items(id, household_id, person_id null → household_people, title, kind check
+  passport|driving_licence|ghic|car_mot|car_tax|car_insurance|home_insurance|boiler_service|tv_licence|other,
+  due_date date null only when status = dismissed, repeat_unit check none|month|year,
+  repeat_every smallint, remind_days smallint, reference, provider, cost numeric(10,2),
+  notes, document_id null → documents on delete set null, source check
+  manual|suggestion|document, status check active|done|dismissed, last_done_at,
+  created_at, updated_at)` — tracked renewals per person or for the house (`person_id`
+  null). Plain member read/write with insert/update policies that also require `person_id`
+  and `document_id` to belong to the same household. A partial unique index on
+  `(household_id, coalesce(person_id, zero uuid), kind) where status = 'dismissed'` stops
+  duplicate dismissed suggestions. Indexed on `(household_id, status, due_date)`,
+  `(person_id)`, `(document_id)`. Surfaced in Coming up inside each item's remind window;
+  **does not write `reminders` rows or send email** — that engine stays document-only for
+  now. `20260926100000_renewal_items.sql` is **written but not applied** — until it is,
+  `/family` renewals and Coming up renewal rows read as empty rather than erroring.
 - `household_invites(id, household_id, email, invited_by, status, created_at)` — created
   during onboarding from the partner email. Members-only select, so the invitee reaches
   their own row through `public.pending_invites_for_me()` /

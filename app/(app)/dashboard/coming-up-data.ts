@@ -4,12 +4,14 @@ import {
   documentEntries,
   eventEntries,
   mergeComingUp,
+  renewalEntries,
   schoolEntries,
   sharedEntries,
   timetableEntries,
   routineEntries,
   type ComingUpEntry,
 } from "@/lib/coming-up";
+import { loadRenewalItems } from "@/lib/renewals";
 import {
   firstFault,
   loadHouseholdCalendarEvents,
@@ -60,6 +62,7 @@ export async function loadComingUpData(
     sharedDatesLoad,
     timetableLoad,
     routinesLoad,
+    renewalsLoad,
   ] = await Promise.all([
     loadOverviewDocuments(householdId),
     scheduledReminders(supabase, householdId),
@@ -71,6 +74,7 @@ export async function loadComingUpData(
     loadHouseholdCalendarEvents(supabase, householdId),
     loadPersonTimetableSlots(supabase, householdId),
     loadHouseholdRoutines(supabase, householdId),
+    loadRenewalItems(supabase, householdId),
   ]);
 
   const people = peopleLoad.items;
@@ -84,7 +88,8 @@ export async function loadComingUpData(
     schoolEntries(schoolDatesLoad.items, schoolsLoad.items, people),
     sharedEntries(sharedDatesLoad.items, calendarsLoad.items),
     timetableEntries(timetableLoad.items, people),
-    routineEntries(routinesLoad.items)
+    routineEntries(routinesLoad.items),
+    renewalEntries(renewalsLoad.items)
   );
 
   const loadFault = firstFault(
@@ -95,7 +100,8 @@ export async function loadComingUpData(
     calendarsLoad,
     sharedDatesLoad,
     timetableLoad,
-    routinesLoad
+    routinesLoad,
+    renewalsLoad
   );
 
   return { entries, people, loadFault };

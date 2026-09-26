@@ -33,7 +33,7 @@ export function memberEdgeClass(
 }
 
 function todayEntryCount(entries: readonly ComingUpEntry[]): number {
-  return entries.filter((e) => e.daysAway === 0).length;
+  return entries.filter((e) => e.daysAway === 0 || e.overdue).length;
 }
 
 /** SSR snapshot — always "today", never "tonight" (hour is device-local). */
@@ -61,7 +61,7 @@ export function eveningStackEntries(
   entries: readonly ComingUpEntry[],
   limit = 6
 ): ComingUpEntry[] {
-  const today = entries.filter((e) => e.daysAway === 0);
+  const today = entries.filter((e) => e.daysAway === 0 || e.overdue);
   if (today.length > 0) return today.slice(0, limit);
   return entries.slice(0, limit);
 }
@@ -70,6 +70,7 @@ export function eveningCardWhen(
   entry: ComingUpEntry,
   locale: Locale
 ): string {
+  if (entry.overdue) return "Overdue";
   if (entry.daysAway === 0) return "Today";
   if (entry.daysAway === 1) return "Tomorrow";
   return `${formatDate(entry.date, locale)} · ${relativeWhen(entry.daysAway)}`;

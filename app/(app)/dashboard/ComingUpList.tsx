@@ -6,6 +6,7 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
+  RefreshCw,
   Share2,
 } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ const SOON_DAYS = 30;
 
 const COMING_UP_ICON: Record<ComingUpKind, typeof FileText> = {
   document: FileText,
+  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,
@@ -92,9 +94,10 @@ function EntryRow({
   locale: Locale;
   headline: boolean;
 }) {
-  const soon = entry.daysAway <= SOON_DAYS;
+  const soon = entry.daysAway <= SOON_DAYS || entry.overdue;
   const Icon = COMING_UP_ICON[entry.kind];
-  const tappable = isTappableComingUp(entry);
+  const renewalId = entry.kind === "renewal" ? entry.renewalId : undefined;
+  const tappable = !renewalId && isTappableComingUp(entry);
   const detail = tappable ? detailFromComingUp(entry) : null;
   const shellClass = `rounded-[var(--radius)] px-3 py-2.5 ${
     headline
@@ -109,7 +112,7 @@ function EntryRow({
       {headline ? (
         <p className="mark-review mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
           <span aria-hidden className="h-1.5 w-1.5 rounded-pill bg-ochre" />
-          {countdown(entry.daysAway)}
+          {countdown(entry.daysAway, entry.overdue)}
         </p>
       ) : null}
 
@@ -143,7 +146,7 @@ function EntryRow({
               soon ? "mark-review font-medium" : "text-ink-faint"
             }`}
           >
-            {relativeWhen(entry.daysAway)}
+            {entry.overdue ? "Overdue" : relativeWhen(entry.daysAway)}
           </span>
         </span>
       </div>
@@ -160,6 +163,10 @@ function EntryRow({
         >
           {body}
         </ComingUpTappableRow>
+      ) : renewalId ? (
+        <Link href={`/family?renewal=${renewalId}#renewals`} className={shellClass}>
+          {body}
+        </Link>
       ) : (
         <div className={shellClass}>{body}</div>
       )}
@@ -167,7 +174,8 @@ function EntryRow({
   );
 }
 
-function countdown(daysAway: number): string {
+function countdown(daysAway: number, overdue?: boolean): string {
+  if (overdue) return "Overdue";
   if (daysAway <= 0) return "Coming up today";
   if (daysAway === 1) return "Coming up tomorrow";
   return `Coming up in ${daysAway} days`;

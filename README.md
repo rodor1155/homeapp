@@ -43,9 +43,9 @@ Set the secrets in the Vercel project settings (Production + Preview).
 Migrations live in [`supabase/migrations/`](./supabase/migrations) and are already applied
 to the linked project. Tables: `households`, `household_members`, `properties`,
 `household_invites`, `documents`, `document_chunks`, `reminder_rules`, `reminders`,
-`reminder_events`, `subscriptions`; plus a private `documents` Storage bucket. Every
-table has row-level security scoped to household membership. The `subscriptions`
-migration is the exception: written, not yet applied.
+`reminder_events`, `subscriptions`, `renewal_items`; plus a private `documents` Storage
+bucket. Every table has row-level security scoped to household membership. The
+`subscriptions` and `renewal_items` migrations are written but not yet applied.
 
 ## Gmail import
 
@@ -75,11 +75,16 @@ harness (not linked from any nav).
 
 ## Renewal reminders
 
-Every extracted or confirmed document with a future renewal (or, failing that, end)
-date gets a `reminders` row, written server-side by `syncRemindersForDocument()` in
-[`lib/reminders.ts`](./lib/reminders.ts) whenever extraction finishes or a review is
-confirmed. How far ahead to nudge comes from `reminder_rules`, keyed on the category
-from `lib/home-overview.ts` and the household's locale — 60/30/7/0 days by default.
+**Document email reminders** — every extracted or confirmed document with a future
+renewal (or, failing that, end) date gets a `reminders` row, written server-side by
+`syncRemindersForDocument()` in [`lib/reminders.ts`](./lib/reminders.ts) whenever
+extraction finishes or a review is confirmed. How far ahead to nudge comes from
+`reminder_rules`, keyed on the category from `lib/home-overview.ts` and the household's
+locale — 60/30/7/0 days by default.
+
+**Tracked renewals** (phase 9) — passports, MOT, insurance and the like live in
+`renewal_items`, managed on `/family` and surfaced in Coming up inside each item's
+remind window. They do not send email yet; the cron only covers document `reminders`.
 
 `GET /api/cron/reminders` runs daily at 08:00 UTC (see [`vercel.json`](./vercel.json)),
 emails every household member whose reminder falls due that day via Resend, and logs

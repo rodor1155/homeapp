@@ -21,14 +21,20 @@ import type { HouseholdRoutine } from "@/lib/routines";
 import { routineComingUpEntries } from "@/lib/routines";
 import type { PersonTimetableSlot } from "@/lib/timetable";
 import { timetableComingUpEntries } from "@/lib/timetable";
+import {
+  renewalStatusLabel,
+  renewalWindow,
+  type RenewalItem,
+} from "@/lib/renewals";
 
-/* One list for everything with a date on it: renewals read off documents,
-   birthdays derived from the household's people, the dates someone typed in
+/* One list for everything with a date on it: document renewals, tracked renewal
+   items, birthdays derived from the household's people, the dates someone typed in
    by hand, what the schools' own calendars say and what the household's own
    linked feeds do. Pure shaping — the caller loads the rows. */
 
 export type ComingUpKind =
   | "document"
+  | "renewal"
   | "birthday"
   | "event"
   | "school"
@@ -43,6 +49,7 @@ export type ComingUpKind =
  */
 export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
   document: "navy",
+  renewal: "ochre",
   birthday: "sage",
   event: "navy",
   school: "sage",
@@ -61,6 +68,10 @@ export type ComingUpEntry = {
   daysAway: number;
   /** When the row belongs to one household person (birthday, event, timetable). */
   personId?: string | null;
+  /** Tracked renewal rows — link target on /family. */
+  renewalId?: string;
+  /** Overdue renewals sort first and read as "today" on the evening map. */
+  overdue?: boolean;
   /** ICS school / shared feeds — enough to open the same detail sheet. */
   allDay?: boolean;
   startsAt?: string;
@@ -291,15 +302,51 @@ export function timetableEntries(
   }));
 }
 
-/** Soonest first, then alphabetically so the order never wobbles. */
+/** Active renewal items inside their remind window or overdue. */
+export function renewalEntries(
+  items: readonly RenewalItem[],
+  now: Date = new Date()
+): ComingUpEntry[] {
+  const entries: ComingUpEntry[] = [];
+
+  for (const item of items) {
+    if (item.status !== "active" || !item.due_date) continue;
+    const window = renewalWindow(item, now);
+    if (!window?.inWindow) continue;
+
+    const status = renewalStatusLabel(item, now);
+    const note = [status, item.provider].filter(Boolean).join(" · ");
+    const overdue = window.overdue;
+    const daysAway = overdue ? 0 : window.daysAway;
+
+    entries.push({
+      key: `renewal-${item.id}`,
+      kind: "renewal",
+      title: item.title,
+      note,
+      date: item.due_date,
+      daysAway,
+      personId: item.person_id,
+      renewalId: item.id,
+      overdue,
+    });
+  }
+
+  return entries;
+}
+
+/** Soonest first; overdue renewals before everything else. */
 export function mergeComingUp(
   ...lists: readonly ComingUpEntry[][]
 ): ComingUpEntry[] {
   return lists
     .flat()
-    .sort(
-      (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
-    );
+    .sort((a, b) => {
+      const aOver = a.overdue ? 0 : 1;
+      const bOver = b.overdue ? 0 : 1;
+      if (aOver !== bOver) return aOver - bOver;
+      return a.date.localeCompare(b.date) || a.title.localeCompare(b.title);
+    });
 }
 
 /** One month's worth of the list. `key` is the YYYY-MM the caller writes out. */

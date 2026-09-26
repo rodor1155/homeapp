@@ -15,12 +15,14 @@ import type { Locale } from "@/lib/household";
 import { TONE_PILL } from "@/lib/tones";
 import BottomSheet from "@/components/BottomSheet";
 import ComingUpTappableRow from "./ComingUpTappableRow";
+import Link from "next/link";
 import {
   Backpack,
   Cake,
   CalendarDays,
   FileText,
   GraduationCap,
+  RefreshCw,
   Repeat,
   Share2,
   type LucideIcon,
@@ -28,6 +30,7 @@ import {
 
 const COMING_UP_ICON: Record<string, LucideIcon> = {
   document: FileText,
+  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,
@@ -100,7 +103,8 @@ function SheetRow({
   people: readonly PersonSortable[];
 }) {
   const Icon = COMING_UP_ICON[entry.kind] ?? CalendarDays;
-  const tappable = isTappableComingUp(entry);
+  const renewalId = entry.kind === "renewal" ? entry.renewalId : undefined;
+  const tappable = !renewalId && isTappableComingUp(entry);
   const detail = tappable ? detailFromComingUp(entry) : null;
   const edge = memberEdgeClass(entry.personId, people);
   const shellClass = `evening-card evening-glass-card ${edge} rounded-[var(--radius-evening-card)] px-3.5 py-3`;
@@ -128,7 +132,7 @@ function SheetRow({
           {formatDate(entry.date, locale)}
         </span>
         <span className="block text-xs text-slate-muted">
-          {relativeWhen(entry.daysAway)}
+          {entry.overdue ? "Overdue" : relativeWhen(entry.daysAway)}
         </span>
       </span>
     </div>
@@ -144,6 +148,10 @@ function SheetRow({
         >
           {body}
         </ComingUpTappableRow>
+      ) : renewalId ? (
+        <Link href={`/family?renewal=${renewalId}#renewals`} className={shellClass}>
+          {body}
+        </Link>
       ) : (
         <div className={shellClass}>{body}</div>
       )}

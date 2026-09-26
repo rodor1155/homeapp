@@ -10,10 +10,13 @@ import {
 } from "@/lib/family";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadMealPlans, weekStartMonday } from "@/lib/meals";
+import { loadRenewalItems } from "@/lib/renewals";
+import type { DocumentRow } from "@/lib/document-types";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import EventsPanel from "./EventsPanel";
 import PeoplePanel from "./PeoplePanel";
+import RenewalsPanel from "./RenewalsPanel";
 import SchoolsPanel from "./SchoolsPanel";
 import MealsPanel from "./MealsPanel";
 import RoutinesPanel from "./RoutinesPanel";
@@ -36,6 +39,7 @@ export default async function FamilyPage({
   const { supabase, household } = await requireOnboarded();
   const params = await searchParams;
   const startAddingPerson = first(params.add) === "person";
+  const openRenewalId = first(params.renewal);
   const locale: Locale = household.locale ?? "UK";
 
   const weekStart = weekStartMonday();
@@ -47,6 +51,8 @@ export default async function FamilyPage({
     timetableLoad,
     routinesLoad,
     mealsLoad,
+    renewalsLoad,
+    documentsResult,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, household.id),
     loadSchools(supabase, household.id),
@@ -55,6 +61,12 @@ export default async function FamilyPage({
     loadPersonTimetableSlots(supabase, household.id),
     loadHouseholdRoutines(supabase, household.id),
     loadMealPlans(supabase, household.id, weekStart),
+    loadRenewalItems(supabase, household.id),
+    supabase
+      .from("documents")
+      .select("id, original_filename, category")
+      .eq("household_id", household.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const people = peopleLoad.items;
@@ -64,6 +76,15 @@ export default async function FamilyPage({
   const timetableSlots = timetableLoad.items;
   const routines = routinesLoad.items;
   const meals = mealsLoad.items;
+  const renewals = renewalsLoad.items;
+  const documents = ((documentsResult.data as DocumentRow[] | null) ?? []).map(
+    (doc) => ({
+      id: doc.id,
+      original_filename: doc.original_filename,
+      category: doc.category,
+    })
+  );
+
   const loadFault = firstFault(
     peopleLoad,
     schoolsLoad,
@@ -71,7 +92,8 @@ export default async function FamilyPage({
     calendarLoad,
     timetableLoad,
     routinesLoad,
-    mealsLoad
+    mealsLoad,
+    renewalsLoad
   );
 
   const children = people.filter((person) => person.kind === "child");
@@ -131,6 +153,26 @@ export default async function FamilyPage({
           locale={locale}
           startAdding={startAddingPerson}
         />
+      </Card>
+
+      <Card
+        title="Renewals & deadlines"
+        action={
+          <span className="tnum text-xs text-ink-faint">
+            {renewals.filter((item) => item.status === "active").length} tracked
+          </span>
+        }
+      >
+        <Suspense fallback={null}>
+          <RenewalsPanel
+            items={renewals}
+            people={people}
+            documents={documents}
+            locale={locale}
+            fault={renewalsLoad.fault}
+            initialRenewalId={openRenewalId}
+          />
+        </Suspense>
       </Card>
 
       <Card
