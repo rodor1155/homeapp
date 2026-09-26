@@ -81,7 +81,7 @@ export default function ShellGreeting({
   if (variant === "overlay") {
     return (
       <div className="home-hero-overlay relative z-20 flex items-center gap-2.5 px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.375rem)]">
-        <p className="min-w-0 flex-1 truncate text-lg font-semibold text-ink drop-shadow-[0_1px_2px_rgb(247_243_235_/_0.85)]">
+        <p className="home-hero-greeting-text min-w-0 flex-1 truncate text-lg font-semibold text-ink">
           Hello, {firstName}
         </p>
         {settingsLink}

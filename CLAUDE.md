@@ -34,54 +34,58 @@ dashboard proper, and RAG are explicitly out until then.
 
 ## Design system — "the household ledger"
 
-One visual system, defined once, used by every screen. **Build new screens
-(dashboard proper, reminders, settings) on this — don't reinvent it.**
+One visual system, defined once, used by every screen. **Build new screens on
+this — don't reinvent it.**
 
-- **Tokens live in `app/globals.css`** — a `@theme` block (Tailwind v4 native, so
-  `bg-paper` / `text-ink` / `text-lg` / `rounded` etc. are generated) plus a
-  `@media (prefers-color-scheme: dark)` `:root` override of the same custom
-  properties. Never hard-code a colour or a one-off font size in a component.
-  - Palette (6 hues + tints): `paper` (warm grey-green ground), `ink`
-    (blue-black text/marks), `rule` (hairlines), `ochre` (the binding line,
-    focus, links-on-hover, "needs a look"), `sage` ("filed"), `oxblood`
-    ("couldn't read it"). Plus `paper-raised` / `paper-sunk`, `ink-soft` /
-    `ink-faint`, `*-tint`.
-  - Type: **Fraunces** (display / headings / wordmark) + **IBM Plex Sans**
-    (body, with `.tnum` tabular figures for dates, amounts, counts), loaded in
-    `app/layout.tsx` as `--font-fraunces` / `--font-plex`. Scale: `--text-xs`…
-    `--text-3xl` in `@theme`.
-  - Geometry: `--radius` 4px (8px for the auth sheet). **No drop shadows** —
-    depth comes from paper tones + hairlines.
-- **Motif classes** (also in `globals.css` `@layer components`): `.ledger-bound`
-  (ochre margin rule down the content column — on every screen), `.sheet` (the
-  auth "bound leaf"), `.ruled-row` (section heading on a ruled baseline with an
-  ochre column tick — used via `<SectionHeading>`), `.field-input`, `.btn` /
-  `.btn-quiet` / `.btn-danger` (oxblood — irreversible actions only) /
-  `.text-action`, `.pill` + `.pill-high|medium|low` (confidence
-  markers), `.entry` + `.entry--filed|review|fault` (register-row left status
-  edge), `.mark-filed|review|fault|muted`, `.margin-note` (extraction ambiguity).
-- **Primitives in `components/ui.tsx`** (presentational, no `"use client"`, safe
-  in server or client components): `LedgerPage`, `Wordmark`, `SectionHeading`,
-  `Card`, `Button` (`solid|quiet|ghost|danger`), `Field`, `ConfidencePill`,
-  `StatusMark` + `STATUS_META` /
-  `statusEdgeClass` (map an `extraction_status` to a plain-spoken label + tone).
-- **Tone**: plain-spoken and domestic, never SaaS. Status is shown as words in a
-  restrained colour ("Filed", "Needs a look", "Ready to check", "Couldn't read
-  it"), not badges. Confidence pills are the one place colour is deliberately
-  front-and-centre — keep them calm.
-- `/internal/extraction-test` is deliberately left unstyled beyond the base
-  font/colour — do not dress it up.
+- **Theme is system-driven** — `prefers-color-scheme` only (no in-app toggle).
+  Light is the default. Both schemes must work everywhere.
+- **Never hard-code colours** — no hex / rgb / `bg-white` / `text-black` in
+  components. Use semantic tokens or legacy aliases (`bg-paper`, `text-ink`, …).
+- **Tokens live in `app/globals.css`** — semantic CSS variables on `:root`
+  (light default), overridden in `@media (prefers-color-scheme: dark)`, exposed
+  to Tailwind via `@theme`. Legacy names (`paper`, `ink`, `rule`, `night`,
+  `amber`, …) alias the semantics so existing utilities keep working.
 
-### Evening map (Home + tab bar)
+### Semantic tokens
 
-A separate cinematic direction for **Home only** and the **bottom tab bar** —
-not the rest of the app. Tokens live in `app/globals.css` (`night`, `night-2`,
-`amber`, `slate-muted`, member edge colours, glass fills). Home is full-bleed
-dark map (`/api/home-map?style=dark`), amber house pin, glass greeting + card
-stack, expandable Coming up sheet. Other tabs keep the paper/ink ledger system;
-the tab bar is a floating dark-glass pill everywhere. Do not scatter hex literals
-— use the evening tokens and component classes (`.evening-glass`, `.tab-bar-pill`,
-etc.).
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--surface` / `paper` | `#FAF7F2` warm ground | `#141C2E` navy ground |
+| `--surface-raised` / `paper-raised` | `#FFFFFF` | `#1E2A44` |
+| `--surface-sunk` / `paper-sunk` | `#F3EFE7` | `#1A2438` |
+| `--text` / `ink` | `#1F2A44` navy | `#E8EAF0` |
+| `--text-muted` / `ink-soft` | `#5B6478` | `#A3AAB9` |
+| `--accent` / `amber` | `#E8B35A` | `#E8B35A` |
+| `--accent-text` | `#9A6A1F` (≥4.5:1 on light glass) | `#E8B35A` |
+| `--surface-glass` | frosted white `rgba(255,255,255,0.72)` | `rgba(20,28,46,0.72)` |
+| `--glass-border` | `rgba(31,42,68,0.08)` | `rgba(255,255,255,0.1)` |
+| `--map-text` | navy (on map) | white |
+| `--tabbar-bg` | light glass | dark glass |
+| `--tabbar-icon` / `--tabbar-active` | navy / amber | white / amber |
+
+Status hues (`sage`, `ochre`, `oxblood`) and kind pastels (`lilac`, `peach`,
+`sky`) are separate — see `lib/tones.ts`.
+
+- **Type**: **Fraunces** (wordmark) + **IBM Plex Sans** (body, `.tnum` for
+  dates). Scale `--text-xs`…`--text-3xl` in `@theme`.
+- **Motif classes**: `.card`, `.sheet`, `.field-input`, `.btn*`, `.pill*`,
+  `.entry*`, `.evening-glass`, `.tab-bar-pill`, etc. — all token-backed.
+- **Primitives** in `components/ui.tsx`: `LedgerPage`, `Wordmark`,
+  `SectionHeading`, `Card`, `Button`, `Field`, `ConfidencePill`, `StatusMark`.
+- `/internal/extraction-test` stays unstyled beyond base tokens.
+
+### Home map + tab bar
+
+Home is full-bleed map with glass chrome; the tab bar is a floating glass pill
+on every tab. Both follow the same light/dark scheme as the rest of the app:
+
+- **Light**: warm map (`/api/home-map?style=light`), white glass, navy text,
+  amber pin + active tab.
+- **Dark**: evening navy map (`style=dark`), dark glass, white text, amber
+  accents.
+- Map switches live via `<picture>` + `prefers-color-scheme` (no reload).
+- `themeColor` in root `layout.tsx` viewport: `#FAF7F2` light / `#141C2E` dark;
+  `appleWebApp.statusBarStyle: "default"`.
 
 ## Stack
 

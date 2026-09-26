@@ -23,12 +23,19 @@ const plex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: "A calm home for the paperwork that protects your household.",
+  appleWebApp: {
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAF7F2" },
+    { media: "(prefers-color-scheme: dark)", color: "#141C2E" },
+  ],
 };
 
 export default function RootLayout({

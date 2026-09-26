@@ -15,9 +15,10 @@ export type HomeMapStyle = "light" | "dark";
 export type HomeMapPoint = {
   latitude: number;
   longitude: number;
-  /** Absolute path the hero uses as a CSS background. */
-  imagePath: string;
-  style: HomeMapStyle;
+  /** Light-scheme mosaic (default `<img>`). */
+  imagePathLight: string;
+  /** Dark-scheme mosaic (`<source media="(prefers-color-scheme: dark)">`). */
+  imagePathDark: string;
   /** For attribution: CARTO when the key is set, else OSM-only. */
   usesCarto: boolean;
 };
@@ -44,9 +45,10 @@ export const resolveHomeMap = cache(
     const latitude = roundCoord(point.latitude);
     const longitude = roundCoord(point.longitude);
     const token = mintHomeMapToken(latitude, longitude);
-    const imagePath = homeMapImagePath(latitude, longitude, token, "dark");
+    const imagePathLight = homeMapImagePath(latitude, longitude, token, "light");
+    const imagePathDark = homeMapImagePath(latitude, longitude, token, "dark");
     const usesCarto = Boolean(process.env.CARTO_BASEMAPS_API_KEY?.trim());
-    return { latitude, longitude, imagePath, style: "dark", usesCarto };
+    return { latitude, longitude, imagePathLight, imagePathDark, usesCarto };
   }
 );
 

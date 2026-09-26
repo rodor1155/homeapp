@@ -36,7 +36,7 @@ export default function AppShell({
     <div className={`min-h-dvh ${isHome ? "bg-night" : "bg-paper"}`}>
       <PrefetchAppRoutes />
       {!hideHeader ? (
-        <header className="sticky top-0 z-20 border-b border-rule-strong bg-paper/90 pt-[env(safe-area-inset-top)] shadow-[0_1px_0_rgb(31_42_68_/_0.03)] backdrop-blur-md">
+        <header className="shell-header sticky top-0 z-20 border-b border-rule-strong bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <ShellGreeting user={user} />
         </header>
       ) : null}

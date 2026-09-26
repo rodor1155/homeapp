@@ -213,7 +213,7 @@ export default function EveningCardStack({
             aria-controls="evening-coming-up-sheet"
             onClick={onHandleClick}
           >
-            <span aria-hidden className="h-1 w-9 rounded-pill bg-white/25" />
+            <span aria-hidden className="evening-stack-handle-bar" />
             See all
           </button>
 

@@ -1,17 +1,10 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import EveningMapHome from "./EveningMapHome";
 import { appTitle } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: appTitle("Home"),
-  appleWebApp: {
-    statusBarStyle: "black-translucent",
-  },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#141C2E",
 };
 
 export default async function DashboardPage() {

@@ -15,7 +15,8 @@ export type EveningMapViewProps = {
   entries: readonly ComingUpEntry[];
   people: readonly HouseholdPerson[];
   statuses: Record<string, string>;
-  mapImagePath: string | null;
+  mapImagePathLight: string | null;
+  mapImagePathDark: string | null;
   usesCarto: boolean;
   locale: Locale;
   loadFault: string | null;
@@ -28,7 +29,8 @@ export default function EveningMapView({
   entries,
   people,
   statuses,
-  mapImagePath,
+  mapImagePathLight,
+  mapImagePathDark,
   usesCarto,
   locale,
   loadFault,
@@ -36,7 +38,10 @@ export default function EveningMapView({
 }: EveningMapViewProps) {
   return (
     <div className="evening-map-screen">
-      <MapLayer mapImagePath={mapImagePath} />
+      <MapLayer
+        mapImagePathLight={mapImagePathLight}
+        mapImagePathDark={mapImagePathDark}
+      />
       <div aria-hidden className="evening-map-scrim-top" />
       <div aria-hidden className="evening-map-scrim-bottom" />
 
@@ -47,7 +52,7 @@ export default function EveningMapView({
         </span>
       </div>
 
-      {mapImagePath ? (
+      {mapImagePathLight ? (
         <p className="evening-map-credit">
           © OpenStreetMap{usesCarto ? " · CARTO" : ""}
         </p>
@@ -83,16 +88,28 @@ export default function EveningMapView({
   );
 }
 
-function MapLayer({ mapImagePath }: { mapImagePath: string | null }) {
-  if (!mapImagePath) {
+function MapLayer({
+  mapImagePathLight,
+  mapImagePathDark,
+}: {
+  mapImagePathLight: string | null;
+  mapImagePathDark: string | null;
+}) {
+  if (!mapImagePathLight) {
     return <div aria-hidden className="evening-map-layer evening-map-fallback" />;
   }
 
   return (
-    <div
-      aria-hidden
-      className="evening-map-layer"
-      style={{ backgroundImage: `url(${mapImagePath})` }}
-    />
+    <div aria-hidden className="evening-map-layer">
+      <picture>
+        {mapImagePathDark ? (
+          <source
+            media="(prefers-color-scheme: dark)"
+            srcSet={mapImagePathDark}
+          />
+        ) : null}
+        <img src={mapImagePathLight} alt="" />
+      </picture>
+    </div>
   );
 }

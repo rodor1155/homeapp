@@ -119,7 +119,7 @@ function SheetRow({
           <Icon size={17} strokeWidth={1.9} />
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-semibold leading-snug text-white">
+          <span className="block text-sm font-semibold leading-snug text-map-text">
             {entry.title}
           </span>
           <span className="block text-xs leading-relaxed text-slate-muted">
@@ -128,7 +128,7 @@ function SheetRow({
         </span>
       </span>
       <span className="tnum shrink-0 text-right">
-        <span className="block text-sm text-white">
+        <span className="block text-sm text-map-text">
           {formatDate(entry.date, locale)}
         </span>
         <span className="block text-xs text-slate-muted">

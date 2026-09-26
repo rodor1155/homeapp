@@ -51,7 +51,8 @@ export default async function EveningMapHome({
       entries={comingUp.entries}
       people={comingUp.people}
       statuses={statuses}
-      mapImagePath={homeMap?.imagePath ?? null}
+      mapImagePathLight={homeMap?.imagePathLight ?? null}
+      mapImagePathDark={homeMap?.imagePathDark ?? null}
       usesCarto={homeMap?.usesCarto ?? false}
       locale={locale}
       loadFault={comingUp.loadFault}

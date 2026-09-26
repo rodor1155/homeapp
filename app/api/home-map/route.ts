@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
-const ZOOM = 16;
+const ZOOM = 15;
 const TILE = 256;
 /** 5×4 at z16 — full-bleed on phone and desktop hero. */
 const COLS = 5;
@@ -28,7 +28,7 @@ const RATE_WINDOW_MS = 60_000;
 type MapStyle = "light" | "dark";
 
 const DARK_GROUND = { r: 20, g: 28, b: 46 };
-const LIGHT_GROUND = { r: 245, g: 242, b: 235 };
+const LIGHT_GROUND = { r: 243, g: 239, b: 231 };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const cacheKey = `home-map:png:v2:${style}:${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}`;
+  const cacheKey = `home-map:png:v3:${style}:${lat.toFixed(HOME_MAP_COORD_DECIMALS)}:${lng.toFixed(HOME_MAP_COORD_DECIMALS)}`;
   const cached = cacheGet<Buffer>(cacheKey);
   if (cached) {
     return pngResponse(cached);
@@ -172,7 +172,7 @@ async function fetchTile(
   let tileUrl: string;
   if (cartoKey) {
     const subdomain = ["a", "b", "c", "d"][(x + y) % 4]!;
-    const variant = style === "dark" ? "dark_all" : "voyager";
+    const variant = style === "dark" ? "dark_all" : "light_all";
     tileUrl =
       `https://${subdomain}.basemaps.cartocdn.com/rastertiles/${variant}/${z}/${x}/${y}.png` +
       `?key=${encodeURIComponent(cartoKey)}`;
@@ -192,8 +192,9 @@ async function fetchTile(
       throw new Error(`tile ${z}/${x}/${y} → ${response.status}`);
     }
     const raw = Buffer.from(await response.arrayBuffer());
-    if (style === "dark" && !cartoKey) {
-      return recolorOsmDark(raw);
+    if (!cartoKey) {
+      if (style === "dark") return recolorOsmDark(raw);
+      return recolorOsmLight(raw);
     }
     return raw;
   } finally {
@@ -204,7 +205,13 @@ async function fetchTile(
 const NAVY_GROUND = { r: 20, g: 28, b: 46 };
 const SLATE_ROAD_A = { r: 62, g: 76, b: 104 };
 const SLATE_ROAD_B = { r: 86, g: 100, b: 127 };
-const MUTED_LABEL = { r: 124, g: 137, b: 163 };
+/** Labels — deliberately quiet so the map reads as texture, not signage. */
+const MUTED_LABEL = { r: 100, g: 112, b: 132 };
+
+const LIGHT_GROUND_MAP = { r: 243, g: 239, b: 231 };
+const WARM_BUILDING = { r: 228, g: 222, b: 212 };
+const LIGHT_LABEL = { r: 154, g: 161, b: 174 };
+const ROAD_WHITE = { r: 255, g: 255, b: 255 };
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -224,6 +231,56 @@ function lerpRgb(
 
 function pixelLuminance(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** OSM raster → warm light ground with white roads (no Carto key). */
+async function recolorOsmLight(buf: Buffer): Promise<Buffer> {
+  const { data, info } = await sharp(buf)
+    .removeAlpha()
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const { width, height, channels } = info;
+  const pixels = data;
+
+  for (let i = 0; i < pixels.length; i += channels) {
+    const r = pixels[i]!;
+    const g = pixels[i + 1]!;
+    const b = pixels[i + 2]!;
+    const lum = pixelLuminance(r, g, b);
+    const t = lum / 255;
+
+    let out: { r: number; g: number; b: number };
+
+    if (t >= 0.94) {
+      const roadT = Math.min(1, (t - 0.94) / 0.06);
+      out = lerpRgb(WARM_BUILDING, ROAD_WHITE, roadT);
+    } else if (t >= 0.72) {
+      const landT = (t - 0.72) / 0.22;
+      const curved = Math.pow(landT, 0.55);
+      out = lerpRgb(LIGHT_GROUND_MAP, lerpRgb(WARM_BUILDING, ROAD_WHITE, curved * 0.4), landT);
+    } else if (t >= 0.28) {
+      const midT = (t - 0.28) / 0.44;
+      const inv = Math.pow(1 - midT, 0.85);
+      out = lerpRgb(LIGHT_LABEL, LIGHT_GROUND_MAP, inv);
+    } else {
+      const darkT = t / 0.28;
+      out = lerpRgb(
+        { r: 232, g: 226, b: 216 },
+        LIGHT_LABEL,
+        Math.pow(darkT, 0.5)
+      );
+    }
+
+    pixels[i] = out.r;
+    pixels[i + 1] = out.g;
+    pixels[i + 2] = out.b;
+  }
+
+  return sharp(pixels, { raw: { width, height, channels } })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
 }
 
 /** OSM raster → deep navy ground with slate streets (no Carto key). */

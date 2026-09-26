@@ -19,7 +19,7 @@ export default async function InvitesBanner({
 
   if (variant === "evening") {
     return (
-      <div className="evening-glass rounded-[var(--radius-lg)] p-3.5 text-white">
+      <div className="evening-glass rounded-[var(--radius-lg)] p-3.5 text-map-text">
         <h2 className="text-sm font-semibold">{title}</h2>
         <p className="mt-1 text-xs text-slate-muted">
           Accepting shares that household’s documents, dates and contacts with
