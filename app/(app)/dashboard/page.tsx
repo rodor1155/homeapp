@@ -7,7 +7,10 @@ export const metadata: Metadata = {
   title: appTitle("Home"),
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage(
+  props: PageProps<"/dashboard">
+) {
+  const { week } = await props.searchParams;
   const { user, household, property } = await requireOnboarded();
   const locale: Locale = household.locale ?? "UK";
 
@@ -17,6 +20,7 @@ export default async function DashboardPage() {
       locale={locale}
       householdId={household.id}
       address={property.address}
+      openWeekSheet={week === "1"}
     />
   );
 }

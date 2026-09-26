@@ -23,16 +23,18 @@ export default async function EveningMapHome({
   locale,
   householdId,
   address,
+  openWeekSheet = false,
 }: {
   user: ShellUser;
   locale: Locale;
   householdId: string;
   address: string;
+  openWeekSheet?: boolean;
 }) {
   const supabase = await createClient();
   const date = todayIso();
   const [comingUp, statusLoad, homeMap] = await Promise.all([
-    loadComingUpData(supabase, householdId),
+    loadComingUpData(supabase, householdId, new Date(), locale),
     loadPersonDayStatuses(supabase, householdId, date),
     resolveHomeMap(address),
   ]);
@@ -56,6 +58,8 @@ export default async function EveningMapHome({
       usesCarto={homeMap?.usesCarto ?? false}
       locale={locale}
       loadFault={comingUp.loadFault}
+      weekAhead={comingUp.weekAhead}
+      openWeekSheet={openWeekSheet}
       invites={
         <Suspense fallback={null}>
           <InvitesBanner variant="evening" />

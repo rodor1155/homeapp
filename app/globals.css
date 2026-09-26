@@ -1366,6 +1366,85 @@
     color: var(--map-text-subtle);
   }
 
+  .week-ahead-card {
+    background:
+      linear-gradient(
+        145deg,
+        color-mix(in oklab, var(--accent) 14%, transparent),
+        color-mix(in oklab, var(--hue-sky) 10%, transparent) 55%,
+        color-mix(in oklab, var(--surface-glass-card-front) 92%, transparent)
+      ),
+      var(--surface-glass-card-front);
+  }
+
+  .week-ahead-card-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--map-text);
+  }
+
+  .week-ahead-card-range {
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    color: var(--map-text-muted);
+  }
+
+  .week-ahead-card-headline {
+    margin-top: 0.625rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--map-text);
+    text-align: start;
+  }
+
+  .week-ahead-card.week-ahead-card--morph {
+    background: var(--surface-glass-card-front);
+  }
+
+  .week-ahead-compact {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .week-ahead-compact-line {
+    display: flex;
+    min-width: 0;
+    text-align: start;
+  }
+
+  .week-ahead-compact-line--muted {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--map-text-muted);
+  }
+
+  .week-ahead-person-chip {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--map-text);
+  }
+
+  .week-ahead-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--member-dot);
+    flex-shrink: 0;
+  }
+
   .evening-deck-toolbar {
     display: flex;
     align-items: center;
@@ -1657,6 +1736,11 @@
 
   .evening-sheet .hover\:bg-navy-wash\/70:hover {
     background-color: color-mix(in oklab, var(--map-text) 6%, transparent);
+  }
+
+  .week-ahead-sheet-open-btn {
+    min-height: 2.75rem;
+    justify-content: center;
   }
 
   .tab-bar-pill {

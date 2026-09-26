@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { House } from "lucide-react";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { ComingUpEntry } from "@/lib/coming-up";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
-import EveningCardStack from "./EveningCardStack";
+import EveningCardStackHost from "./EveningCardStackHost";
+import type { WeekAheadModel } from "@/lib/week-ahead";
 import EveningMapBriefing from "./EveningMapBriefing";
 import EveningMapGreeting from "./EveningMapGreeting";
 import WhosWhereChips from "./WhosWhereChips";
@@ -21,6 +22,8 @@ export type EveningMapViewProps = {
   locale: Locale;
   loadFault: string | null;
   invites: ReactNode;
+  weekAhead: WeekAheadModel | null;
+  openWeekSheet?: boolean;
 };
 
 export default function EveningMapView({
@@ -35,6 +38,8 @@ export default function EveningMapView({
   locale,
   loadFault,
   invites,
+  weekAhead,
+  openWeekSheet = false,
 }: EveningMapViewProps) {
   return (
     <div className="evening-map-screen">
@@ -82,7 +87,15 @@ export default function EveningMapView({
           </p>
         ) : null}
 
-        <EveningCardStack entries={entries} people={people} locale={locale} />
+        <Suspense fallback={null}>
+          <EveningCardStackHost
+            entries={entries}
+            people={people}
+            locale={locale}
+            weekAhead={weekAhead}
+            initialWeekSheetOpen={openWeekSheet}
+          />
+        </Suspense>
       </div>
     </div>
   );

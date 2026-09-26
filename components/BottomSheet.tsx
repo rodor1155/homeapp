@@ -45,13 +45,17 @@ export default function BottomSheet({
   open,
   onClose,
   title,
+  subtitle,
   children,
+  footer,
   className = "",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: ReactNode;
+  footer?: ReactNode;
   className?: string;
 }) {
   const titleId = useId();
@@ -207,8 +211,11 @@ export default function BottomSheet({
             aria-hidden
             className="mb-3 h-1 w-10 rounded-pill bg-rule-strong"
           />
-          <div className="grid w-full grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2">
-            <span aria-hidden className="h-9 w-9" />
+          <div className="grid w-full grid-cols-[2.25rem_1fr_2.25rem] items-center gap-x-2 gap-y-0.5">
+            <span
+              aria-hidden
+              className={`h-9 w-9 ${subtitle ? "row-span-2 self-center" : ""}`}
+            />
             <h2
               id={titleId}
               className="truncate text-center text-lg font-semibold text-ink"
@@ -219,15 +226,27 @@ export default function BottomSheet({
               type="button"
               onClick={onClose}
               aria-label="Close panel"
-              className="btn-quiet h-9 w-9 shrink-0 rounded-pill p-0"
+              className={`btn-quiet h-9 w-9 shrink-0 rounded-pill p-0 ${
+                subtitle ? "row-span-2 self-center" : ""
+              }`}
             >
               <X size={18} aria-hidden />
             </button>
+            {subtitle ? (
+              <p className="col-start-2 truncate text-center text-sm text-ink-soft">
+                {subtitle}
+              </p>
+            ) : null}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3">
           {children}
         </div>
+        {footer ? (
+          <div className="shrink-0 border-t border-rule px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
