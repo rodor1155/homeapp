@@ -75,6 +75,8 @@ export type CalendarItem = {
   date: string;
   title: string;
   note: string;
+  /** When the item belongs to one household person (birthday, key date, lesson). */
+  personId?: string | null;
   /** ICS feeds and typed key dates — omitted for birthdays and timetable. */
   allDay?: boolean;
   startsAt?: string;
@@ -189,6 +191,7 @@ export function birthdayItems(
       date,
       title: `${person.name}’s birthday`,
       note: `Turns ${key.year - parts.year}`,
+      personId: person.id,
     });
   }
 
@@ -217,6 +220,7 @@ export function eventItems(
       ]
         .filter(Boolean)
         .join(" · "),
+      personId: event.person_id,
       allDay: true,
       notes: event.notes,
     }));
@@ -345,5 +349,6 @@ export function timetableItems(
     date: item.date,
     title: item.title,
     note: item.note,
+    personId: item.personId,
   }));
 }

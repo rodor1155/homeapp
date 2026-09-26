@@ -175,6 +175,12 @@ lib/
                        and their labels, the four load*(client, householdId) helpers (all
                        return [] on error, so an unapplied migration reads as "nobody"),
                        and nextBirthday() / daysUntil() / calendarEventDate() arithmetic
+  member-colours.ts    client-safe: eight-colour palette (`MEMBER_COLOURS`), `personColour`
+                       (stored column with sort-order fallback), `nextFreeColour`,
+                       `memberEdgeClass` / CSS var helpers — chips, deck edges, avatars,
+                       calendar dots and renewal group headers
+  evening-map.ts       client-safe: evening Home briefing + deck tint (`cardTintForEntry`)
+                       re-exporting member edge helpers from `member-colours.ts`
   shopping.ts          client-safe: ShoppingList / ShoppingItem shapes, the
                        load*(client, householdId) helpers (all soft-fail to empty, so
                        an unapplied migration reads as "no lists"),
@@ -206,10 +212,14 @@ supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
 - `properties(id, household_id, address, type, year_built, created_at)`
 - `household_people(id, household_id, user_id null → auth.users, name, kind check
   adult|child|other, birthday date null, school_id null → schools, year_group null,
-  notes null, sort_order, created_at)` — who *lives* here, which is not the same list as
+  notes null, sort_order, colour text null check (amber|rose|sky|sage|lilac|coral|teal|slate),
+  created_at)` — who *lives* here, which is not the same list as
   who can sign in (`household_members`). `user_id` is only set if this person also has an
   account. School is a column pair rather than a join table: one school at a time, no
-  history — promote it to `person_schools` if that changes.
+  history — promote it to `person_schools` if that changes. `colour` is one of eight
+  palette keys (`lib/member-colours.ts`); backfilled per household on migrate, picked in
+  the Family form, defaulting to the first unused colour on insert.
+  `20260926150000_household_people_colour.sql` is **written but not applied**.
 - `schools(id, household_id, name, address null, notes null, created_at, calendar_url null,
   calendar_title null, calendar_last_synced_at null, calendar_last_error null)` — deleting
   one leaves the children in place, the FK just nulls their `school_id`. The four
@@ -427,6 +437,10 @@ delivery. Email invites from onboarding/settings remain but nothing is sent.
 - **Auth `next`**: password, magic link, OAuth and email-confirm callbacks all carry
   `?next=` through `/auth/callback` when the target is a same-site path.
 - **`/join/*`** is not in `proxy.ts`'s protected prefixes (reachable signed out).
+- **Member colours** (sharing slice 2): `household_people.colour` + picker on Family →
+  People; tints Who's-where chips, evening deck edges, Coming up rows, person-linked
+  calendar items and renewal group headers. Tokens: `--member-<key>` and
+  `--member-<key>-soft` in `app/globals.css`.
 
 ## Billing (phase 6)
 
@@ -516,8 +530,9 @@ Cancellation is one click in Stripe's own billing portal — never behind our UI
   (`FamilyState = { error?, ok? }`) on the cookie client, so RLS decides the scope. Each
   one resolves the caller's oldest membership the same way `settings.ts` does, scopes
   every write with `.eq("household_id", …)` as well, and stores an empty optional field
-  as null. Dates are checked for being real (`2026-02-31` is refused) and a birthday in
-  the future is refused.
+  as null. `savePerson` validates `colour` against the palette and assigns
+  `nextFreeColour()` on insert when none is posted. Dates are checked for being real
+  (`2026-02-31` is refused) and a birthday in the future is refused.
 - **Birthdays are derived, never stored twice.** `nextBirthday()` in `lib/family.ts`
   rolls a birthday forward to its next occurrence (29 February lands on 1 March in the
   years without one) and reports the age being reached. `household_events` is only for

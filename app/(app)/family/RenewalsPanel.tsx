@@ -36,6 +36,10 @@ import type { DocumentRow } from "@/lib/document-types";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
 import {
+  memberColourStyle,
+  personColour,
+} from "@/lib/member-colours";
+import {
   draftFromKind,
   RENEWAL_KIND_META,
   renewalStatusLabel,
@@ -150,6 +154,7 @@ export default function RenewalsPanel({
           key={person.id}
           label={person.name}
           person={person}
+          people={people}
           items={activeItems.filter((item) => item.person_id === person.id)}
           allItems={items}
           locale={locale}
@@ -187,6 +192,7 @@ export default function RenewalsPanel({
 function RenewalGroup({
   label,
   person,
+  people,
   items,
   allItems,
   locale,
@@ -196,6 +202,7 @@ function RenewalGroup({
 }: {
   label: string;
   person: HouseholdPerson | null;
+  people?: HouseholdPerson[];
   items: RenewalItem[];
   allItems: RenewalItem[];
   locale: Locale;
@@ -205,10 +212,21 @@ function RenewalGroup({
 }) {
   const scope = person ? "person" : "house";
   const suggestions = suggestionsFor(scope, person, allItems);
+  const headerColour =
+    person && people ? personColour(person, people) : null;
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-ink">{label}</h3>
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+        {headerColour ? (
+          <span
+            aria-hidden
+            className="evening-status-dot"
+            style={memberColourStyle(headerColour)}
+          />
+        ) : null}
+        {label}
+      </h3>
 
       {items.length === 0 ? (
         <p className="text-sm text-ink-faint">

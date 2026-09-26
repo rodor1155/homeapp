@@ -3,44 +3,17 @@
 import { COMING_UP_TONE, type ComingUpEntry } from "@/lib/coming-up";
 import { formatDate, relativeWhen } from "@/lib/dates";
 import type { Locale } from "@/lib/household";
+import {
+  memberColourVar,
+  memberEdgeClass,
+  personColourById,
+  type MemberEdgeClass,
+  type PersonColourable,
+} from "@/lib/member-colours";
 import type { Tone } from "@/lib/tones";
 
-/** Stable member edge colours (amber / dusty rose / sky). */
-export const MEMBER_EDGE_CLASSES = [
-  "evening-edge-amber",
-  "evening-edge-rose",
-  "evening-edge-sky",
-] as const;
-
-export type MemberEdgeClass = (typeof MEMBER_EDGE_CLASSES)[number] | "evening-edge-neutral";
-
-export type PersonSortable = {
-  id: string;
-  sort_order: number;
-};
-
-/** Map a household person to a stable edge colour by sort order. */
-export function memberEdgeClass(
-  personId: string | null | undefined,
-  people: readonly PersonSortable[]
-): MemberEdgeClass {
-  if (!personId) return "evening-edge-neutral";
-  const sorted = [...people].sort(
-    (a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id)
-  );
-  const idx = sorted.findIndex((p) => p.id === personId);
-  if (idx < 0) return "evening-edge-neutral";
-  return MEMBER_EDGE_CLASSES[idx % MEMBER_EDGE_CLASSES.length];
-}
-
-const MEMBER_EDGE_TINT: Record<
-  Exclude<MemberEdgeClass, "evening-edge-neutral">,
-  string
-> = {
-  "evening-edge-amber": "var(--member-amber)",
-  "evening-edge-rose": "var(--member-rose)",
-  "evening-edge-sky": "var(--member-sky)",
-};
+export type { MemberEdgeClass, PersonColourable as PersonSortable };
+export { memberEdgeClass };
 
 const TONE_HUE_TINT: Record<Tone, string> = {
   sage: "var(--hue-sage)",
@@ -54,12 +27,10 @@ const TONE_HUE_TINT: Record<Tone, string> = {
 /** CSS colour for `--card-tint` on peeking deck cards. */
 export function cardTintForEntry(
   entry: ComingUpEntry,
-  people: readonly PersonSortable[]
+  people: readonly PersonColourable[]
 ): string {
-  const edge = memberEdgeClass(entry.personId, people);
-  if (edge !== "evening-edge-neutral") {
-    return MEMBER_EDGE_TINT[edge];
-  }
+  const colour = personColourById(entry.personId, people);
+  if (colour) return memberColourVar(colour);
   return TONE_HUE_TINT[COMING_UP_TONE[entry.kind]];
 }
 

@@ -9,7 +9,9 @@ import {
   asPersonKind,
   asPersonRelation,
   parseDateParts,
+  type HouseholdPerson,
 } from "@/lib/family";
+import { asMemberColour, nextFreeColour } from "@/lib/member-colours";
 import { syncHouseholdCalendar } from "@/lib/household-calendar";
 import { normaliseCalendarUrl } from "@/lib/ics";
 import { syncSchoolCalendar } from "@/lib/school-calendar";
@@ -178,8 +180,13 @@ export async function savePerson(
   const newSchoolName = optional(formData, "new_school_name");
   const yearGroup = optional(formData, "year_group");
   const notes = optional(formData, "notes");
+  const colourRaw = optional(formData, "colour");
+  const colour = colourRaw ? asMemberColour(colourRaw) : null;
 
   if (!name) return { error: "Give this person a name." };
+  if (colourRaw && !colour) {
+    return { error: "Pick a colour from the list." };
+  }
   if (!kind) return { error: "Choose whether this is a grown-up or a child." };
 
   if (birthday) {
@@ -233,14 +240,27 @@ export async function savePerson(
   if (personId) {
     const { error } = await supabase
       .from("household_people")
-      .update(values)
+      .update({ ...values, ...(colour ? { colour } : {}) })
       .eq("id", personId)
       .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase
-      .from("household_people")
-      .insert({ household_id: caller.householdId, ...values });
+    let assignColour = colour;
+    if (!assignColour) {
+      const { data: existing } = await supabase
+        .from("household_people")
+        .select("id, sort_order, colour")
+        .eq("household_id", caller.householdId);
+      assignColour = nextFreeColour(
+        (existing as Pick<HouseholdPerson, "id" | "sort_order" | "colour">[]) ??
+          []
+      );
+    }
+    const { error } = await supabase.from("household_people").insert({
+      household_id: caller.householdId,
+      ...values,
+      colour: assignColour,
+    });
     if (error) return { error: error.message };
   }
 

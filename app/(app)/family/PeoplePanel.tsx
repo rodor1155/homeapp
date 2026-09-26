@@ -6,6 +6,7 @@ import {
   savePerson,
   type FamilyState,
 } from "@/app/actions/family";
+import MemberColourPicker from "@/components/MemberColourPicker";
 import { Button, Field } from "@/components/ui";
 import { formatDate, relativeWhen } from "@/lib/dates";
 import {
@@ -22,6 +23,13 @@ import {
   type School,
 } from "@/lib/family";
 import type { Locale } from "@/lib/household";
+import {
+  asMemberColour,
+  memberColourStyle,
+  nextFreeColour,
+  personColour,
+  type MemberColourKey,
+} from "@/lib/member-colours";
 
 type Props = {
   people: HouseholdPerson[];
@@ -61,6 +69,7 @@ export default function PeoplePanel({
             <PersonRow
               key={person.id}
               person={person}
+              people={people}
               schools={schools}
               locale={locale}
             />
@@ -70,7 +79,7 @@ export default function PeoplePanel({
 
       {adding ? (
         <div className={people.length > 0 ? "border-t border-rule pt-4" : ""}>
-          <PersonForm schools={schools} onDone={stopAdding} />
+          <PersonForm people={people} schools={schools} onDone={stopAdding} />
         </div>
       ) : people.length > 0 ? (
         <div className="border-t border-rule pt-4">
@@ -85,10 +94,12 @@ export default function PeoplePanel({
 
 function PersonRow({
   person,
+  people,
   schools,
   locale,
 }: {
   person: HouseholdPerson;
+  people: HouseholdPerson[];
   schools: School[];
   locale: Locale;
 }) {
@@ -97,16 +108,16 @@ function PersonRow({
 
   const school = schools.find((s) => s.id === person.school_id) ?? null;
   const birthday = nextBirthday(person.birthday);
-  // "Daughter · St Mary’s · Year 5" — the relation stands in for the kind
-  // whenever there is one.
   const meta = personSummary(person, school?.name);
+  const colour = personColour(person, people);
 
   return (
     <li className="py-3.5 first:pt-0 last:pb-0">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage-tint text-sm font-semibold text-sage"
+          className="member-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+          style={memberColourStyle(colour)}
         >
           {person.name.trim()[0]?.toUpperCase() ?? "?"}
         </span>
@@ -133,6 +144,7 @@ function PersonRow({
         <div className="mt-3 rounded-lg bg-paper-sunk p-3">
           <PersonForm
             person={person}
+            people={people}
             schools={schools}
             onDone={stopEditing}
           />
@@ -143,12 +155,14 @@ function PersonRow({
   );
 }
 
-function PersonForm({
+export function PersonForm({
   person,
+  people,
   schools,
   onDone,
 }: {
   person?: HouseholdPerson;
+  people: HouseholdPerson[];
   schools: School[];
   onDone: () => void;
 }) {
@@ -157,11 +171,15 @@ function PersonForm({
     undefined
   );
   const [kind, setKind] = useState<PersonKind>(person?.kind ?? "adult");
-  // "__new__" shows a name field so a child can get a school without leaving
-  // this form — the empty-list case that used to dead-end on "Not at school".
   const [schoolChoice, setSchoolChoice] = useState<string>(
     person?.school_id ?? (schools.length === 0 ? "__new__" : "")
   );
+  const [colour, setColour] = useState<MemberColourKey>(() => {
+    const stored = asMemberColour(person?.colour);
+    if (stored) return stored;
+    if (person) return personColour(person, people);
+    return nextFreeColour(people);
+  });
 
   useEffect(() => {
     if (state?.ok) onDone();
@@ -172,6 +190,7 @@ function PersonForm({
       {person ? (
         <input type="hidden" name="person_id" value={person.id} />
       ) : null}
+      <input type="hidden" name="colour" value={colour} />
 
       <Field label="Name">
         <input
@@ -182,6 +201,10 @@ function PersonForm({
           className="field-input"
           placeholder="Ada"
         />
+      </Field>
+
+      <Field label="Colour" note="Shows on the home map, calendar and renewals.">
+        <MemberColourPicker value={colour} onChange={setColour} disabled={pending} />
       </Field>
 
       <Field label="Who they are">
@@ -282,8 +305,6 @@ function PersonForm({
               className="field-input"
             >
               <option value="">Not saying</option>
-              {/* A value typed in before this was a picker keeps an option of
-                  its own, so opening the form can't quietly drop it. */}
               {person?.year_group && !isSchoolYear(person.year_group) ? (
                 <option value={person.year_group}>{person.year_group}</option>
               ) : null}

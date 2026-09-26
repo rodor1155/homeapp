@@ -74,8 +74,21 @@
   --tabbar-shadow: 0 8px 24px rgb(31 42 68 / 0.12), 0 1px 0 rgb(255 255 255 / 0.6) inset;
 
   --member-amber: #e8b35a;
+  --member-amber-soft: color-mix(in oklab, var(--member-amber) 24%, transparent);
   --member-rose: #c98b9b;
+  --member-rose-soft: color-mix(in oklab, var(--member-rose) 24%, transparent);
   --member-sky: #7fb2d9;
+  --member-sky-soft: color-mix(in oklab, var(--member-sky) 24%, transparent);
+  --member-sage: #6f9272;
+  --member-sage-soft: color-mix(in oklab, var(--member-sage) 24%, transparent);
+  --member-lilac: #8f87b8;
+  --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 24%, transparent);
+  --member-coral: #d4897a;
+  --member-coral-soft: color-mix(in oklab, var(--member-coral) 24%, transparent);
+  --member-teal: #5a9e9e;
+  --member-teal-soft: color-mix(in oklab, var(--member-teal) 24%, transparent);
+  --member-slate: #7a8499;
+  --member-slate-soft: color-mix(in oklab, var(--member-slate) 24%, transparent);
   --member-neutral: #8b93a5;
 
   --pin-halo: rgb(232 179 90 / 0.45);
@@ -189,6 +202,22 @@
     --tabbar-active-bg: rgb(232 179 90 / 0.18);
     --tabbar-shadow: 0 4px 24px rgb(0 0 0 / 0.35), 0 1px 0 rgb(255 255 255 / 0.06) inset;
 
+    --member-amber: #e8b35a;
+    --member-amber-soft: color-mix(in oklab, var(--member-amber) 28%, transparent);
+    --member-rose: #d9a0ad;
+    --member-rose-soft: color-mix(in oklab, var(--member-rose) 28%, transparent);
+    --member-sky: #8fc0e3;
+    --member-sky-soft: color-mix(in oklab, var(--member-sky) 28%, transparent);
+    --member-sage: #9dbb9f;
+    --member-sage-soft: color-mix(in oklab, var(--member-sage) 28%, transparent);
+    --member-lilac: #b0a8d4;
+    --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 28%, transparent);
+    --member-coral: #e0a090;
+    --member-coral-soft: color-mix(in oklab, var(--member-coral) 28%, transparent);
+    --member-teal: #6eb8b8;
+    --member-teal-soft: color-mix(in oklab, var(--member-teal) 28%, transparent);
+    --member-slate: #9aa5b8;
+    --member-slate-soft: color-mix(in oklab, var(--member-slate) 28%, transparent);
     --member-neutral: #8b9ab5;
 
     --pin-halo: rgb(232 179 90 / 0.45);
@@ -304,6 +333,11 @@
   --color-member-amber: var(--member-amber);
   --color-member-rose: var(--member-rose);
   --color-member-sky: var(--member-sky);
+  --color-member-sage: var(--member-sage);
+  --color-member-lilac: var(--member-lilac);
+  --color-member-coral: var(--member-coral);
+  --color-member-teal: var(--member-teal);
+  --color-member-slate: var(--member-slate);
   --color-glass-fill: var(--surface-glass);
   --color-glass-fill-strong: var(--surface-glass-strong);
   --color-glass-fill-card: var(--surface-glass-card);
@@ -1044,26 +1078,57 @@
     width: 0.45rem;
     height: 0.45rem;
     border-radius: 50%;
+    background-color: var(--member-dot, var(--member-neutral));
+    box-shadow: 0 0 8px
+      color-mix(in oklab, var(--member-dot, var(--member-neutral)) 75%, transparent);
   }
 
-  .evening-status-dot--amber {
-    background-color: var(--member-amber);
-    box-shadow: 0 0 8px color-mix(in oklab, var(--member-amber) 75%, transparent);
+  .member-avatar {
+    background-color: var(--member-avatar-bg, var(--hue-sage-tint));
+    color: var(--member-avatar-fg, var(--hue-sage));
   }
 
-  .evening-status-dot--rose {
-    background-color: var(--member-rose);
-    box-shadow: 0 0 8px color-mix(in oklab, var(--member-rose) 75%, transparent);
+  .member-colour-swatch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    cursor: pointer;
   }
 
-  .evening-status-dot--sky {
-    background-color: var(--member-sky);
-    box-shadow: 0 0 8px color-mix(in oklab, var(--member-sky) 75%, transparent);
+  .member-colour-swatch-input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
   }
 
-  .evening-status-dot--neutral {
-    background-color: var(--member-neutral);
-    box-shadow: 0 0 8px color-mix(in oklab, var(--member-neutral) 50%, transparent);
+  .member-colour-swatch-fill {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background-color: var(--swatch-fill);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--text) 12%, transparent);
+  }
+
+  .member-colour-swatch--selected .member-colour-swatch-fill {
+    box-shadow:
+      inset 0 0 0 2px var(--surface-raised),
+      0 0 0 2px var(--swatch-fill);
+  }
+
+  .member-colour-swatch-check {
+    position: absolute;
+    color: var(--surface-raised);
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
+    pointer-events: none;
+  }
+
+  .calendar-member-edge {
+    box-shadow: inset 3px 0 0 0 var(--member-dot, transparent);
   }
 
   .evening-card-stack {
@@ -1203,18 +1268,39 @@
   .evening-edge-sky {
     --card-edge-color: var(--member-sky);
   }
+  .evening-edge-sage {
+    --card-edge-color: var(--member-sage);
+  }
+  .evening-edge-lilac {
+    --card-edge-color: var(--member-lilac);
+  }
+  .evening-edge-coral {
+    --card-edge-color: var(--member-coral);
+  }
+  .evening-edge-teal {
+    --card-edge-color: var(--member-teal);
+  }
+  .evening-edge-slate {
+    --card-edge-color: var(--member-slate);
+  }
   .evening-edge-neutral {
     --card-edge-color: var(--card-tint, var(--member-neutral));
   }
 
-  .evening-glass-card-peek-near.evening-edge-amber,
-  .evening-glass-card-peek-near.evening-edge-rose,
-  .evening-glass-card-peek-near.evening-edge-sky,
-  .evening-glass-card-peek-near.evening-edge-neutral,
-  .evening-glass-card-peek-far.evening-edge-amber,
-  .evening-glass-card-peek-far.evening-edge-rose,
-  .evening-glass-card-peek-far.evening-edge-sky,
-  .evening-glass-card-peek-far.evening-edge-neutral {
+  .coming-up-member-edge[class*="evening-edge-"] {
+    box-shadow: inset 4px 0 0 0 var(--card-edge-color);
+  }
+
+  .evening-glass-card[class*="evening-edge-"]:not(.evening-glass-card-peek-near):not(
+      .evening-glass-card-peek-far
+    ):not(.evening-glass-card-front) {
+    box-shadow:
+      var(--shadow-evening-card),
+      inset 4px 0 0 0 var(--card-edge-color);
+  }
+
+  .evening-glass-card-peek-near[class*="evening-edge-"],
+  .evening-glass-card-peek-far[class*="evening-edge-"] {
     box-shadow:
       var(--shadow-evening-card),
       var(--deck-depth-shadow, 0 0 0 0 transparent),

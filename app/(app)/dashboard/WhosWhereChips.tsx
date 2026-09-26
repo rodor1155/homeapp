@@ -1,12 +1,6 @@
+import type { CSSProperties } from "react";
 import type { HouseholdPerson } from "@/lib/family";
-import { memberEdgeClass } from "@/lib/evening-map";
-
-const DOT_CLASS: Record<string, string> = {
-  "evening-edge-amber": "evening-status-dot--amber",
-  "evening-edge-rose": "evening-status-dot--rose",
-  "evening-edge-sky": "evening-status-dot--sky",
-  "evening-edge-neutral": "evening-status-dot--neutral",
-};
+import { memberColourStyle, personColourById } from "@/lib/member-colours";
 
 export default function WhosWhereChips({
   people,
@@ -19,24 +13,29 @@ export default function WhosWhereChips({
     .map((person) => {
       const status = statuses[person.id]?.trim();
       if (!status) return null;
-      const edge = memberEdgeClass(person.id, people);
-      return { person, status, edge };
+      const colour = personColourById(person.id, people);
+      return { person, status, colour };
     })
     .filter(Boolean) as {
     person: HouseholdPerson;
     status: string;
-    edge: string;
+    colour: ReturnType<typeof personColourById>;
   }[];
 
   if (chips.length === 0) return null;
 
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {chips.map(({ person, status, edge }) => (
+      {chips.map(({ person, status, colour }) => (
         <span key={person.id} className="evening-status-chip evening-glass">
           <span
             aria-hidden
-            className={`evening-status-dot ${DOT_CLASS[edge] ?? "evening-status-dot--neutral"}`}
+            className="evening-status-dot"
+            style={
+              colour
+                ? memberColourStyle(colour)
+                : ({ "--member-dot": "var(--member-neutral)" } as CSSProperties)
+            }
           />
           <span className="truncate">
             {person.name} · {status}

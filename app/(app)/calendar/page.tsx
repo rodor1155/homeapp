@@ -244,6 +244,7 @@ export default async function CalendarPage({
         ) : (
           <CalendarDayList
             items={dayItems}
+            people={people}
             today={selectedDay === today}
             locale={locale}
           />

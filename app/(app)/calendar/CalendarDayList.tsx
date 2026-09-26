@@ -19,7 +19,12 @@ import {
   detailFromCalendarItem,
   isTappableCalendarItem,
 } from "@/lib/calendar-event-detail";
+import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
+import {
+  memberColourStyle,
+  personColourById,
+} from "@/lib/member-colours";
 import { TONE_PILL } from "@/lib/tones";
 
 const KIND_ICON: Record<CalendarKind, LucideIcon> = {
@@ -32,10 +37,12 @@ const KIND_ICON: Record<CalendarKind, LucideIcon> = {
 
 export default function CalendarDayList({
   items,
+  people,
   today,
   locale,
 }: {
   items: readonly CalendarItem[];
+  people: readonly HouseholdPerson[];
   today: boolean;
   locale: Locale;
 }) {
@@ -60,9 +67,12 @@ export default function CalendarDayList({
         {items.map((item) => {
           const Icon = KIND_ICON[item.kind];
           const tappable = isTappableCalendarItem(item);
+          const memberColour = personColourById(item.personId, people);
           const rowClass = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left ${
             today ? "bg-ochre-wash" : ""
-          } ${tappable ? "transition-colors hover:bg-navy-wash/70" : ""}`;
+          } ${memberColour ? "calendar-member-edge pl-2" : ""} ${
+            tappable ? "transition-colors hover:bg-navy-wash/70" : ""
+          }`;
 
           const inner = (
             <>
@@ -85,14 +95,25 @@ export default function CalendarDayList({
             </>
           );
 
+          const memberStyle = memberColour
+            ? memberColourStyle(memberColour)
+            : undefined;
+
           return (
             <li key={item.key}>
               {tappable ? (
-                <button type="button" className={rowClass} onClick={() => openItem(item)}>
+                <button
+                  type="button"
+                  className={rowClass}
+                  style={memberStyle}
+                  onClick={() => openItem(item)}
+                >
                   {inner}
                 </button>
               ) : (
-                <div className={rowClass}>{inner}</div>
+                <div className={rowClass} style={memberStyle}>
+                  {inner}
+                </div>
               )}
             </li>
           );

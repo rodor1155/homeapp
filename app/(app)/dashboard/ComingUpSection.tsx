@@ -37,6 +37,7 @@ export default async function ComingUpSection({
   return (
     <ComingUp
       entries={shown}
+      people={people}
       locale={locale}
       hasPeople={people.length > 0}
       loadFault={loadFault}
@@ -48,6 +49,7 @@ export default async function ComingUpSection({
 
 function ComingUp({
   entries,
+  people,
   locale,
   hasPeople,
   loadFault,
@@ -55,6 +57,7 @@ function ComingUp({
   brief = false,
 }: {
   entries: readonly ComingUpEntry[];
+  people: Awaited<ReturnType<typeof loadComingUpData>>["people"];
   locale: Locale;
   hasPeople: boolean;
   loadFault: string | null;
@@ -106,6 +109,7 @@ function ComingUp({
       ) : (
         <ComingUpList
           entries={entries}
+          people={people}
           locale={locale}
           headlineKey={headlineKey}
           hiddenCount={hiddenCount}
