@@ -1,9 +1,24 @@
 @AGENTS.md
 
-# homeapp
+# homeapp — "Hearth Home"
 
 A Next.js + Supabase app. This file records the plan and conventions so any
-agent (or human) picking up the repo has the same context.
+agent (or human) picking up the repo has the same context. The product is
+being called **Hearth Home** in the UI (brand copy, emails, `lib/brand.ts`)
+as of the mid-September rebrand; the working-name decision in Notion is
+still formally open, so don't be surprised if it changes again — check
+`lib/brand.ts` for the current live name rather than assuming this doc.
+
+**On reconciling this file**: two waves of work landed on `main` roughly in
+parallel without either seeing the other's documentation — one shipped
+family-life v2 / Gmail import / Hub mode / iOS shell / the initial rebrand
+and wrote it up; the other shipped household sharing / renewals / an
+outbound ICS feed / a full light-dark theme rewrite / the Home card deck,
+against the *older* doc, because the first update was sitting unmerged in a
+PR. This revision merges both. If you find another gap like that, it means
+a doc update didn't make it into `main` before the next wave started —
+check for open, unmerged "update CLAUDE.md" PRs before assuming this file
+is current.
 
 ## Plan
 
@@ -12,82 +27,100 @@ agent (or human) picking up the repo has the same context.
 | 1 | Next.js App Router + TypeScript + Tailwind scaffold; three Supabase client helpers. | done |
 | 2 | Auth (email/password, magic link, Google OAuth), household onboarding, document upload to Storage. | done |
 | 3 | Document extraction worker — DB webhook → Claude vision → fields + confidence + chunked text; review/confirm UI; internal test harness. | done |
-| 1b | Embeddings for `document_chunks` + retrieval. | next |
+| 1b | Embeddings for `document_chunks` + retrieval (ask-your-home RAG). | not started |
 | 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
-| 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs). | done — migrations applied |
-| 3d | Household sharing — link invites (`/join/[token]`), member colours, kid view (`/kid/[token]`). | done — **`20260926140000_household_invite_links` and `20260926160000_person_kid_links` migrations not yet applied** |
-| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done — migrations applied; Resend + `CRON_SECRET` not set on Vercel yet |
-| 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion (App Store requirement). | done — migrations applied |
-| 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done — **`subscriptions` migration not yet applied**; `STRIPE_SECRET_KEY` is set on Vercel prod so export gate is live |
-| 7 | Home solution slice 1 — household people + schools + key dates, birthdays on the dashboard, property hub redesigned off the radial layout. | done — **`household_people` / `schools` / `household_events` migration not yet applied** |
-| 7b | School calendar (ICS) linking — a feed per school, fetched and cached server-side, term dates on the dashboard and `/family`. | done — **`school_calendars` migration not yet applied** |
-| 8 | Shopping lists — several lists per household, checklist items, tick/untick, on `/lists` as a fourth tab. | done — **`shopping_lists` migration not yet applied** |
-| 9 | Renewals & deadlines — passports, licences, MOT, insurance, boiler service etc. per person or house; Coming up surfacing; document "Track renewal" offer. | done — **`renewal_items` migration not yet applied**; renewal rows do not feed the email reminder engine yet |
-| 10 | Calendar subscribe feed — outbound ICS URL per household (key dates, renewals, document dates, birthdays); settings card + public `/api/ics/[token]`. | done — **`household_calendar_feeds` migration not yet applied** |
-| later | The real dashboard. | not started |
+| 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs, email invites). | done, applied |
+| 3d | Household sharing v2 — single-use link invites (`/join/[token]`), member colours, revocable kid view (`/kid/[token]`). | done, applied |
+| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done, applied; Resend + `CRON_SECRET` wired on Vercel |
+| 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion. | done, applied |
+| 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done, migration applied; confirm the four `STRIPE_PRICE_*` + `STRIPE_WEBHOOK_SECRET` are set before relying on it end-to-end |
+| 7 | Home solution slice 1 — household people + schools + key dates, birthdays, property hub. | done, applied — **but see "Property hub" below: the hub is now orphaned, not "redesigned"** |
+| 7b | School calendar (ICS) linking, per school — **inbound**. | done, applied |
+| 7c | Household (shared) ICS calendars — **inbound**, a family Google calendar, a club's fixtures, cached the same way as a school's. | done, applied |
+| 8 | Shopping lists — several lists per household, checklist items, tick/untick. | done, applied |
+| 9 | Family-life v2 (overnight build, 12 Sept) — school timetable, household routines, meal plan, who's-where, maintenance clock, guests pack, shared inbox, device-local child view. | done, applied — see below |
+| 10 | Gmail document import — read-only OAuth scan of the last 12 months for household PDFs, review-before-confirm. | done, applied |
+| 11 | Hub / Lounge mode — read-mostly `/hub` display for a kitchen iPad. | done (no migration; composes existing loaders) |
+| 12 | iOS via Capacitor — thin native shell in a **separate** repo (`ios-shell-template`), loads this app's live URL. | in progress — see iOS section; last known blocker was an App Store Connect Issuer ID |
+| 13 | Rebrand to "Hearth Home" v1 — `AppMark`, deepened ink/navy/sage palette, map-forward hero. | done — superseded/extended by phase 16 |
+| 14 | Renewals & deadlines — passports, licences, MOT, insurance, boiler service etc. tracked per person or per house; Coming up surfacing; a document's "Track renewal" offer. | done, applied — does not feed the email reminder engine yet |
+| 15 | Household calendar subscribe feed — **outbound**, one ICS URL per household (key dates, renewals, document dates, birthdays) that a phone's own calendar app can subscribe to; `GET /api/ics/[token]`. | done, applied — **not the same feature as 7c**, see below |
+| 16 | Theme system v2 + Home redesign — full light/dark via `prefers-color-scheme` (semantic CSS tokens, no in-app toggle), an evening map, the Home "card deck" (Coming up as a shuffleable stack), a weekend-only "Your week ahead" briefing. | done — replaced the phase-13 hero-and-list Home shape described in earlier revisions of this doc |
 
-Phase 7 is the pivot away from "subscriptions vault": homeapp is a home solution, so
-the people who live in the house are first-class, not just the paperwork. Phase 8
-follows it: the shopping is the thing a household touches every week. Still
-explicitly out: RAG.
+Every migration file under `supabase/migrations/` (31 as of this writing) is
+applied to the linked project (`fybpmpnfocaxhqiwiyhs`) — verified directly
+against the live migration history, not just the filesystem or an older
+revision of this doc. **This doc has twice claimed migrations were "written
+but not applied" when they were actually already live** — always re-check
+`mcp__Supabase__list_migrations` (or the equivalent CLI) rather than
+trusting a status line here, and don't reintroduce the caveat pattern
+without checking. If you add a new migration, apply it immediately.
 
-Do not build the next phase's work until this table says so. Reminders, the
-dashboard proper, and RAG are explicitly out until then.
+"Do not build the next phase's work until this table says so" is the
+**default absent other instruction** — it exists so an autonomous agent
+doesn't wander. It is not absolute: several phases above shipped because
+Ross directly asked for work outside this table (an overnight build, a
+sharing/renewals push), and the table was updated afterwards to match. A
+direct, explicit ask from Ross overrides the table; guessing ahead on your
+own initiative does not.
 
-## Design system — "the household ledger"
+## Design system — "the household ledger", now theme-aware
 
-One visual system, defined once, used by every screen. **Build new screens on
-this — don't reinvent it.**
+One visual system, defined once, used by every screen.
 
-- **Theme is system-driven** — `prefers-color-scheme` only (no in-app toggle).
-  Light is the default. Both schemes must work everywhere.
-- **Never hard-code colours** — no hex / rgb / `bg-white` / `text-black` in
-  components. Use semantic tokens or legacy aliases (`bg-paper`, `text-ink`, …).
-- **Tokens live in `app/globals.css`** — semantic CSS variables on `:root`
-  (light default), overridden in `@media (prefers-color-scheme: dark)`, exposed
-  to Tailwind via `@theme`. Legacy names (`paper`, `ink`, `rule`, `night`,
-  `amber`, …) alias the semantics so existing utilities keep working.
-
-### Semantic tokens
-
-| Token | Light | Dark |
-| --- | --- | --- |
-| `--surface` / `paper` | `#FAF7F2` warm ground | `#141C2E` navy ground |
-| `--surface-raised` / `paper-raised` | `#FFFFFF` | `#1E2A44` |
-| `--surface-sunk` / `paper-sunk` | `#F3EFE7` | `#1A2438` |
-| `--text` / `ink` | `#1F2A44` navy | `#E8EAF0` |
-| `--text-muted` / `ink-soft` | `#5B6478` | `#A3AAB9` |
-| `--accent` / `amber` | `#E8B35A` | `#E8B35A` |
-| `--accent-text` | `#9A6A1F` (≥4.5:1 on light glass) | `#E8B35A` |
-| `--surface-glass` | frosted white `rgba(255,255,255,0.72)` | `rgba(20,28,46,0.72)` |
-| `--glass-border` | `rgba(31,42,68,0.08)` | `rgba(255,255,255,0.1)` |
-| `--map-text` | navy (on map) | white |
-| `--tabbar-bg` | light glass | dark glass |
-| `--tabbar-icon` / `--tabbar-active` | navy / amber | white / amber |
-
-Status hues (`sage`, `ochre`, `oxblood`) and kind pastels (`lilac`, `peach`,
-`sky`) are separate — see `lib/tones.ts`.
-
+- **Theme is system-driven only** — `prefers-color-scheme`, no in-app
+  light/dark toggle anywhere. Light is the default. Every screen must work
+  in both. `components/ViewModeToggle.tsx` is a *different* switch (adult
+  vs. child chrome) — don't confuse the two.
+- **Never hard-code a colour** — no hex/rgb/`bg-white`/`text-black` in a
+  component. Use a semantic token or a legacy alias.
+- **Tokens live in `app/globals.css`**: semantic CSS custom properties on
+  `:root` (light defaults), overridden inside
+  `@media (prefers-color-scheme: dark) { :root { … } }`, exposed to
+  Tailwind via `@theme`. The older ledger palette (`paper`, `ink`, `rule`,
+  `sage`, `ochre`, `oxblood`, `lilac`, `peach`, `sky`, …) now aliases these
+  semantics rather than defining its own values, so existing utility
+  classes keep working unchanged.
+  - Core surface/text/border/accent: `--surface`/`paper`,
+    `--surface-raised`/`paper-raised`, `--surface-sunk`/`paper-sunk`,
+    `--text`/`ink`, `--text-muted`/`ink-soft`, `--text-faint`, `--border`,
+    `--border-strong`, `--accent`/`amber`, `--accent-text`.
+  - Glass chrome (map overlays, the tab bar, sheets): `--surface-glass`,
+    `--surface-glass-strong`, `--surface-glass-card`,
+    `--surface-glass-card-front`, `--surface-glass-peek-near/far`,
+    `--surface-deck-control(-hover)`, `--deck-control-border`,
+    `--glass-border`, `--glass-shadow`.
+  - Home map: `--map-text(-muted|-subtle)`, `--map-ground(-2)`,
+    `--map-scrim-top/bottom`, `--map-fallback-grid`, `--map-credit`,
+    `--map-pin-icon-on`.
+  - Tab bar: `--tabbar-bg`, `--tabbar-icon(-hover)`, `--tabbar-active`,
+    `--tabbar-active-bg`, `--tabbar-shadow`.
+  - Per-person: `--member-<key>` / `--member-<key>-soft`, one pair per
+    entry in `lib/member-colours.ts`'s 8-colour palette (see Household
+    sharing below).
+  - Status hues (`sage`/`ochre`/`oxblood`) and "kind" pastels
+    (`lilac`/`peach`/`sky`, plus `navy`) are a *separate* system in
+    `lib/tones.ts` (`TONE_DOT`/`TONE_PILL`/`TONE_WASH` maps) — not part of
+    the light/dark semantic set, don't conflate the two when picking a
+    colour for something.
+- **Home map + tab bar** both reflect the theme: `/api/home-map?style=light|dark`
+  renders two cached PNGs; the client picks one purely in CSS
+  (`<picture><source media="(prefers-color-scheme: dark)">…</picture>`,
+  `EveningMapView.tsx`'s `MapLayer`) — no JS toggle, no reload. Root
+  `layout.tsx`'s `viewport.themeColor` is theme-scoped
+  (`{media: "(prefers-color-scheme: light)", color: "#FAF7F2"}` /
+  the dark equivalent `#141C2E`).
 - **Type**: **Fraunces** (wordmark) + **IBM Plex Sans** (body, `.tnum` for
-  dates). Scale `--text-xs`…`--text-3xl` in `@theme`.
-- **Motif classes**: `.card`, `.sheet`, `.field-input`, `.btn*`, `.pill*`,
-  `.entry*`, `.evening-glass`, `.tab-bar-pill`, etc. — all token-backed.
+  dates). Scale `--text-xs`…`--text-3xl` in `@theme`. Unchanged since the
+  original design pass.
+- **`components/AppMark.tsx`** — house-mark icon (sm/md/lg), the primary
+  in-app brand mark; the header no longer carries a `Wordmark` link (see
+  the Home UI section's drift note).
+- **`lib/brand.ts`** — `APP_NAME` and `appTitle(page)`. Every page
+  `<title>` should go through this, not a literal string.
 - **Primitives** in `components/ui.tsx`: `LedgerPage`, `Wordmark`,
   `SectionHeading`, `Card`, `Button`, `Field`, `ConfidencePill`, `StatusMark`.
 - `/internal/extraction-test` stays unstyled beyond base tokens.
-
-### Home map + tab bar
-
-Home is full-bleed map with glass chrome; the tab bar is a floating glass pill
-on every tab. Both follow the same light/dark scheme as the rest of the app:
-
-- **Light**: warm map (`/api/home-map?style=light`), white glass, navy text,
-  amber pin + active tab.
-- **Dark**: evening navy map (`style=dark`), dark glass, white text, amber
-  accents.
-- Map switches live via `<picture>` + `prefers-color-scheme` (no reload).
-- `themeColor` in root `layout.tsx` viewport: `#FAF7F2` light / `#141C2E` dark;
-  `appleWebApp.statusBarStyle: "default"`.
 
 ## Stack
 
@@ -97,613 +130,737 @@ on every tab. Both follow the same light/dark scheme as the rest of the app:
   `app/globals.css`, with `tailwind.config.js` referenced via `@config`)
 - ESLint flat config via `eslint-config-next`
 - Supabase: `@supabase/ssr` (cookie-based sessions) + `@supabase/supabase-js`
-- `node-ical` for school calendar feeds (server-only; ships its own types)
+- `node-ical` for **inbound** ICS calendar feeds (school + household,
+  server-only; ships its own types) — the **outbound** subscribe feed
+  (phase 15) is a from-scratch RFC 5545 writer, not node-ical
+- `sharp` for the home-map tile stitch (`/api/home-map`) — a **declared**
+  dependency, not left to Next's optional transitive copy
+- `@capacitor/app` + `@capacitor/browser` — used only by
+  `components/NativeOAuthListener.tsx` / `lib/native-google-sign-in.ts` to
+  talk to the native shell when one is present; harmless web fallbacks when
+  it isn't (see iOS section)
+- Claude vision is called from two places: `lib/extraction.ts` (documents)
+  and `lib/timetable-extract.ts` (school timetables) — both server-only,
+  both pinned to `EXTRACTION_MODEL`
 
 ## Structure
 
 ```
 proxy.ts        Session refresh + auth gate. Next 16 renamed Middleware -> Proxy;
                 the file is proxy.ts, the export is `proxy`. Do NOT add middleware.ts.
+                PROTECTED_PREFIXES: /calendar /dashboard /documents /family
+                /hub /lists /settings /onboarding /internal. Deliberately NOT
+                protected: /invite, /join/*, /kid/*, /account-deletion,
+                /account-deleted — these must render for a signed-out visitor.
 app/
   page.tsx              routes to /sign-in, /invite, /onboarding, or /dashboard
   sign-in/, sign-up/    AuthPanel (client) — password + magic link + Google
-  auth/callback/        PKCE code exchange (magic link, OAuth, email confirm)
+  auth/callback/        PKCE code exchange (magic link, OAuth, email confirm); honours `?next=`
+  auth/native-bridge/   HTTPS hand-off page for native Google sign-in (see iOS)
   auth/sign-out/        POST route handler
   onboarding/           3-step wizard (locale -> property -> partner invite)
-  (app)/                the signed-in tabs. A route group, so the URLs are unchanged
-                        (/dashboard, not /app/dashboard).
-    layout.tsx          requireOnboarded() once + AppShell round `{children}` — the
-                        chrome is owned here, pages must NOT re-wrap it
-    loading.tsx         the skeleton a tab shows between the tap and the page
-    dashboard/          home overview + property hub (sections stream behind Suspense), gated on completed onboarding
-    documents/          list + uploader + per-doc extraction review/confirm (DocumentsList);
-                        reads `?category=` (filter + preselected bucket) and `?upload=1`
-    family/             who lives here + schools + key dates (PeoplePanel, SchoolsPanel,
-                        EventsPanel — all client, inline add/edit/remove); a school
-                        carries its ICS calendar, its last-read line and Refresh
-    lists/              the shopping — the household's lists (ListsPanel), and
-                        `[listId]/` for one of them (ItemsPanel quick-add + tick,
-                        ListSettings rename/delete); both client, optimistic
-    settings/           household + property + locale (HouseholdForm), plan (PlanPanel),
-                        calendar subscribe feed (CalendarFeedPanel), sign-in members and
-                        sent invites (PeoplePanel — the *account* people, not the family),
-                        sign out, account download + deletion (DeleteAccountPanel)
-  account-deletion/     public instructions for deleting an account
-  account-deleted/      public confirmation after account deletion
-  invite/               pending email invites, accept/decline (InviteList); works signed out
-  join/[token]/         link-invite landing + join confirm; public, robots noindex
-  kid/[token]/          read-only kid schedule page; public, robots noindex, no app chrome
-  internal/extraction-test/   benchmark harness — NOT linked from any nav
-  api/extraction/       POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
-  api/stripe/           checkout/ + portal/ + webhook/ POST routes (nodejs)
-  api/ics/[token]/      GET/HEAD public household ICS subscribe feed (token secret, nodejs)
-  actions/              auth.ts, onboarding.ts, documents.ts, invites.ts, invite-links.ts,
-                        kid-links.ts, extraction-test.ts, settings.ts, account.ts, family.ts,
-                        lists.ts, calendar-feed.ts
-components/      ui.tsx (design primitives), AuthPanel.tsx, SignOutButton.tsx,
-                 AppShell.tsx (top bar: sign out + gear to /settings) — rendered
-                 once, by `app/(app)/layout.tsx`, never by a page,
-                 BottomTabBar.tsx (Home / Family / Lists / Documents),
-                 PropertyHub.tsx (the house file), category-icons.ts (icon + short
-                 label per category)
+  privacy/               public privacy policy (App Store requirement)
+  account-deletion/       public, indexable instructions for deleting an account
+  account-deleted/        public confirmation page after deletion completes
+  join/[token]/            link-invite landing + join confirm; public, robots noindex
+  kid/[token]/             read-only kid schedule page; public, robots noindex, no app chrome
+  (app)/                the signed-in tabs. A route group, so the URLs are unchanged.
+    layout.tsx          requireOnboarded() once + <ShellRouter> round `{children}`
+    loading.tsx          the skeleton a tab shows between the tap and the page
+    dashboard/           Home — now just fetches context + the `?week=` param and
+                         renders <EveningMapHome>; see "Home UI, theme and the card deck"
+    documents/            list + Add document sheet (camera/file/Gmail) + per-doc
+                         extraction review/confirm + renewal "Track renewal" offer +
+                         MaintenanceSection; reads `?category=` and `?upload=1`
+    family/               who lives here + schools + key dates + timetable + routines +
+                         meals + who's-where + renewals + kid-view links (see below)
+    calendar/              month grid + tappable day list, birthdays/events/school
+                         feeds/shared feeds merged, `?ym=`, `?day=`, `?event=`
+    lists/                 the shopping lists (ListsPanel) + `[listId]/` (ItemsPanel)
+    settings/               household/property/locale, plan, people/invites, guest
+                         pack, calendar subscribe feed (CalendarFeedPanel), account
+                         (download + delete), Hub display link
+    hub/                    read-mostly kitchen-iPad display — its own chrome
+                         (HubShell, not AppShell), see Hub section
+  invite/                 pending EMAIL invites, accept/decline; works signed out
+  internal/extraction-test/     benchmark harness — NOT linked from any nav
+  api/extraction/          POST route the Supabase DB webhook calls (nodejs, maxDuration 60)
+  api/stripe/               checkout/ + portal/ + webhook/ POST routes (nodejs)
+  api/gmail/                connect/ (starts OAuth) + callback/ (exchange + redirect)
+  api/home-map/             signed, cached OSM/CARTO tile stitch, `?style=light|dark`
+  api/ics/[token]/          GET/HEAD public **outbound** household ICS subscribe feed
+                         (token secret, nodejs) — see phase 15
+  api/address-lookup/       Ideal Postcodes (fallback postcodes.io) address picker
+  api/cron/reminders/       daily reminder send
+  api/cron/school-calendars/  daily **inbound** ICS refresh (schools + household calendars)
+  actions/                  auth.ts, onboarding.ts, documents.ts, invites.ts,
+                           invite-links.ts, kid-links.ts, extraction-test.ts,
+                           settings.ts, account.ts, family.ts, lists.ts, gmail.ts,
+                           guests.ts, meals.ts, routines.ts, timetable.ts,
+                           whos-where.ts, calendar-feed.ts, renewals (see lib/renewals.ts)
+components/
+  ui.tsx                   design primitives
+  AuthPanel.tsx, SignOutButton.tsx
+  AppMark.tsx               brand mark (see Design system)
+  ShellRouter.tsx           client: picks AppShell vs HubShell by pathname
+  AppShell.tsx               signed-in chrome: sticky header (ShellGreeting) +
+                           <main> + CreateFab + BottomTabBar (now a floating glass
+                           pill, theme-aware). Rendered once by ShellRouter/layout.tsx.
+  ShellGreeting.tsx          greeting/settings-link/avatar, "header" and "overlay" variants
+  PreAppShell.tsx           shared chrome for signed-out screens (mark + wordmark)
+  BottomTabBar.tsx           5 tabs: Home / Family / Calendar / Lists / Documents;
+                           Documents hidden in child view mode
+  CreateFab.tsx + CreateSheet.tsx   centre "+" on every (app) tab (not /hub) ->
+                           bottom sheet: Document / Key date / Shopping list / Person
+  BottomSheet.tsx            generic reusable sheet primitive — used by CreateSheet,
+                           CalendarEventDetailSheet, AddDocumentSheet, EveningComingUpSheet
+  CalendarEventDetailSheet.tsx   the shared "detail" UI for a tapped calendar/Coming-up
+                           item — opened from `/calendar?...&event=...` and reused by
+                           the Home card deck rather than duplicated
+  PropertyHub.tsx             "the house file" drawer grid — **currently dead code, see
+                           the Property hub section: not rendered from Home OR /documents**
+  category-icons.ts           icon + short label + CATEGORY_TONE per category
+  NativeOAuthListener.tsx     app-wide: Capacitor deep-link listener for native
+                           Google sign-in hand-off (see iOS section)
+  ViewModeToggle.tsx           adult/child mode, localStorage only, device-local,
+                           not an access control — a *different* thing from the
+                           theme's light/dark or the kid-view secret link
+  HubShell.tsx, HubClock.tsx, HubDisplayLink.tsx, HubRefresh.tsx   /hub chrome
 lib/
-  categories.ts        client-safe CATEGORIES / Category / isCategory / asCategory /
-                       categorise() keyword guess / effectiveCategory() (stored, else guess)
-  supabase-client.ts   browser client (createBrowserClient)
-  supabase-server.ts   server client with cookie bridge (server-only)
-  supabase-admin.ts    service-role client (server-only, bypasses RLS)
-  supabase.ts          deprecated re-export of supabase-client
-  household.ts         server-only: loadHouseholdContext / isOnboarded / requireOnboarded /
-                       queryActiveMembership. loadHouseholdContext is wrapped in React
-                       `cache()` and gets the membership, household and property in one
-                       embedded query, so the (app) layout and the page inside it share a
-                       single round trip. Active household = most recently joined membership.
-  invite-links.ts      client-safe: InviteLinkPreview / PendingInviteLink shapes,
-                       loadInviteLinkPreview / loadPendingInviteLinks, expiry labels
-  extraction.ts        server-only: extractDocument() (pure Claude call) +
-                       runExtractionForDocument() (download → extract → persist) + chunkText()
-  document-types.ts    client-safe row/confidence shapes + REVIEW_FIELDS + DOCUMENTS_SELECT
-  invites.ts           PendingInvite + loadPendingInvites(client) — wraps the RPC,
-                       returns [] on any error so a page never fails over invites;
-                       plus SentInvite + loadSentInvites(client, householdId)
-  members.ts           HouseholdMember + loadHouseholdMembers(client, householdId) —
-                       membership rows off the table, emails off the SECURITY DEFINER
-                       function; emails come back null if that call fails
-  billing.ts           server-only: isBillingConfigured / getEntitlements /
-                       createStripeClient / priceIdFor + the `subscriptions` read+write
-                       helpers. Unconfigured = paid entitlements, so gates are inert
-  account-deletion.ts  server-only: loadAccountDeletionPreview / deleteAccountForUser
-                       (Stripe cancel, Gmail revoke, Storage purge, auth delete) +
-                       DeletionReport; see Settings + account deletion section
-  property.ts          PROPERTY_TYPES — the picklist onboarding and settings share
-  family.ts            client-safe: HouseholdPerson / School / HouseholdEvent /
-                       SchoolCalendarEvent shapes, PERSON_KINDS + EVENT_TYPES picklists
-                       and their labels, the four load*(client, householdId) helpers (all
-                       return [] on error, so an unapplied migration reads as "nobody"),
-                       and nextBirthday() / daysUntil() / calendarEventDate() arithmetic
-  member-colours.ts    client-safe: eight-colour palette (`MEMBER_COLOURS`), `personColour`
-                       (stored column with sort-order fallback), `nextFreeColour`,
-                       `memberEdgeClass` / CSS var helpers — chips, deck edges, avatars,
-                       calendar dots and renewal group headers
-  evening-map.ts       client-safe: evening Home briefing + deck tint (`cardTintForEntry`)
-                       re-exporting member edge helpers from `member-colours.ts`
-  shopping.ts          client-safe: ShoppingList / ShoppingItem shapes, the
-                       load*(client, householdId) helpers (all soft-fail to empty, so
-                       an unapplied migration reads as "no lists"),
-                       loadOutstandingCounts() and splitItems() / outstandingLabel()
-  school-calendar.ts   server-only: normaliseCalendarUrl / parseCalendar (node-ical) /
-                       syncSchoolCalendar(schoolId) — fetch an ICS feed and rebuild the
-                       school_calendar_events cache on the admin client
-  ics-export.ts        pure RFC 5545 builder for the outbound household subscribe feed
-                       (no server-only import — fold/escape/date helpers exported for tests)
-  ics-feed-load.ts     server-only: load household rows on the admin client and call
-                       buildHouseholdIcs() for GET /api/ics/[token]
-  coming-up.ts         server-only: ComingUpEntry + documentEntries / birthdayEntries /
-                       eventEntries / schoolEntries / mergeComingUp — the one dated list
-                       the dashboard shows
-  dates.ts             client-safe formatDate() / relativeWhen() / intlLocale()
-  safe-path.ts         safeNextPath() — clamps a `?next=` value to a same-site path
-supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs)
+  categories.ts             client-safe CATEGORIES — **8**, incl. "Home inbox" —
+                           categorise() / effectiveCategory()
+  supabase-client.ts, supabase-server.ts, supabase-admin.ts, supabase.ts
+  household.ts               server-only: loadHouseholdContext (cache()d) /
+                           requireOnboarded / queryActiveMembership — active household
+                           is the caller's **most recently joined** membership (not
+                           "oldest" — that changed with link-invite sharing)
+  extraction.ts               server-only: document extraction (Claude vision)
+  timetable-extract.ts        server-only: school-timetable extraction (Claude
+                           vision, separate from documents — doesn't touch the DB)
+  document-types.ts           client-safe row/confidence shapes
+  invites.ts, members.ts       EMAIL invites (legacy onboarding path)
+  invite-links.ts             client-safe: InviteLinkPreview / PendingInviteLink
+                           shapes + loaders for the phase-3d **link** invites
+  billing.ts                  server-only Stripe entitlements/checkout/portal helpers
+  account-deletion.ts          server-only: loadAccountDeletionPreview /
+                           deleteAccountForUser — see Settings + account deletion
+  property.ts                 PROPERTY_TYPES picklist
+  family.ts                   client-safe: HouseholdPerson / School / HouseholdEvent /
+                           SchoolCalendarEvent shapes + arithmetic
+  member-colours.ts            client-safe: 8-colour palette, personColour /
+                           nextFreeColour / memberEdgeClass — chips, deck tints,
+                           avatars, calendar dots, renewal group headers
+  evening-map.ts               client-safe: evening Home briefing helpers +
+                           cardTintForEntry(); re-exports member-colours helpers
+  week-ahead.ts                client-safe: isWeekAheadWindow() / buildWeekAhead() —
+                           the weekend-only "Your week ahead" briefing model
+  household-calendar.ts       server-only: sync a household's own **inbound** ICS
+                           feed (phase 7c — same shape as school-calendar.ts)
+  school-calendar.ts           server-only: sync a school's **inbound** ICS feed
+  ics.ts                       shared **inbound** fetch/parse/pin used by both syncs
+  ics-export.ts                 pure RFC 5545 builder for the **outbound** household
+                           subscribe feed (phase 15) — no server-only import by design
+  ics-feed-load.ts              server-only: loads household rows on the admin
+                           client and calls the ics-export builder for GET /api/ics/[token]
+  renewals.ts                   client-safe: renewal_items shapes, RENEWAL_KINDS,
+                           load/save helpers for phase-14 renewals & deadlines
+  timetable.ts                 client-safe: person_timetable_slots load +
+                           Coming-up/calendar expansion + kit-flag inference
+  school-year-match.ts          pure: match a school ICS event's title (e.g.
+                           "Y7 trip") against a household's children's year groups
+  routines.ts                   client-safe: household_routines load +
+                           weekly/fortnightly/monthly Coming-up expansion
+  meals.ts                      client-safe: household_meal_plans (Mon-Sun) load
+  whos-where.ts                  client-safe: person_day_status load, status suggestions
+  guests.ts                      client-safe: guest-pack (5 columns on households)
+  gmail-config.ts, gmail.ts     server-only: Gmail OAuth + scan + candidates
+  kid-view-load.ts               server-only (admin client): resolve a /kid/[token]
+                           into that child's next-6-days schedule
+  is-capacitor-native.ts        client: detect the Capacitor iOS shell at runtime
+  native-oauth.ts, native-google-sign-in.ts, public-app-origin.ts   iOS OAuth plumbing
+  hub-data.ts                    server-only: composes existing loaders for /hub
+  calendar-event-detail.ts        client-safe: map a calendar item / Coming-up
+                           entry to a tappable detail-sheet payload
+  calendar-month.ts               month-grid + day-list shaping, incl. school-year filter
+  coming-up.ts                    server-only: the one merged dated list — documents,
+                           birthdays, household events, school + household **inbound**
+                           calendar feeds, timetable, routines, renewals. Also owns
+                           `comingUpHref(entry)`, the single place that decides where
+                           tapping any entry navigates to.
+  tones.ts                        status-hue / kind-pastel <-> pill/dot class mapping
+  html-entities.ts                 decode ICS text entities
+  safe-path.ts                     safeNextPath()
+supabase/migrations/   applied to the linked project (ref fybpmpnfocaxhqiwiyhs) —
+                       all 31 files, verified against the live migration history
+docs/
+  ios-capacitor-kickoff.md      the iOS shell plan/status (shell lives in a
+                               separate repo — see iOS section)
+  hub-lounge-mode-sketch.md      the /hub spec (three-column kitchen display)
 ```
 
-## Database (all in `supabase/migrations/`)
+## Database (all in `supabase/migrations/`, all applied to `fybpmpnfocaxhqiwiyhs`)
 
-- `households(id, name, locale check UK|US, created_at)`
+- `households(id, name, locale check UK|US, created_at, wifi_name, wifi_password,
+  spare_key_note, bin_day_note, school_run_note)` — the last five columns are the
+  guest pack (settings-only form, `lib/guests.ts` / `app/actions/guests.ts`);
+  `wifi_password` is stored and rendered as plain text, not masked.
 - `household_members(household_id, user_id, role, created_at, pk(household_id,user_id))` —
-  members can read the rows, but `auth.users` is not exposed, so the settings "People" list
-  gets addresses from `public.household_member_emails(uuid)` — SECURITY DEFINER, guarded on
-  `private.is_household_member`, `authenticated` only. This is the only privilege phase 5
-  adds. `20260909171500_household_member_emails.sql` is **written but not applied**; until
-  it is, the list still renders with the emails blank. **`private.transfer_household_ownership()`
-  trigger** (`20260926170000_household_owner_transfer.sql`, **not yet applied**) promotes the
-  longest-standing member when an owner leaves a household that still has members.
+  emails come from `public.household_member_emails(uuid)` (SECURITY DEFINER).
+  **`private.transfer_household_ownership()`** (trigger, AFTER DELETE on this
+  table) promotes the member with the earliest `created_at` (tie-broken by
+  `user_id`) to owner when the departing member was the owner and others
+  remain — real and applied, not a stub.
 - `properties(id, household_id, address, type, year_built, created_at)`
-- `household_people(id, household_id, user_id null → auth.users, name, kind check
-  adult|child|other, birthday date null, school_id null → schools, year_group null,
-  notes null, sort_order, colour text null check (amber|rose|sky|sage|lilac|coral|teal|slate),
-  created_at)` — who *lives* here, which is not the same list as
-  who can sign in (`household_members`). `user_id` is only set if this person also has an
-  account. School is a column pair rather than a join table: one school at a time, no
-  history — promote it to `person_schools` if that changes. `colour` is one of eight
-  palette keys (`lib/member-colours.ts`); backfilled per household on migrate, picked in
-  the Family form, defaulting to the first unused colour on insert.
-  `20260926150000_household_people_colour.sql` is **written but not applied**.
-- `schools(id, household_id, name, address null, notes null, created_at, calendar_url null,
-  calendar_title null, calendar_last_synced_at null, calendar_last_error null)` — deleting
-  one leaves the children in place, the FK just nulls their `school_id`. The four
-  `calendar_*` columns are phase 7b and come from
-  `20260911193000_school_calendars.sql`, **written but not applied**; `SCHOOLS_SELECT`
-  names them, so until it is applied `loadSchools()` soft-fails to `[]` and `/family`
-  shows no schools at all.
-- `school_calendar_events(id, school_id cascade, household_id cascade, uid null, title,
-  starts_at, ends_at null, all_day default true, location null, created_at,
-  unique(school_id, uid))` — the **cache** of a school's ICS feed for today → +120 days,
-  dropped and rebuilt on every sync, never the source of truth. Members select;
-  **no insert/update/delete policy**, rows come from `syncSchoolCalendar()` on the
-  service role. Indexed on `(household_id, starts_at)` — the one query both the
-  dashboard and `/family` make. `uid` carries the feed's UID with the occurrence
-  appended for a recurring event, which is what makes the unique constraint meaningful.
-  Same unapplied migration as the columns above.
+- `household_people(id, household_id, user_id null → auth.users on delete **set null**,
+  name, kind check adult|child|other, relation null check (wife|husband|partner|
+  mother|father|daughter|son|sister|brother|grandmother|grandfather|guardian|other),
+  birthday date null, school_id null → schools, year_group null, notes null,
+  colour null check (one of an 8-key palette — see `lib/member-colours.ts`),
+  sort_order, created_at)` — `colour` is picked in the Family form and defaults
+  to the first unused palette colour on insert (`nextFreeColour()`); `relation`
+  is a soft-checked free label, blank/unknown cleared in the app rather than
+  DB-rejected. `on delete set null` on `user_id` is what lets account deletion
+  leave a shared household's people rows intact (see Settings section).
+- `schools(id, household_id, name, address null, postcode null, notes null,
+  created_at, calendar_url null, calendar_title null, calendar_last_synced_at
+  null, calendar_last_error null)` — `schools_household_name_unique` backs the
+  app-level de-dup in `findOrCreateSchool`.
+- `school_calendar_events(..., description text null, url text null)` — the
+  **inbound** ICS cache for a school's feed, today → +120 days, dropped and
+  rebuilt on every sync. `description`/`url` feed `CalendarEventDetailSheet`.
+- `household_calendars(id, household_id, name, calendar_url null, calendar_title
+  null, calendar_last_synced_at null, calendar_last_error null, created_at)` +
+  `household_calendar_events(..., calendar_id, description text null, url text
+  null, unique(calendar_id, uid))` — **inbound**: the household's own shared ICS
+  feeds (a family Google calendar, a club's fixtures), same read-mostly cache
+  shape as a school's. `lib/household-calendar.ts` is the sync surface. **Not
+  the same table as `household_calendar_feeds` below** — read the names
+  carefully, they're inverse features.
 - `household_events(id, household_id, title, event_date, event_type check
-  birthday|school|home|other, person_id null, school_id null, notes null, created_at)` —
-  dates someone typed in (term starts, the boiler service). **Birthdays are not mirrored
-  in here** — the dashboard derives the next one from `household_people.birthday`, so
-  there is only ever one copy of it.
-  All three are plain member read/write (select/insert/update/delete on
-  `private.is_household_member`) with explicit `grant … to authenticated`; nothing on
-  these tables is written by a worker.
-  `20260911180000_household_people_schools_events.sql` is **written but not applied** —
-  until it is, `/family` and the dashboard's birthdays read as empty rather than erroring.
-- `shopping_lists(id, household_id, name, notes null, sort_order, created_at, updated_at)`
-  and `shopping_list_items(id, list_id cascade, household_id, title, checked default false,
-  sort_order, created_at, checked_at null)` — the shared shopping. Plain member read/write
-  on both, like `household_events`. `household_id` on an item is **denormalised** off its
-  list so RLS is one member check rather than a join on every read; the insert and update
-  policies also require the parent list to be in the same household, so the two can't be
-  stitched across. `updated_at` on a list tracks the *list* (a rename), not its items —
-  ticking something off would otherwise be a write on every tap for no reader. Indexed on
-  `(list_id, sort_order)` (the list screen) and `(household_id, checked)` (the counts).
-  `20260911210000_shopping_lists.sql` is **written but not applied** — until it is,
-  `/lists` shows no lists rather than erroring.
-- `renewal_items(id, household_id, person_id null → household_people, title, kind check
-  passport|driving_licence|ghic|car_mot|car_tax|car_insurance|home_insurance|boiler_service|tv_licence|other,
-  due_date date null only when status = dismissed, repeat_unit check none|month|year,
-  repeat_every smallint, remind_days smallint, reference, provider, cost numeric(10,2),
+  birthday|school|home|other, person_id null, school_id null, notes null,
+  created_at)` — dates someone typed in. Birthdays are never mirrored here —
+  derived from `household_people.birthday`.
+- `person_timetable_slots(id, household_id, person_id → household_people, weekday
+  0-6, start_time/end_time text HH:MM, period_label, subject not null, location,
+  bring_kit bool, kit_label, bring_ingredients bool, ingredients_note, notes,
+  source_document_id null → documents, sort_order, created_at)` — a child's
+  school-week timetable; insert/update also require the person to belong to the
+  caller's household. `source_document_id` exists at the schema level but
+  nothing currently sets it.
+- `household_routines(id, household_id, title, cadence check weekly|fortnightly|
+  monthly, weekday 0-6 null, day_of_month 1-28 null, anchor_date date null,
+  notes, active bool default true, sort_order)` — recurring household beats
+  (bin night, library books).
+- `household_meal_plans(id, household_id, week_start date (Monday, Europe/
+  London), weekday 0-6, title not null, ingredients_note, sort_order,
+  unique(household_id, week_start, weekday))` — one row per weekday per week;
+  the shopping-list hook (`addMealIngredientsToList`) naively splits the note
+  on `\n , ;` — a one-tap manual action, not automatic on save.
+- `person_day_status(id, household_id, person_id → household_people, status_date
+  date, status_text not null, updated_at, unique(person_id, status_date))` —
+  "who's where today"; same person-belongs-to-household RLS shape as timetable
+  slots.
+- `renewal_items(id, household_id, person_id null → household_people, title,
+  kind check passport|driving_licence|ghic|car_mot|car_tax|car_insurance|
+  home_insurance|boiler_service|tv_licence|other, due_date date (null only when
+  status = dismissed), repeat_unit check none|month|year, repeat_every
+  smallint, remind_days smallint, reference, provider, cost numeric(10,2),
   notes, document_id null → documents on delete set null, source check
   manual|suggestion|document, status check active|done|dismissed, last_done_at,
-  created_at, updated_at)` — tracked renewals per person or for the house (`person_id`
-  null). Plain member read/write with insert/update policies that also require `person_id`
-  and `document_id` to belong to the same household. A partial unique index on
-  `(household_id, coalesce(person_id, zero uuid), kind) where status = 'dismissed'` stops
-  duplicate dismissed suggestions. Indexed on `(household_id, status, due_date)`,
-  `(person_id)`, `(document_id)`. Surfaced in Coming up inside each item's remind window;
-  **does not write `reminders` rows or send email** — that engine stays document-only for
-  now. `20260926100000_renewal_items.sql` is **written but not applied** — until it is,
-  `/family` renewals and Coming up renewal rows read as empty rather than erroring.
-- `household_calendar_feeds(household_id pk → households, token text unique not null
-  check length ≥ 32, created_at, rotated_at, created_by → auth.users)` — one outbound
-  ICS subscribe URL per household. The token is stored here rather than on `households`
-  so it never rides along with `select *`. Members read/write (to show, copy, regenerate
-  or revoke the link); `GET /api/ics/[token]` looks the row up on the service role with
-  no session. Regenerate replaces the token (old URL 404s); revoke deletes the row. Feed
-  includes `household_events`, active `renewal_items` with due dates (plus VALARM when
-  `remind_days > 0`), document `renewal_date` / `end_date` (skipping superseded docs and
-  docs with a linked active renewal), and recurring birthdays from `household_people`.
-  Excludes school/shared imported calendars, routines, timetable slots and reminder rows.
-  `20260926120000_household_calendar_feed.sql` is **written but not applied**.
-- `person_kid_links(person_id pk → household_people on delete cascade, household_id →
-  households on delete cascade, token text unique not null check length ≥ 32, created_at,
-  rotated_at, created_by → auth.users)` — one secret read-only URL per child. Insert/update
-  policies require the person to be `kind = 'child'` in the same household. Members
-  read/write; `GET /kid/[token]` resolves the token on the service role with no session.
-  Regenerate replaces the token (old URL 404s); revoke deletes the row. Exposes only that
-  child's schedule for today + six London days: timetable slots (incl. kit/ingredients),
-  key dates linked to them, their school's cached ICS dates, who's-where status, and their
-  birthday countdown — not documents, renewals, routines, meals, other people or notes.
-  `20260926160000_person_kid_links.sql` is **written but not applied**.
-- `household_invites(id, household_id, email null, token text unique null, expires_at,
-  invited_by, accepted_by, accepted_at, status, created_at)` — email rows from onboarding
-  or legacy settings; link rows carry a single-use `token` (≥32 chars) and `expires_at`.
-  Check: `email` or `token` must be set. Members-only select/insert/update/delete on the
-  table; invitees reach email invites through `public.pending_invites_for_me()` /
-  `accept_household_invite(uuid)` / `decline_household_invite(uuid)` (`authenticated`
-  only). Link invites use `public.invite_link_preview(p_token)` (`anon` + `authenticated`)
-  and `public.accept_household_invite_link(p_token)` (`authenticated`). Accepting inserts
-  `household_members` (role `member`) and calls `private.leave_empty_household_if_applicable`
-  — drops the joiner's signup household only when `private.household_is_empty` (no other
-  members, no properties/documents/people/schools/events/lists/renewals/calendar feed/
-  reminders/subscriptions/routines/meals/timetable/who's-where/guest-pack notes/gmail
-  connection, or outstanding invites). Two households is allowed when the joiner already
-  has content. Active household everywhere is the **most recently joined** membership
-  (`queryActiveMembership` / `loadHouseholdContext`). `/onboarding` redirects to `/invite`
-  when pending email invites exist (same as `/`). `20260926140000_household_invite_links.sql`
-  is **written but not applied**.
-- `documents(...)` — upload lands `extraction_status = 'pending'`; the worker fills
-  `doc_type / provider / reference / start_date / end_date / renewal_date / amount /
-  currency / key_contact_name / key_contact_phone` and the `extraction_confidence`
-  jsonb (`{ model, page_count, overall_confidence, flags, error, fields: {k: {value, confidence, ambiguity}} }`).
-  Status flow: `pending → processing → extracted | needs_review | failed → confirmed`.
-  `category text` (nullable, checked against the seven `CATEGORIES`) is the filing bucket
-  chosen at upload — written by `recordDocument` and editable in the review form. Null on
-  rows filed before it existed, which is why everything reads it through
-  `effectiveCategory()`. `20260911120000_documents_category.sql` is **written but not
-  applied** — and every document query selects the column, so apply it before deploying.
-- `document_chunks(id, document_id, chunk_index, content)` — ~500-token (≈2000-char)
-  plain-text chunks. Select-only RLS via the parent document; writes are service-role.
-  No embeddings yet (phase 1b).
-- `reminder_rules(category, locale, offsets int[], pk(category, locale))` — reference
-  data: how many days before a due date to nudge. `category` mirrors `CATEGORIES` in
-  `lib/categories.ts`, plus a `default` row. Readable by any signed-in user
-  (RLS on, `using (true)`); written only by migrations.
-- `reminders(id, household_id, document_id, kind check renewal|end, due_date, offsets int[],
-  status check scheduled|sent|cancelled, created_at, unique(document_id, kind))` —
-  members can select/update/delete; **no insert policy**, rows come from
-  `syncRemindersForDocument()` on the service role. Indexed on `(status, due_date)`.
-- `reminder_events(id, reminder_id, offset_days, channel, result, sent_at,
-  unique(reminder_id, offset_days))` — the send log, and the thing that stops a
-  duplicate nudge. Select-only via the parent reminder; writes are service-role.
-- `subscriptions(household_id pk → households, stripe_customer_id, stripe_subscription_id,
-  status default 'none', plan, current_period_end, cancel_at_period_end, updated_at)` —
-  one row per household (the household is the Stripe customer, so everyone in it shares
-  the plan). Members-only select; **no insert/update/delete policy**, rows are written by
-  the Stripe webhook and the checkout route on the service role. Indexed on
-  `stripe_customer_id`, which is how a webhook event finds the household. `status` is
-  deliberately unconstrained — an unknown Stripe status should land in the row rather
-  than fail the webhook. `20260909180000_subscriptions.sql` is **written but not applied**.
+  created_at, updated_at)` — tracked renewals per person or for the house
+  (`person_id` null). A partial unique index on
+  `(household_id, coalesce(person_id, zero uuid), kind) where status = 'dismissed'`
+  stops duplicate dismissed suggestions. Surfaced in Coming up inside each
+  item's remind window and offered from a document's review form ("Track
+  renewal"). **Does not write `reminders` rows or send email** — confirmed
+  `lib/reminders.ts` has zero references to `renewal_items`; that engine
+  stays document-only for now.
+- `household_calendar_feeds(household_id pk → households, token text unique not
+  null check length ≥ 32, created_at, rotated_at, created_by → auth.users)` —
+  **outbound**: one ICS subscribe URL per household, for the household's own
+  phone/calendar app to subscribe to. The token lives here rather than on
+  `households` so it never rides along with `select *`. Members read/write to
+  show/copy/regenerate/revoke; `GET /api/ics/[token]` looks the row up on the
+  service role with no session. Regenerate replaces the token (old URL 404s).
+  The generated feed includes `household_events`, active `renewal_items` with
+  due dates (VALARM when `remind_days > 0`), document `renewal_date`/`end_date`
+  (skipping superseded documents and ones with a linked active renewal, so a
+  date isn't double-counted), and recurring birthdays (RRULE) from
+  `household_people` — it deliberately **excludes** school/household inbound
+  calendars, routines, timetable slots and reminder rows. `lib/ics-export.ts`
+  is the pure builder (genuinely no `server-only` import); `lib/ics-feed-load.ts`
+  is the server-only loader that feeds it.
+- `person_kid_links(person_id pk → household_people on delete cascade,
+  household_id → households on delete cascade, token text unique not null
+  check length ≥ 32, created_at, rotated_at, created_by → auth.users)` — one
+  secret read-only URL per child, **no expiry** (unlike the invite link
+  below). Insert/update require the person to be `kind = 'child'` in the same
+  household. `GET /kid/[token]` resolves on the service role with no session,
+  is `robots: noindex` (plus `X-Robots-Tag: noindex` + `Referrer-Policy:
+  no-referrer` set in `next.config.ts`) and rate-limited (60 requests/60s).
+  Exposes only that child's own next-6-days schedule: timetable slots (incl.
+  kit/ingredients), key dates linked to them, their school's cached inbound
+  ICS dates, who's-where status, birthday countdown — never documents,
+  renewals, routines, meals, other people or notes.
+- `household_invites(id, household_id, email null, token text unique null,
+  expires_at, invited_by, accepted_by, accepted_at, status, created_at)` —
+  email rows from onboarding/legacy settings; **link** rows (phase 3d) carry a
+  single-use `token` (≥32 bytes, base64url) and a 7-day `expires_at`, capped at
+  10 outstanding per household. A row must have `email` or `token` set.
+  Email invitees reach their row through `public.pending_invites_for_me()` /
+  `accept_household_invite(uuid)` / `decline_household_invite(uuid)`. Link
+  invites go through `public.invite_link_preview(p_token)` (readable signed
+  out, for the `/join/[token]` preview) and
+  `public.accept_household_invite_link(p_token)` (authenticated only).
+  Accepting either kind inserts `household_members` (role `member`) and, if
+  the joiner's own signup household is genuinely empty (checked via
+  `private.household_is_empty` across every table this doc lists, not just
+  membership), drops that membership so a fresh signup doesn't accumulate
+  orphaned households — but a joiner who's already put content into their own
+  household keeps both. **The "active" household anywhere in the app is the
+  caller's most recently joined membership**, not the oldest — this changed
+  with sharing; `queryActiveMembership()` / `loadHouseholdContext()` in
+  `lib/household.ts` is the one place that decides it.
+- `documents(...)` — upload lands `extraction_status = 'pending'`; the worker
+  fills the extraction fields + `extraction_confidence` jsonb. `category` is
+  one of **8** values including `"Home inbox"` (see Property hub). Status
+  flow: `pending → processing → extracted | needs_review | failed → confirmed`.
+- `gmail_connections` / `gmail_import_candidates` — see Gmail document import
+  below; unchanged by the later waves of work.
+- `document_chunks(id, document_id, chunk_index, content)` — no embeddings yet
+  (phase 1b).
+- `reminder_rules`, `reminders`, `reminder_events` — unchanged from phase 4.
+  Still document-only; renewals and the outbound ICS feed are read paths, not
+  writers, into this system.
+- `subscriptions(household_id pk → households, stripe_customer_id,
+  stripe_subscription_id, status default 'none', plan, current_period_end,
+  cancel_at_period_end, updated_at)` — migration applied; confirm
+  `STRIPE_WEBHOOK_SECRET` and the four `STRIPE_PRICE_*` vars are actually set
+  in a given environment before assuming checkout/webhook work end-to-end.
 - Private Storage bucket `documents`, key pattern `<household_id>/<document_id>/<filename>`
 
-RLS model: every table (and the bucket) is gated on
-`private.is_household_member(household_id)` — a `SECURITY DEFINER` helper in the
-non-exposed `private` schema. New rows are reachable because
-`public.handle_new_user()` (trigger on `auth.users`) drops every new signup into
-their own household as `owner`. `public.prune_empty_household()` (trigger on
-`household_members` delete) removes a household once it has no members, cascading
-to properties/documents/chunks/invites. Orphaned **Storage objects** are not yet
-cleaned up — a known gap for a later lifecycle job.
+RLS model unchanged: every table (and the bucket) is gated on
+`private.is_household_member(household_id)`. Household resolution in most
+server actions is still hand-repeated per file (`family.ts`, `settings.ts`,
+`lists.ts`, `gmail.ts`, `guests.ts`, `meals.ts`, `routines.ts`, `timetable.ts`,
+`whos-where.ts`) rather than centralised — and as of sharing v2 it must
+resolve the **active** (most recently joined) membership, not just "the
+caller's household", so double-check any of these files you touch actually
+calls through `queryActiveMembership`/`loadHouseholdContext` rather than a
+stale "first membership row" pattern from before sharing existed.
 
 ## Extraction worker (phase 3)
 
 - **Trigger**: `documents_extraction_webhook` (after insert on `public.documents`)
-  → `private.notify_extraction_webhook()` → `net.http_post` to the URL in Vault
-  secret `extraction_webhook_url`, with `x-webhook-secret` from Vault secret
-  `extraction_webhook_secret`. Fires only for `extraction_status = 'pending'`;
-  no-ops (warning only) if the Vault secrets are unset. This is the "database
-  webhook" — no polling.
+  → `net.http_post` to the URL in Vault secret `extraction_webhook_url`, with
+  `x-webhook-secret` from Vault secret `extraction_webhook_secret`. Fires only
+  for `extraction_status = 'pending'`.
 - **Route** `POST /api/extraction`: constant-time-compares `x-webhook-secret`
   against `EXTRACTION_WEBHOOK_SECRET`, then `runExtractionForDocument(record.id)`.
-  Also accepts `{ document_id }` for manual re-runs.
-- **`extractDocument()`**: `claude-sonnet-4-6` vision, forced `record_extraction`
-  tool call (schema = the 10 fields, each `{value, confidence, ambiguity}`, plus
-  `full_text`). PDFs > 8 pages or files > 20 MB are parked as `needs_review`
-  without calling Claude (OCR fallback = phase 3b). Any non-`high` field, an
-  all-low result, or missing text → `needs_review`; unsupported type / API error
-  / download failure → `failed`; otherwise `extracted`.
-- **Review UI**: `/documents` shows every `extracted / needs_review / confirmed`
-  doc as an editable form with per-field confidence pills and ambiguity notes;
-  "Confirm" writes edits back and sets `confirmed`. `failed` / `needs_review`
-  docs get a "Re-run extraction" button (`reprocessDocument` action).
-- **`/internal/extraction-test`**: upload a file, see the raw outcome + confidence
-  + transcription. No Storage/DB. Gated to `INTERNAL_TOOLS_EMAILS` (or any
-  signed-in user if unset). Not linked from anywhere.
+  Gmail-imported documents go through this **same** path — `importGmailCandidates`
+  inserts a `pending` `documents` row directly (via `importDocumentFromBuffer`,
+  admin client) and lets the DB webhook pick it up.
+- **`extractDocument()`**: `claude-sonnet-4-6` (`EXTRACTION_MODEL`) vision,
+  forced tool call. PDFs > 8 pages or files > 20 MB are parked as
+  `needs_review` without calling Claude. Status flow:
+  `pending → processing → extracted | needs_review | failed → confirmed`.
+- **Review UI**: `/documents` — the Add document sheet feeds it manual uploads
+  and confirmed Gmail imports alike; a confirmed document can also be offered
+  as a "Track renewal" (phase 14).
+- **`/internal/extraction-test`**: unchanged, gated to `INTERNAL_TOOLS_EMAILS`.
 
 ## Reminder engine (phase 4)
 
-- **`lib/reminders.ts`** (server-only, admin client): `pickReminderDates()` picks the
-  renewal date, else the end date, and only if it is still ahead — so most documents
-  get nothing. `offsetsFor()` reads `reminder_rules`, falling back to the `default`
-  row then to `FALLBACK_OFFSETS`. `syncRemindersForDocument()` is idempotent: an
-  unchanged due date is left alone, a moved one deletes and re-inserts (so old events
-  don't suppress the new nudges), a vanished one cancels.
-- **Wired in** at the end of `runExtractionForDocument()` (covers the webhook *and*
-  `reprocessDocument`) and `confirmExtraction()`. Both best-effort — a reminder is
-  never allowed to fail the user's action.
-- **`lib/email.ts`**: Resend wrapper. No `RESEND_API_KEY` / `REMINDERS_FROM_EMAIL`
-  → warn and return `{ skipped: true }`; nothing in it throws.
-- **`GET /api/cron/reminders`** (nodejs, maxDuration 60): when `CRON_SECRET` is unset,
-  logs a warning and returns 200 `{ skipped: true }` so Vercel's daily schedule does
-  not error; bearer-token compare against `CRON_SECRET` when set, then for each
-  scheduled reminder with `due_date >= today`, fires the
-  offsets landing on today that have no `reminder_events` row yet, emails every
-  household member (resolved through `auth.admin.getUserById`), logs the result, and
-  marks the reminder `sent` once the 0-offset has gone. One bad reminder is caught and
-  counted, not fatal. Returns `{ processed, sent, skipped, errors }`.
-- **`vercel.json`** runs it at `0 8 * * *`. Vercel supplies the `Authorization: Bearer`
-  header itself once `CRON_SECRET` is set on the project.
+Unchanged from earlier phases — see `lib/reminders.ts`, `lib/email.ts`,
+`GET /api/cron/reminders`. Still only covers documents; nothing emails a
+birthday, a timetable kit reminder, a routine, or a renewal deadline — those
+only ever show on Coming up / the calendar / the Hub display / the
+household's own outbound ICS feed (if they've subscribed their phone to it).
 
 ## Settings + account deletion (phase 5)
 
-- **`/settings`** (inside `AppShell`, `requireOnboarded`, reached from the gear in the top
-  bar — deliberately *not* a bottom tab). Cards include "Your household", "Plan" (phase 6),
-  "People", "Sign out", and **"Account"** (download + delete).
-- **`app/actions/settings.ts`** — all on the cookie client, so RLS decides the scope;
-  each action resolves the caller's active (most recently joined) membership the same way
-  the rest of the app does. `updateHousehold()` repeats onboarding's validation shape
-  (name, `UK|US`,
-  address, 1000–2100 year) and writes `households` + `properties`. `inviteMember()`
-  inserts a `household_invites` row with `invited_by = caller` — the same rule
-  onboarding uses — after rejecting the caller's own address, an existing member and a
-  duplicate pending invite. `revokeInvite()` updates `status` to `'revoked'`, which the
-  existing member update policy already allows.
-- **`lib/account-deletion.ts`** (server-only, admin client) — `loadAccountDeletionPreview(userId)`
-  and `deleteAccountForUser(userId): Promise<DeletionReport>`. Steps, in order: resolve
-  sole-member vs shared households; cancel Stripe subscriptions on sole-member households
-  with a live `stripe_subscription_id` (abort if billing is unconfigured but a row looks
-  active; abort on other Stripe errors); best-effort revoke Gmail tokens then delete
-  `gmail_connections` rows; recursively remove every Storage object under each sole-member
-  `<household_id>/` prefix (abort before deleting the user if removal fails); delete the
-  auth user (FK cascades + `prune_empty_household()`); post-check memberships and sole
-  households gone. Shared households keep their data and subscription; `household_people.user_id`
-  is SET NULL. **`20260926170000_household_owner_transfer` migration not yet applied** —
-  promotes the longest-standing member when an owner leaves a household that still has members.
-- **`app/actions/account.ts`** — `deleteAccount(confirmText)` authenticates the caller,
-  checks `DELETE`, calls `deleteAccountForUser()`, then `signOut()` and `redirect("/account-deleted")`.
-- **`/account-deletion`** — public, indexable instructions (linked from privacy + sign-in).
-  **`/account-deleted`** — public confirmation page after deletion. Neither is in
-  `proxy.ts`'s protected prefixes.
-- Test harness: `.agent-logs/account-deletion-e2e.mts` (not committed) — run with
-  `npx tsx .agent-logs/account-deletion-e2e.mts` after applying the owner-transfer migration.
+- **`/settings`** cards: "Your household", "Plan", "People", **"Calendar
+  subscribe feed"** (`CalendarFeedPanel`, phase 15), "Guest pack", a link to
+  the Hub display, and **"Account"** (download + delete, replacing the
+  separate old "Sign out"/"Delete account" cards).
+- **`lib/account-deletion.ts`** (server-only, admin client) is now the whole
+  deletion surface: `loadAccountDeletionPreview(userId)` and
+  `deleteAccountForUser(userId): Promise<DeletionReport>`. Verified order of
+  operations: (1) resolve sole-member vs. shared households; (2) **cancel any
+  live Stripe subscription** on a sole-member household (aborts the whole
+  deletion if billing looks configured-and-active but the cancel call fails —
+  never silently leaves someone paying for a deleted account); (3)
+  best-effort revoke + delete `gmail_connections` rows; (4) recursively purge
+  every Storage object under each sole-member household's `<household_id>/`
+  prefix (aborts before the user is deleted if purge fails); (5)
+  `auth.admin.deleteUser()`; (6) post-check that memberships and sole
+  households are actually gone. **Shared households are left alone** — the
+  household, its subscription and its documents survive, and
+  `household_people.user_id` is `SET NULL` by the FK rather than the person
+  row being deleted, so a shared household doesn't lose "who lives here"
+  entries just because one account left.
+- **`private.transfer_household_ownership()`** (see Database) means a
+  household an owner leaves, that still has other members, gets a new owner
+  automatically rather than being ownerless.
+- **`app/actions/account.ts`** — `deleteAccount(confirmText)` requires
+  `DELETE`, calls `deleteAccountForUser()`, then signs out and redirects to
+  `/account-deleted`.
+- **`/account-deletion`** (public, indexable — linked from `/privacy` and
+  sign-in, an App Store requirement) and **`/account-deleted`** (public
+  confirmation) are both outside `proxy.ts`'s protected prefixes.
 
 ## Household sharing (phase 3d)
 
-Link invites let a household owner invite a partner or another adult without email
-delivery. Email invites from onboarding/settings remain but nothing is sent.
+Link invites let a household owner add a partner or another adult without
+relying on email delivery; the older email-invite path (`/invite`) still
+works alongside it.
 
-- **`InviteSomeoneSheet`** (Family + Settings → People): creates a single-use link
-  (32-byte base64url token, 7-day expiry, max 10 outstanding per household). Share via
-  `navigator.share` when available, always copy. Pending links list with inline revoke
-  confirm.
-- **`/join/[token]`** (outside `(app)`, public, `robots: noindex`): server-renders
-  `invite_link_preview`. Unknown token → 404. Expired/used/revoked → friendly card.
-  Signed out → household name + inviter, Create account / Sign in with
-  `?next=/join/<token>` (validated by `safeNextPath`). Signed in → confirm + Join /
-  Not now. Already a member → Go to Home (invite not consumed). Join →
-  `accept_household_invite_link` → `/dashboard`.
-- **`app/actions/invite-links.ts`**: `createInviteLink`, `revokeInviteLink`,
-  `listInviteLinks`, `acceptInviteLink`. URLs built with `publicAppOrigin()` like the
-  ICS feed.
-- **Auth `next`**: password, magic link, OAuth and email-confirm callbacks all carry
-  `?next=` through `/auth/callback` when the target is a same-site path.
-- **`/join/*`** is not in `proxy.ts`'s protected prefixes (reachable signed out).
-- **Member colours** (sharing slice 2): `household_people.colour` + picker on Family →
-  People; tints Who's-where chips, evening deck edges, Coming up rows, person-linked
-  calendar items and renewal group headers. Tokens: `--member-<key>` and
-  `--member-<key>-soft` in `app/globals.css`.
-- **Kid view** (sharing slice 3): **`KidViewLinkPanel`** on Family → People when editing a
-  child — create / copy / share / open / regenerate / turn off a link (32-byte base64url
-  token, no expiry). **`/kid/[token]`** (outside `(app)`, public, `robots: noindex`,
-  `X-Robots-Tag` + `Referrer-Policy: no-referrer` via `next.config.ts`, in-memory rate
-  limit like the ICS feed): server-renders `loadKidViewForToken()` → `KidView` — large
-  friendly type, today's items in time order, next six days as simpler cards, auto-refresh
-  every 15 minutes. No app chrome, no links into the signed-in app. **`app/actions/kid-links.ts`**
-  and **`lib/kid-view-load.ts`** (admin client). **`/kid/*`** is not in `proxy.ts`'s
-  protected prefixes (reachable signed out).
+- **Link invites**: `InviteSomeoneSheet` (reachable from Family and Settings
+  → People) creates a single-use link — 32-byte base64url token, 7-day
+  expiry, capped at 10 outstanding per household (`app/actions/invite-links.ts`).
+  Share via `navigator.share` when available, always with a copy fallback.
+- **`/join/[token]`** (public, `robots: noindex`): renders
+  `invite_link_preview`. Unknown token → 404; expired/used/revoked → a
+  friendly card, not an error; signed out → household name + inviter with
+  Create account / Sign in carrying `?next=/join/<token>` (validated by
+  `safeNextPath`, honoured all the way through `/auth/callback` for
+  password, magic link, OAuth and email-confirm); signed in → confirm + Join
+  or Not now; already a member → straight to Home (the invite is never
+  "consumed" by someone who doesn't need it).
+- **Member colours**: `household_people.colour`, picked in the Family form
+  (`nextFreeColour()` on insert if none posted). Tints who's-where chips, the
+  Home deck cards, Coming up rows, person-linked calendar items and renewal
+  group headers — the token pairs are `--member-<key>` / `--member-<key>-soft`
+  (see Design system).
+- **Kid view**: `KidViewLinkPanel` on Family → People, shown when editing a
+  child — create/copy/share/open/regenerate/turn-off a link. `/kid/[token]`
+  is a standalone, no-app-chrome page (large friendly type, today's items in
+  time order, the next six days as simpler cards, auto-refreshes every 15
+  minutes) — see the `person_kid_links` row in Database for the exact scope
+  and hardening (noindex, no-referrer, rate limit).
+- Neither `/join/*` nor `/kid/*` is in `proxy.ts`'s protected prefixes — both
+  have to render for a signed-out visitor by design.
 
 ## Billing (phase 6)
 
-Freemium. **Free**: unlimited documents, 3 active reminders, no export, no AI Q&A.
-**Paid**: unlimited reminders, export, household sharing, and (later) AI Q&A + cover
-analysis. £4.99/mo or £39/yr for UK households, $6.99/mo or $59/yr for US ones.
-Cancellation is one click in Stripe's own billing portal — never behind our UI.
-
-- **Off by default, and off means inert.** `isBillingConfigured()` is true only when
-  `STRIPE_SECRET_KEY` is set. While it is false, `getEntitlements()` returns the *paid*
-  set without touching Stripe or the database, so every gate is a no-op and the app
-  behaves exactly as it did before phase 6. Once it is true, a household is paid only on
-  a `subscriptions.status` of `active` or `trialing`; anything else (including an
-  unreadable row) is free, i.e. `canExport: false`, `reminderLimit: 3`.
-- **`lib/billing.ts`** (server-only) is the whole surface: `isBillingConfigured()`,
-  `getEntitlements(householdId)`, `createStripeClient()` (throws if unconfigured — guard
-  first), `priceIdFor(locale, interval)` reading the four `STRIPE_PRICE_*` vars,
-  `planForPriceId()` for the reverse lookup, `loadSubscription()` / `saveSubscription()` /
-  `householdIdForCustomer()` on the admin client, and `patchFromSubscription()`.
-  `current_period_end` comes off the subscription's **items** — Stripe moved it there.
-- **`POST /api/stripe/checkout`** — cookie client for auth, `loadHouseholdContext()` for
-  the household, 503 `{ error: "Billing is not set up yet." }` when unconfigured or when
-  that locale/interval has no price. Reuses `stripe_customer_id` or creates the customer
-  and stores it first, then creates a subscription Checkout Session carrying
-  `household_id` in `metadata`, `client_reference_id` *and* `subscription_data.metadata`.
-  Returns `{ url }`; success lands on `/settings?billing=success`.
-- **`POST /api/stripe/portal`** — same guards, opens a Billing Portal session for the
-  household's customer, returns `{ url }`. This is the cancel path.
-- **`POST /api/stripe/webhook`** — raw `request.text()` verified with
-  `constructEventAsync` against `STRIPE_WEBHOOK_SECRET`; 400 on a bad or missing
-  signature, 200 no-op when billing is unconfigured. Handles
-  `checkout.session.completed` (retrieves the subscription for its real status) and
-  `customer.subscription.created/updated/deleted`, upserting the row keyed on
-  `household_id` — found from the event metadata, else from `stripe_customer_id`.
-  Unrecognised events are answered 200 and ignored; a failed *write* answers 500 so
-  Stripe retries.
-- **Gates in place**: `/api/export` returns 402 `{ error: "Export is a paid feature." }`
-  when `!canExport`. Dashboard and `/documents` use `ExportButton` to show that gate
-  in the UI (upgrade link to `/settings`) instead of a raw JSON response. The reminder
-  cap is **not** enforced yet — `reminderLimit` is exposed and there is a
-  `TODO(billing)` in `lib/reminders.ts` where it would go.
-- **`/settings` → "Plan"** reads entitlements server-side and renders `PlanPanel`
-  (client): upgrade buttons that POST to checkout, or "Manage billing" that POSTs to the
-  portal, and a muted "Billing isn't set up yet" note when unconfigured. Display prices
-  live in `PlanPanel` and must be kept in step with the Stripe prices.
-- **To turn it on** (none of this is done yet): apply the migration, create one product
-  with four recurring prices in Stripe, add a webhook endpoint at
-  `<SITE>/api/stripe/webhook` for `checkout.session.completed` +
-  `customer.subscription.created/updated/deleted`, enable the billing portal with
-  cancellation on, then set the six `STRIPE_*` variables locally and in Vercel.
+Unchanged in mechanism from earlier phases (`lib/billing.ts`, the three
+Stripe routes, `ExportButton`, `PlanPanel`). The `subscriptions` migration
+is applied; before relying on checkout/webhook working end-to-end in a
+given environment, confirm `STRIPE_WEBHOOK_SECRET` and the four
+`STRIPE_PRICE_*` vars are actually set there. Account deletion (phase 5,
+above) now cancels a household's subscription as part of leaving — that's
+new since the original billing write-up.
 
 ## Property hub + filing categories
 
-- **One list of categories, in `lib/categories.ts`** (client-safe, so the uploader and the
-  hub share it with the server-only overview code): the seven `CATEGORIES`, the
-  `categorise()` keyword guess, and `effectiveCategory()` — the stored `documents.category`
-  if there is one, else the guess. **Read a document's category through
-  `effectiveCategory()`, never off the column**, or legacy rows fall out of their bucket.
-  `lib/home-overview.ts` keeps the shaping (`groupByCategory`, `countByCategory`).
-- **`components/PropertyHub.tsx`** (presentational, server-safe) — "the house file": one
-  drawer per category on a two-column ruled grid, like the front of a plan chest. Always
-  all seven, empty or not; the odd one out takes the full width of the bottom row. A drawer
-  links to `/documents?category=<name>`; its **+** links to
-  `/documents?upload=1&category=<name>#upload`. Icons and the short labels are in
-  `components/category-icons.ts`.
-  **This deliberately replaced a centre-and-spokes radial hub** (phase 6 and earlier) —
-  it read as a clone of a competitor. Don't reintroduce a radial layout, dashed circles
-  or anything else that puts the property in the middle with categories orbiting it.
-- **`/documents`** reads both params: the category filters the list (through
-  `effectiveCategory`, so the filter is not a SQL `where`) and preselects the uploader's
-  "File it under"; `upload=1` scrolls the panel into view. The uploader is keyed on the
-  category so a fresh bucket resets the picker.
-- **Storing it**: `recordDocument({ ..., category })` runs the value through `asCategory()`,
-  so anything off-list is stored as null rather than rejected. The review form carries the
-  same picker (`name="category"`), and `confirmExtraction` only writes the column when the
-  form actually posted the field.
+- **`lib/categories.ts`** lists **eight** `CATEGORIES` (seven original plus
+  "Home inbox" for school letters / permission slips / correspondence).
+  `categorise()` / `effectiveCategory()` unchanged in shape.
+- **`components/PropertyHub.tsx` and its wrapper `HouseFileSection.tsx` are
+  currently dead code.** They were the "house file" drawer grid described in
+  every earlier phase-7 write-up of this doc, and at one point were still
+  reachable from the dashboard in `peek` mode — but the Home redesign
+  (phase 16, the card-deck rewrite) dropped that call, and `/documents`
+  never picked it up either (confirmed: `git grep PropertyHub` on the current
+  `main` finds only the component's own definition and its import inside
+  `HouseFileSection.tsx`, which itself has no importers anywhere in the
+  app). **There is currently no drawer-grid "house file" view anywhere in
+  the product.** Don't assume it still exists because the file is in the
+  tree; either wire it back in somewhere (`/documents` is the obvious home)
+  or remove it — check with Ross rather than guessing, since the drop looks
+  like an accidental casualty of the Home rewrite rather than a deliberate
+  product decision.
+- **`/documents`** still reads `?category=`/`?upload=1` and filters through
+  `effectiveCategory()`, independent of the PropertyHub question above — the
+  category system itself is alive and well, just not visualised as a drawer
+  grid anywhere right now.
+
+## Gmail document import
+
+- **Add document sheet** (`app/(app)/documents/AddDocumentSheet.tsx`) has
+  three steps: `add` (Connect Gmail / Connect Outlook [disabled stub] / Take
+  photo / Browse files / Upload from cloud storage [stub] / Share from other
+  apps [stub] / Email to Hearth Home [stub]) → `gmail-explain` → `gmail-review`
+  (tick candidates, pick a category per row; **nothing is stored until
+  "Import N documents" is pressed**).
+- **OAuth**: `GET /api/gmail/connect` (CSRF `state` in an httpOnly cookie,
+  10-min TTL) → `GET /api/gmail/callback`. Scope is **`gmail.readonly`
+  only**. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are a **separate**
+  Google Cloud OAuth client from the one Supabase Auth uses for "Continue
+  with Google" sign-in.
+- **`lib/gmail.ts`** (server-only) scans the last 12 months
+  (`SCAN_MONTHS = 12`) for `has:attachment filename:pdf`, capped at 200
+  messages, writes lightweight `gmail_import_candidates` rows only —
+  attachment bytes are downloaded only at import time, per selected
+  candidate.
+- **Import** (`app/actions/gmail.ts`): downloads the attachment, calls
+  `importDocumentFromBuffer` (admin client — no browser `File` object exists
+  for a Gmail-sourced attachment), then lets the extraction webhook pick it
+  up same as any other upload.
+- **Outlook and the other stub rows are pure UI** — no route/action/table
+  behind them; confirmed still true on the current `main`.
+- This whole feature is untouched by the later sharing/renewals/theme wave —
+  confirmed present and still wired (`@/lib/gmail` imported from 4 files).
 
 ## Family, school and key dates (phase 7)
 
-- **`/family`** (inside `AppShell`, `requireOnboarded`, third tab in the bottom bar):
-  three cards — "Who lives here", "Schools", "Key dates". Each is a client panel with
-  rows that expand into an inline form; "Remove"/"Delete" is a two-step confirm in the
-  open form, never a bare button on the row. The school and year-group fields only appear
-  when the person's kind is `child`, and switching someone off `child` clears them.
-- **`app/actions/family.ts`** — `savePerson` / `deletePerson`, `saveSchool` /
-  `deleteSchool`, `saveEvent` / `deleteEvent`, all `useActionState`-shaped
-  (`FamilyState = { error?, ok? }`) on the cookie client, so RLS decides the scope. Each
-  one resolves the caller's oldest membership the same way `settings.ts` does, scopes
-  every write with `.eq("household_id", …)` as well, and stores an empty optional field
-  as null. `savePerson` validates `colour` against the palette and assigns
-  `nextFreeColour()` on insert when none is posted. Dates are checked for being real
-  (`2026-02-31` is refused) and a birthday in the future is refused.
-- **Birthdays are derived, never stored twice.** `nextBirthday()` in `lib/family.ts`
-  rolls a birthday forward to its next occurrence (29 February lands on 1 March in the
-  years without one) and reports the age being reached. `household_events` is only for
-  dates somebody typed in.
-- **Dashboard "Coming up"** is now one merged list from `lib/coming-up.ts`: document
-  renewal/end dates (unbounded, as before, with the "reminders on" note), birthdays
-  inside `BIRTHDAY_HORIZON_DAYS` (60), and every future `household_events` row. It sits
-  outside the "nothing filed yet" branch, so a household with no documents still sees
-  its family dates.
-- Reminder emails still only cover documents — nothing nudges you about a birthday yet.
+Unchanged in shape (`/family`, `app/actions/family.ts`, `nextBirthday()`,
+`lib/coming-up.ts` merge). `household_people.relation` and `.colour` and
+`schools.postcode` were added across two different waves of work — see
+Database. `/family` now also surfaces renewals and kid-view link management
+per person (phases 14 and 3d).
 
-## School calendars (phase 7b)
+## School & household calendars — inbound (phase 7b / 7c)
 
-- **One feed per school**, pasted into the school's form on `/family` (`calendar_url`,
-  plus an optional `calendar_title` for what to call it). `webcal://` is rewritten to
-  `https://`; **HTTPS only**, and anything that looks like our own network is refused.
-- **`lib/school-calendar.ts`** (server-only) is the whole surface:
-  `normaliseCalendarUrl()` (returns `{ url }` or `{ error }` — a sentence fit for the
-  page), `parseCalendar()` and `syncSchoolCalendar(schoolId)`.
-  - **Fetch**: 10s timeout, 2 MB cap enforced while reading the stream (not just off
-    `content-length`), `redirect: "manual"` with each hop re-validated and at most
-    three of them, and a `BEGIN:VCALENDAR` sniff before parsing. `dns.lookup()` checks
-    the resolved address against the private ranges — best-effort, not a boundary.
-  - **Parse**: `node-ical` (`sync.parseICS` + `expandRecurringEvent`), window today →
-    `SCHOOL_CALENDAR_WINDOW_DAYS` (120), capped at `MAX_EVENTS_PER_SCHOOL` (200),
-    `STATUS:CANCELLED` skipped, one unreadable event skipped rather than losing the
-    feed. **All-day occurrences come back as local midnight**, so the day is read off
-    the local components and re-pinned to UTC midnight — a bare `toISOString()` would
-    shift the date west of UTC.
-  - **Sync**: deletes the school's cached rows and inserts the new ones on the admin
-    client, then stamps `calendar_last_synced_at` and clears `calendar_last_error`. A
-    failure leaves the old rows *and* the old "last synced" alone and records the
-    reason, so the page can say what happened instead of pretending the feed is empty.
-    Clearing the URL runs the sync too — that is what drops the cache. The feed's
-    `X-WR-CALNAME` only fills `calendar_title` when nobody has typed one.
-- **Actions** (`app/actions/family.ts`): `saveSchool` validates the link and syncs when
-  it has *changed* (best-effort, never fails the save); `refreshSchoolCalendar` is the
-  Refresh button — it looks the school up on the cookie client first, so RLS decides
-  whether this household may sync it, and only then runs the service-role sync.
-- **Reading it back**: `loadSchoolCalendarEvents(client, householdId)` in `lib/family.ts`
-  (client-safe, soft-fails to `[]`), and `calendarEventDate()` for the YYYY-MM-DD an
-  occurrence falls on. `/family` shows the calendar's name, when it was last read (or
-  the error), Refresh, and the next three dates under each school.
-- **Dashboard "Coming up"** takes `schoolEntries()` from `lib/coming-up.ts` — kind
-  `"school"`, a graduation-cap mark, `SCHOOL_HORIZON_DAYS` (45) and at most
-  `SCHOOL_ENTRY_LIMIT` (8) rows, so one busy feed can't drown the household's own dates.
-- **`GET /api/cron/school-calendars`** (nodejs, maxDuration 60) re-reads the feeds so a
-  term date doesn't go stale between saves. Same shape as the reminders cron: unset
-  `CRON_SECRET` logs a warning and returns 200 `{ skipped: true }`, otherwise a bearer
-  compare against it. Every school with a non-empty `calendar_url`, stalest first
-  (`calendar_last_synced_at` nulls first), at most `MAX_SCHOOLS` (50) a run and
-  sequentially — these are other people's servers. It stops starting new feeds after
-  45s so the last one still fits inside `maxDuration`; whatever is left counts as
-  `skipped` and comes round tomorrow. One bad feed is logged against its school id and
-  counted, never fatal. Returns `{ processed, synced, errors, skipped, events }`.
-  **`vercel.json`** runs it at `15 6 * * *` — before the 08:00 reminders run, so a UK
-  morning sees fresh term dates.
-- Nothing emails a school date: a school calendar only ever shows up on the page and in
-  "Coming up".
+- **School calendars**: unchanged mechanism (`lib/school-calendar.ts`,
+  `lib/ics.ts` for the shared fetch/parse/pin, `syncSchoolCalendar`,
+  `GET /api/cron/school-calendars`). `lib/school-year-match.ts` filters a
+  feed's events against the household's children's year groups. The ICS
+  cache carries `description`/`url` for the detail sheet.
+- **Household calendars** (7c): the same read-mostly cache pattern one level
+  up — a household links its own **inbound** ICS feed(s) via
+  `lib/household-calendar.ts`, cached in `household_calendars` /
+  `household_calendar_events`. `GET /api/cron/school-calendars` refreshes
+  both schools and household calendars in one interleaved, time-boxed run.
+- **This is the inverse of phase 15** (the outbound subscribe feed) — 7c
+  brings *other people's* calendars in; 15 sends *this household's own*
+  dates out. Don't conflate `household_calendars` (7c, inbound) with
+  `household_calendar_feeds` (15, outbound) — similar names, opposite data
+  flow, added roughly two weeks apart by different work.
+- **Coming up / `/calendar`** merge every feed alongside documents,
+  birthdays, household events, timetable, routines and renewals. Tapping any
+  entry opens `CalendarEventDetailSheet` via the single `comingUpHref()`
+  router in `lib/coming-up.ts`.
 
-## Hartley-leaning home UI
+## Household calendar subscribe feed — outbound (phase 15)
 
-- **Helpful hints** on Home (`lib/helpful-hints.ts` + `HelpfulHintsSection`): up to three
-  setup-gap tips (family, schools, ICS, lists, first document) — omitted when none apply.
-- **Coming up** groups by month with a “Coming up in N days” lead-in for near items.
-- **`/calendar`** month view of birthdays, household events and school calendar events;
-  fifth bottom tab between Family and Lists. Protected in `proxy.ts`.
+The household's own dated data, exported as one ICS URL a phone or desktop
+calendar app can subscribe to — see the `household_calendar_feeds` row in
+Database for exactly what it includes/excludes and `lib/ics-export.ts` /
+`lib/ics-feed-load.ts` for the implementation. Managed from Settings via
+`CalendarFeedPanel` (create/copy/regenerate/revoke). Nothing about this
+touches the reminder-email engine or the inbound feeds above.
+
+## Renewals & deadlines (phase 14)
+
+Tracked expiry-style dates — passports, driving licences, GHIC, MOT, car
+tax/insurance, home insurance, boiler service, TV licence, or a free-text
+"other" — attached to a person or to the house itself (`person_id` null).
+See the `renewal_items` row in Database for the full shape. Surfaced on
+Coming up inside each item's own remind window, and offered as a "Track
+renewal" action from a confirmed document (`app/(app)/documents/DocumentsList.tsx`,
+`components/RenewalEditSheet.tsx`). **Does not feed the email reminder
+engine** — that stays document-only; a tracked renewal only ever shows up
+on Coming up, the calendar, and (if due-dated) the outbound ICS feed.
+
+## Family-life v2 — overnight build (12 Sept 2026)
+
+Ross asked for this as a direct overnight build outside the phase table.
+All migrations from that night are applied.
+
+- **School timetable** (`/family` → `TimetablePanel`, `lib/timetable.ts` +
+  `lib/timetable-extract.ts` + `app/actions/timetable.ts`) — per-child week
+  grid, typed manually or extracted from a photo/paste via Claude vision
+  into a **draft** the parent reviews before it's written.
+  `inferKitFlags(subject)` is a regex heuristic seeding `bring_kit`/
+  `bring_ingredients` — editable, not authoritative. Feeds Coming up the
+  evening before / morning of.
+- **Household routines** (`RoutinesPanel`, `lib/routines.ts`) —
+  weekly/fortnightly/monthly recurring beats, expanded into Coming up.
+- **Meal plan** (`MealsPanel`, `lib/meals.ts`) — a light Mon–Sun list with a
+  one-tap "add ingredients to list" hook into the household's first shopping
+  list.
+- **Who's-where** (`lib/whos-where.ts`, `WhosWhereSection` +
+  `WhosWhereEditor`) — today's per-person status. **Still rendered from
+  `/family`**, not the dashboard (confirmed unchanged on the latest `main`).
+- **Maintenance clock** (`MaintenanceSection`) — a thin read of existing
+  document renewal/end dates, not a new data model. **Still rendered from
+  `/documents`**, not the dashboard (confirmed unchanged).
+- **Guests pack** (`app/(app)/settings/GuestPackPanel.tsx`, `lib/guests.ts`)
+  — 5 free-text columns on `households`; the wifi password field is a
+  plain, unmasked text input.
+- **Shared inbox** — the "Home inbox" category, still present (8 categories
+  total; see Property hub).
+- **Child view** — `components/ViewModeToggle.tsx`, device-local,
+  explicitly not access control. Not to be confused with the kid-view
+  *secret link* (phase 3d), which genuinely restricts what's visible and is
+  meant to be shared outside the device.
+
+**Drift — components that no longer render where earlier phases described,
+now confirmed across two separate rewrites.** All of the following still
+exist as files (some under `app/(app)/dashboard/` by path) but their actual
+render status has moved on:
+
+| Component | Actually rendered from |
+| --- | --- |
+| `WhosWhereSection` | `/family` only (unchanged) |
+| `MaintenanceSection` | `/documents` only (unchanged) |
+| `HelpfulHintsSection` | **nowhere — orphaned** |
+| `ShoppingSection` | **nowhere — orphaned** |
+| `PropertyHub` / `HouseFileSection` | **nowhere — orphaned as of the phase-16 Home rewrite; see Property hub section** |
+| `ComingUpSection` / `ComingUpList` / `ComingUpTappableRow` | **`ComingUpTappableRow` was deleted outright in `420c034`; `ComingUpSection`/`ComingUpList` are still in the tree but `ComingUpSection` has zero importers on current `main` — the Home card deck (phase 16) replaced this whole chain.** |
+
+Three of these were already dead before phase 16; phase 16 added
+`PropertyHub`/`HouseFileSection` and the whole `ComingUpSection` chain to
+the list. Don't assume a component renders somewhere just because it's
+still in the repo and an earlier revision of this doc said so — check the
+actual import graph (`git grep <ComponentName>`) before building on top of
+one of these.
+
+## Home UI, theme and the card deck (phase 16)
+
+This phase replaced the earlier "map hero + Coming-up list + house-file
+peek" Home shape (described in older revisions of this doc as "phase 13")
+with a different structure. If you're picking this doc up expecting that
+older shape, re-read this section — it changed underneath the same route.
+
+- **`app/(app)/dashboard/page.tsx`** is now minimal: `requireOnboarded()` +
+  the `?week=` search param, rendering a single `<EveningMapHome>`. It no
+  longer composes hero/Coming-up/house-file as siblings the way earlier
+  phases did.
+- **`EveningMapHome` → `EveningMapView`** fetches Coming-up entries,
+  who's-where statuses and the home map, and renders: the full-bleed
+  theme-aware map (see Design system), a greeting overlay, who's-where
+  chips, the invites banner, and the card deck.
+- **The card deck** (`EveningCardStack.tsx` + `EveningCardStackHost.tsx`) —
+  Coming-up entries rendered as a literal 3-card fan the household can
+  drag-swipe or tap Shuffle to cycle (front card rotates to the back). Each
+  stacked card is tinted via `cardTintForEntry()` (the tapped person's
+  member colour, else a kind-tone colour). A "See all (N)" pill opens the
+  full list in `EveningComingUpSheet` (a `BottomSheet`) — `N` is every
+  Coming-up entry, not just the ~6 fanned into the deck.
+- **Tapping any card or Coming-up row opens the real record**, not a generic
+  popup: `comingUpHref(entry)` in `lib/coming-up.ts` is the single
+  destination map (event/school/shared → `/calendar?...&event=<kind>:<id>`
+  opening `CalendarEventDetailSheet`; renewal → `/family?renewal=<id>`;
+  document → `/documents?doc=<id>`; birthday → `/family?person=<id>`;
+  routine → `/family?routine=<id>`; timetable →
+  `/family?timetable=<personId>&weekday=<n>`). The deck animates a
+  grow/morph into the destination (a plain fade under reduced-motion) before
+  navigating — it's a real `router.push`, not a modal that stays put.
+- **"Your week ahead"** (`lib/week-ahead.ts`) is a **weekend-only special
+  case**, not a standing lookahead window: it only exists when
+  `isWeekAheadWindow()` is true — Saturday from 17:00, all of Sunday, or
+  Monday before noon, computed in Europe/London — and is `null` the rest of
+  the week (Tue through Fri, and Monday afternoon onward). When present it
+  leads the card deck as its own card; tapping it grow-morphs into
+  `WeekAheadSheet` — the upcoming Mon–Sun grouped by day (empty days read
+  "Nothing planned"), colour-coded per person, covering key dates,
+  renewals, birthdays and routines. `/dashboard?week=1` deep-links straight
+  into this sheet.
+- **Theme**: see the Design system section above — this whole rewrite is
+  also where the light/dark semantic token system and the theme-aware home
+  map (`?style=light|dark`) shipped.
+- **Shell composition is otherwise unchanged**: `app/(app)/layout.tsx` still
+  calls `requireOnboarded()` once and renders one shared shell (`ShellRouter`
+  → `AppShell` or `HubShell`) round `{children}` — moving between ordinary
+  tabs still only re-renders the page below the shell. The bottom tab bar is
+  now a floating glass pill (theme-aware) rather than a plain bar, but it's
+  the same architectural piece.
+- **Home affordance drift** (still true, predates phase 16): the signed-in
+  header carries no `Wordmark` link back to Home; `AppMark` is the day-to-day
+  brand mark instead.
+
+## Hub / Lounge mode
+
+- **`/hub`** — a signed-in, read-mostly display for a landscape iPad on a
+  kitchen counter. Three columns (Today, Who's-where + Meals, Coming-up),
+  composed server-side by `lib/hub-data.ts` from the existing loaders.
+  Unaffected by the sharing/renewals/theme wave — confirmed unchanged.
+  - **Access**: in `proxy.ts`'s protected prefixes, `requireOnboarded()`
+    gated — not a no-auth kiosk.
+  - **Chrome**: `HubShell` (no tab bar, no FAB, no sticky header), picked by
+    `ShellRouter`. `HubClock` + `HubRefresh` (60s `router.refresh()`).
+  - **Entry point**: a Settings link (`HubDisplayLink`); native deep link
+    `co.rodor.homeapp://hub`.
+
+## iOS Capacitor shell + native auth
+
+- **The native project is not in this repo.** `docs/ios-capacitor-kickoff.md`
+  documents the "thin shell" pattern shared with the sibling Rodor product
+  GraftMate: a separate repo (`rodor1155/ios-shell-template`, instance
+  `instances/homeapp/`) wraps this app's live deployed URL in a WKWebView.
+  Bundle ID `co.rodor.homeapp`, URL scheme `co.rodor.homeapp://`. Most UI
+  ships by deploying this repo to Vercel; a native rebuild is only needed for
+  Info.plist, AppIcon, splash, plugins, device family, export compliance, or
+  signing changes. Before a first App Store submit, also read the GraftMate
+  ASC-lessons page linked from the homeapp Notion hub — a reusable playbook
+  written specifically for this kind of submission. Last known status: the
+  homeapp submission was blocked on an App Store Connect Issuer ID — confirm
+  current status in Notion rather than assuming that's still true.
+- **Detecting the shell**: `lib/is-capacitor-native.ts` checks
+  `window.Capacitor.isNativePlatform?.()`, deliberately not the mere
+  presence of `window.Capacitor.Plugins` (which gets populated with web
+  fallbacks even in an ordinary browser, since the shell loads the same JS
+  bundle as the web app).
+- **Native Google sign-in**: `lib/native-google-sign-in.ts` starts Supabase
+  OAuth with `skipBrowserRedirect: true` and opens it in the Capacitor
+  Browser plugin (in-app SFSafariViewController) rather than the main
+  WKWebView, because plain in-WebView Google OAuth is unreliable on iOS.
+  `redirectTo` points at `app/auth/native-bridge/page.tsx`, which hands off
+  to the custom URL scheme `co.rodor.homeapp://auth/callback` (with a
+  same-tab fallback). `components/NativeOAuthListener.tsx` (mounted
+  app-wide) catches the deep link, dedupes via `sessionStorage`, closes the
+  in-app browser, and completes the session in the **main** WKWebView.
+- **`lib/public-app-origin.ts`** prefers `NEXT_PUBLIC_SITE_URL` over
+  `window.location.origin` because a Capacitor WebView's origin can be
+  something meaningless like `capacitor://localhost`. `siteUrl()` in
+  `app/actions/auth.ts` does the server-side equivalent.
+- **Auto-confirm signups**: `signUpWithPassword` auto-confirms new email
+  signups via the admin client (correctly routed through
+  `lib/supabase-admin.ts`) because Supabase's mailer often doesn't deliver
+  and custom Auth SMTP isn't wired everywhere; it also distinguishes an
+  already-registered email from a genuine new signup.
 
 ## Tab navigation cache
 
-- **Tab Client Cache**: `experimental.staleTimes` keeps recently visited signed-in tabs in the Next Client Cache (`dynamic` 120s, `static` 300s with `prefetch={true}` on the tab bar). `PrefetchAppRoutes` warms every tab plus settings as soon as the shell mounts (and again on visibility). Pull-to-refresh on the shell calls `router.refresh()` when fresh data is needed.
+- **Tab Client Cache**: `experimental.staleTimes` (`dynamic` 120s, `static`
+  300s with `prefetch={true}` on the tab bar). `PrefetchAppRoutes` warms
+  every tab plus settings as soon as the shell mounts. Pull-to-refresh calls
+  `router.refresh()` when fresh data is needed. Unchanged.
 
 ## Shopping lists (phase 8)
 
-- **`/lists`** (fourth tab, between Family and Documents) is the household's lists; a
-  row opens **`/lists/[listId]`**, which is the list itself. Both are inside `AppShell`
-  and `requireOnboarded`, and `/lists` is in `proxy.ts`'s protected prefixes.
-- **A checklist, not a pantry.** An item is a line of text that is either still to get
-  or in the basket — no quantities, units or stock. Ticked things sink to the bottom of
-  the list under "In the basket" rather than vanishing, so a mis-tap is one tap to undo,
-  and "Clear ticked" (two-step, like every other destructive thing here) empties them.
-- **`app/actions/lists.ts`** is two shapes on purpose: the forms (`createList`,
-  `renameList`, `deleteList`, `addItem`, `renameItem`) are `useActionState` actions
-  taking `FormData`, and the taps (`setItemChecked`, `deleteItem`, `clearChecked`,
-  `moveItem`) take plain arguments so a row can call them straight from a transition.
-  All on the cookie client, all resolving the caller's oldest membership and scoping
-  every write with `.eq("household_id", …)` the way `family.ts` does. `deleteList`
-  redirects to `/lists`; everything else revalidates `/lists`, the list, and `/dashboard`.
-- **`ItemsPanel` is optimistic** (`useOptimistic` + one `run(patch, action)` helper): a
-  tick, an add, a delete and a move all show immediately and are confirmed by the
-  action's revalidation. A row that hasn't come back yet has a `pending-` id and can't
-  be tapped. This is the one screen where a round trip would be felt — you are standing
-  in a shop.
-- **`moveItem`** swaps a line with its neighbour *in the same group* (ticked rows sit
-  below un-ticked ones, so crossing that line would look like nothing happened) and
-  renumbers `sort_order` from the top as it goes, which also clears the ties left by the
-  column's default of 0. There is no drag and drop — it is Move up / Move down inside
-  the row's editor.
-- **Dashboard**: one line, `Shopping`, naming up to three lists with something
-  outstanding, and only rendered when there is something to get.
-
-## How a tab switch is kept quick
-
-- **`app/(app)/` is one shared layout for all five tabbed screens.** It calls
-  `requireOnboarded()` and renders `AppShell` round `{children}`. Because the layout
-  is shared, moving between tabs re-renders only the page below it — the greeting bar
-  and the tab bar are never rebuilt. A page inside the group renders a bare
-  `<div className="flex flex-col gap-4">`; **it must not wrap itself in `AppShell`**,
-  or the chrome comes back twice and the navigation is a full remount again.
-- **`app/(app)/loading.tsx`** is the Suspense fallback for that children slot, so a tap
-  lands on a skeleton inside the real chrome rather than on the old page. It is one
-  heading and three cards' worth of `bg-paper-sunk` bars — deliberately not shaped like
-  any particular tab.
-- **`loadHouseholdContext()` is `cache()`d**, so the layout's `requireOnboarded()` and
-  the page's own share one load, and it fetches the membership, the household and its
-  properties in a single embedded query. The oldest property is picked in JS because an
-  embed two levels down can't be ordered in the query.
-- **Pages fan out.** Every screen in the group fires its independent reads in one
-  `Promise.all`. On the dashboard that includes the scheduled reminders — the query only
-  needs the household id, so `scheduledReminders()` fetches and `remindedEntries()`
-  matches the rows to documents afterwards.
+Unchanged mechanism (`app/actions/lists.ts`, `ItemsPanel` optimistic via
+`useOptimistic`, `moveItem` same-group swap). The old dashboard "Shopping"
+teaser line (`ShoppingSection`) is still dead code, unaffected by phase 16 —
+`/lists` itself is unaffected.
 
 ## Conventions
 
-- Server-only modules import `server-only` at the top.
+- Server-only modules import `server-only` at the top. A component that
+  transitively imports something server-only through a shared lib and gets
+  bundled client-side is a real, seen-in-this-repo failure mode — prefer a
+  small structural type over the real one when a client component only
+  needs a field's shape (see `lib/calendar-event-detail.ts`'s
+  `ComingUpDetailSource`).
 - Never reference `SUPABASE_SERVICE_ROLE_KEY` outside `lib/supabase-admin.ts`.
 - Keep `.env*` out of git (already in `.gitignore`).
-- New DDL goes through a migration file **and** is applied to the project; re-run
-  the Supabase security advisor after DDL.
-- Upload flow: client asks `createUploadTarget` (server) for a signed URL, uploads
-  straight to Storage with the browser client, then calls `recordDocument` (server).
+- New DDL goes through a migration file **and** is applied to the project;
+  re-run the Supabase security advisor after DDL. **This doc has drifted out
+  of sync with reality on migration-applied status twice already** — always
+  verify against the live project, never trust a status line here or assume
+  the filesystem is the source of truth.
+- Upload flow: client asks `createUploadTarget` (server) for a signed URL,
+  uploads straight to Storage, then calls `recordDocument` (server) —
+  **except** Gmail-imported documents, which go straight through
+  `importDocumentFromBuffer` on the admin client instead.
+- Never hard-code a colour in a component — light/dark both have to work
+  everywhere; use a semantic token or a legacy alias (see Design system).
+- Household resolution in server actions must resolve the caller's
+  **active** (most recently joined) membership since sharing shipped, not
+  simply "a" membership — most `app/actions/*.ts` files still do this by
+  hand rather than through one shared helper.
+- **Before assuming this doc is current**: check for an open, unmerged
+  "update CLAUDE.md" PR. Two separate waves of work have now landed on
+  `main` without a prior doc update being merged first, which is exactly
+  how this file went stale in two different directions at once.
 
 ## Environment variables
 
-Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
+Local in `.env.local` (git-ignored, `.env.example` is the maintained,
+authoritative copy — verified current on this revision); mirror into Vercel
+(Production + Preview).
 
 | Variable | Exposure | Purpose |
 | --- | --- | --- |
@@ -711,62 +868,82 @@ Local in `.env.local` (git-ignored); mirror into Vercel (Production + Preview).
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | public | anon key for browser/server clients |
 | `SUPABASE_SERVICE_ROLE_KEY` | **server-only, secret** | admin client; never expose to the browser, never commit |
 | `NEXT_PUBLIC_SITE_URL` | public | base URL for auth redirect links; must equal the deployment origin |
-| `ANTHROPIC_API_KEY` | **server-only, secret** | Claude vision extraction |
+| `ANTHROPIC_API_KEY` | **server-only, secret** | Claude vision — document extraction *and* timetable extraction |
 | `EXTRACTION_WEBHOOK_SECRET` | **server-only, secret** | must equal the Vault secret `extraction_webhook_secret` |
 | `INTERNAL_TOOLS_EMAILS` | server-only | optional CSV allow-list for `/internal/*`; unset = any signed-in user |
 | `RESEND_API_KEY` | **server-only, secret** | reminder email; unset = sends are logged as skipped |
 | `REMINDERS_FROM_EMAIL` | server-only | From: address for reminder email (domain verified in Resend) |
-| `CRON_SECRET` | **server-only, secret** | bearer token for `/api/cron/reminders`; Vercel sends it automatically |
+| `CRON_SECRET` | **server-only, secret** | bearer token for both cron routes; Vercel sends it automatically |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **server-only, secret** | Gmail import OAuth — a **separate** Google Cloud client from Supabase Auth's Google sign-in; unset = the Add document sheet still works, Gmail shows a setup message |
 | `STRIPE_SECRET_KEY` | **server-only, secret** | Stripe key; **unset = billing off**, gates inert, paid entitlements for everyone |
 | `STRIPE_WEBHOOK_SECRET` | **server-only, secret** | signing secret for `/api/stripe/webhook`; unset = the webhook 200s and does nothing |
-| `STRIPE_PRICE_GBP_MONTHLY` | server-only | price offered to UK households, £4.99/mo |
-| `STRIPE_PRICE_GBP_YEARLY` | server-only | price offered to UK households, £39/yr |
-| `STRIPE_PRICE_USD_MONTHLY` | server-only | price offered to US households, $6.99/mo |
-| `STRIPE_PRICE_USD_YEARLY` | server-only | price offered to US households, $59/yr |
+| `STRIPE_PRICE_GBP_MONTHLY` / `_YEARLY`, `STRIPE_PRICE_USD_MONTHLY` / `_YEARLY` | server-only | the four price IDs |
+| `IDEAL_POSTCODES_API_KEY` | server-only | address picker on home/school forms; unset = falls back to free postcodes.io (validation only, no full address list) |
+| `HOME_MAP_SIGNING_SECRET` | **server-only, secret** | HMAC for short-lived `/api/home-map` tokens — a dedicated secret, must **not** reuse `SUPABASE_SERVICE_ROLE_KEY`; unset = tokens aren't minted but the route still works for signed-in sessions |
+| `CARTO_BASEMAPS_API_KEY` | server-only | CARTO Voyager map tiles for the home map (both light and dark styles); unset = falls back to OSM tiles |
 
-`STRIPE_SECRET_KEY` is set on Vercel production (export gate is live for free
-households). Other `STRIPE_*` vars, Resend, and `CRON_SECRET` are still unset locally
-and may be partially unset in Vercel — billing-off behaviour remains the fallback
-when `STRIPE_SECRET_KEY` is missing.
+No new environment variables were introduced by the sharing/renewals/ICS-feed/
+theme wave — confirmed against the current `.env.example`.
 
 ## Verification harness
 
-`scripts/verify-flows.mjs` runs invite-accept and delete-account checks against the
-linked Supabase project using the service role (creates confirmed throwaway users,
-checks shared household membership, storage purge, and orphan rows). Requires
-`.env.local`. Production UI walkthrough is blocked by Supabase's built-in email rate
-limit until custom SMTP is configured.
+`scripts/verify-flows.mjs` runs invite-accept and delete-account checks
+against the linked Supabase project using the service role. Requires
+`.env.local`. A newer, uncommitted harness also exists:
+`.agent-logs/account-deletion-e2e.mts` (`npx tsx .agent-logs/account-deletion-e2e.mts`)
+covering the rewritten deletion flow including the owner-transfer trigger.
 
 ## Supabase config not captured in code (do this in the dashboard)
 
 - **Auth → URL Configuration**: Site URL = prod origin; add
   `<NEXT_PUBLIC_SITE_URL>/auth/callback` for local + prod to the redirect allow-list.
-- **Auth → Providers → Google**: add a Google OAuth client ID/secret; add
-  `<SUPABASE_URL>/auth/v1/callback` as an authorized redirect URI in Google Cloud.
-  The Google button errors until this is done; email + magic link work regardless.
+- **Auth → Providers → Google**: this is the *sign-in* Google client, configured
+  entirely in the Supabase dashboard — separate from the Gmail-import
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` app env vars. Add
+  `<SUPABASE_URL>/auth/v1/callback` as an authorized redirect URI in Google
+  Cloud for this client.
+- **Gmail import's Google Cloud client** (separate from the above): a Web
+  application OAuth client with Gmail API enabled, redirect URIs
+  `{SITE}/api/gmail/callback` for both local and prod.
 - Built-in email is heavily rate-limited — add custom SMTP before real traffic.
-- **Vault secrets** `extraction_webhook_url` + `extraction_webhook_secret` are set
-  (URL → `https://homeapp-mu.vercel.app/api/extraction`). Rotate the secret by
-  updating both the Vault row and Vercel's `EXTRACTION_WEBHOOK_SECRET`.
+- **Vault secrets** `extraction_webhook_url` + `extraction_webhook_secret`.
 - Pre-existing security-advisor WARNs left alone: `public.rls_auto_enable()`
-  (event trigger `ensure_rls`, predates this project) and `pg_net` living in the
-  `public` schema (pg_net can't be relocated; its functions are in `net`, which
-  PostgREST does not expose). "Leaked password protection" is off — a one-click
-  dashboard toggle if wanted.
+  and `pg_net` living in `public`. "Leaked password protection" is off.
 
 ## Assumptions changed from earlier phases
 
-- Phase 1 CLAUDE.md said "no middleware". Next 16 replaced Middleware with Proxy;
-  `proxy.ts` handles Supabase session refresh + the auth redirect (now also `/internal`,
-  `/settings` and `/family`).
+- Phase 1 CLAUDE.md said "no middleware". Next 16 replaced Middleware with
+  Proxy; `proxy.ts` handles Supabase session refresh + the auth redirect.
 - Onboarding gate = household has a `locale` **and** at least one property row.
-- `/documents` now scopes its query by `property_id` (one property per household
-  for now), and its list is a client component (`DocumentsList`) for the review forms.
-- Model is pinned to `claude-sonnet-4-6` for the extraction benchmark (not the
-  newer default) — `EXTRACTION_MODEL` in `lib/extraction.ts`.
-- `/sign-in` + `/sign-up` take `?next=` (sanitised by `safeNextPath`). Password,
-  magic link, OAuth and email confirmation all honour it via
-  `/auth/callback?next=…` — add `<SITE>/auth/callback**` to the Supabase redirect
-  allow-list if a wildcard is needed.
-- `/invite` and `/join/*` are deliberately **not** in `proxy.ts`'s protected prefixes —
-  invite links have to render for a signed-out visitor.
+- `/documents` now scopes its query by `property_id`.
+- Model is pinned to `claude-sonnet-4-6` for extraction (documents *and*
+  timetables) — `EXTRACTION_MODEL` in `lib/extraction.ts`.
+- `/sign-in` + `/sign-up` take `?next=` (sanitised by `safeNextPath`),
+  honoured by password, magic link, OAuth and email-confirmation alike via
+  `/auth/callback?next=…` — this widened from "password flows only" once
+  link-invite sharing needed signed-out visitors to land back on `/join/*`.
+- `/invite`, `/join/*` and `/kid/*` are deliberately **not** in `proxy.ts`'s
+  protected prefixes — they have to render for a signed-out visitor.
+- **Every migration is applied as of this writing (31 files).** This doc has
+  now carried stale "written but not applied" caveats on *two separate
+  occasions* — once for the phase 1-8 tables, again for the phase
+  3d/14/15 ones. Verify directly against the live migration history every
+  time, never propagate a status line forward without checking.
+- **There are eight `CATEGORIES`, not seven** ("Home inbox" added) — this
+  particular stale claim reappeared in a later revision of this doc after
+  an even later revision had already fixed it, because the fix was sitting
+  in an unmerged PR when the next wave of work branched off the old text.
+- **The active household is the caller's most recently joined membership**,
+  not "the oldest" — this changed when link-invite sharing shipped
+  (previously a household with an unapplied migration or an empty state was
+  the only thing that made "oldest" ambiguous; now a person can
+  legitimately belong to two real households and the app has to pick one).
+- **The dashboard's actual composition has now been rewritten twice** since
+  the original "hero map + Coming up + house-file peek" description: once
+  to strip Helpful hints / Shopping / Who's-where / Maintenance off Home
+  (rebrand pass), and again to replace Coming-up-as-a-list with the phase-16
+  card deck. `PropertyHub`/`HouseFileSection` is a further casualty — it
+  survived the first rewrite (still called, in `peek` mode) but not the
+  second. Don't trust any description of "what's on Home" in this file
+  without checking `app/(app)/dashboard/page.tsx` and its immediate
+  children directly first.
