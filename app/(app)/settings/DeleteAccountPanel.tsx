@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { deleteAccount } from "@/app/actions/account";
+import { clearOfflineCache } from "@/lib/clear-offline-cache";
 import type { AccountDeletionHouseholdPreview } from "@/lib/account-deletion";
 import ExportButton from "@/components/ExportButton";
 import { Button, Field } from "@/components/ui";
@@ -53,6 +54,7 @@ export default function DeleteAccountPanel({
     if (demo) return;
     setError(null);
     startTransition(async () => {
+      await clearOfflineCache();
       const result = await deleteAccount(confirmText);
       if (result?.error) setError(result.error);
     });
