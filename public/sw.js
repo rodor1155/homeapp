@@ -1,6 +1,10 @@
 /* global self, caches */
 
-const CACHE_VERSION = "v1";
+// v2: page-cache keys moved from URL fragments (#doc/#rsc) to a query parameter. The Cache
+// API ignores URL fragments, so "#doc" and "#rsc" collided and an RSC payload could
+// overwrite (and be served as) a document. Bumping the version drops every v1 entry.
+const CACHE_VERSION = "v2";
+const KEY_PARAM = "__hearth";
 const STATIC_CACHE = `hearth-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `hearth-pages-${CACHE_VERSION}`;
 const PAGE_CACHE_MAX_ENTRIES = 80;
@@ -26,6 +30,17 @@ const SKIP_PATHS = [
   "/privacy",
 ];
 
+const OFFLINE_LANDING_CANDIDATES = [
+  "/dashboard",
+  "/family",
+  "/calendar",
+  "/lists",
+  "/documents",
+  "/settings",
+];
+
+const PRIME_MAX_URLS = 8;
+
 const STATIC_EXTENSIONS =
   /\.(woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|webp|ico)$/i;
 
@@ -38,6 +53,51 @@ function pathShouldSkip(pathname) {
     if (pathname === path || pathname.startsWith(`${path}/`)) return true;
   }
   return false;
+}
+
+/**
+ * Pick the first cached tab path for an offline cold launch at `/`.
+ * @param {string} pathname
+ * @param {Iterable<string>} cachedDocPaths
+ * @returns {string | null}
+ */
+function offlineLandingFor(pathname, cachedDocPaths) {
+  if (pathname !== "/") return null;
+
+  const cached = new Set(cachedDocPaths);
+  for (const path of OFFLINE_LANDING_CANDIDATES) {
+    if (pathShouldSkip(path)) continue;
+    if (cached.has(path)) return path;
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} urls
+ * @param {string} origin
+ * @returns {string[]}
+ */
+function sanitizePrimeUrls(urls, origin) {
+  if (!Array.isArray(urls)) return [];
+
+  const result = [];
+  for (const item of urls) {
+    if (result.length >= PRIME_MAX_URLS) break;
+    if (typeof item !== "string") continue;
+
+    let url;
+    try {
+      url = new URL(item, origin);
+    } catch {
+      continue;
+    }
+
+    if (url.origin !== origin) continue;
+    if (pathShouldSkip(url.pathname)) continue;
+    result.push(url.href);
+  }
+
+  return result;
 }
 
 /**
@@ -81,7 +141,20 @@ function pageCacheKey(request) {
     request.headers.get("RSC") === "1" ||
     request.headers.has("Next-Router-State-Tree") ||
     url.searchParams.has("_rsc");
-  return `${request.url}#${isRsc ? "rsc" : "doc"}`;
+  return pageKeyFor(request.url, isRsc ? "rsc" : "doc");
+}
+
+/**
+ * Synthetic cache key. The kind lives in a query parameter because the Cache API ignores
+ * URL fragments (tested: put(x#doc) then put(x#rsc) leaves one entry, matched by both).
+ * @param {string} absoluteUrl
+ * @param {"doc" | "rsc"} kind
+ */
+function pageKeyFor(absoluteUrl, kind) {
+  const url = new URL(absoluteUrl);
+  url.hash = "";
+  url.searchParams.set(KEY_PARAM, kind);
+  return url.href;
 }
 
 /**
@@ -169,6 +242,52 @@ async function trimPageCache(cache) {
 }
 
 /**
+ * @param {Cache} cache
+ * @param {string} origin
+ * @returns {Promise<string[]>}
+ */
+async function cachedDocPathnames(cache, origin) {
+  const keys = await cache.keys();
+  const paths = [];
+
+  for (const request of keys) {
+    const url = new URL(request.url);
+    if (url.origin !== origin) continue;
+    if (url.searchParams.get(KEY_PARAM) !== "doc") continue;
+    if (pathShouldSkip(url.pathname)) continue;
+
+    const response = await cache.match(request);
+    if (!response || isExpired(response)) continue;
+    paths.push(url.pathname);
+  }
+
+  return paths;
+}
+
+/**
+ * @param {string} absoluteUrl
+ * @returns {Promise<boolean>}
+ */
+async function primePageUrl(absoluteUrl) {
+  const cache = await caches.open(PAGE_CACHE);
+  const key = pageKeyFor(absoluteUrl, "doc");
+
+  try {
+    const response = await fetch(absoluteUrl, {
+      headers: { Accept: "text/html" },
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+
+    if (!shouldCacheResponse(response)) return false;
+    await putPageEntry(cache, key, response.clone());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * @param {Request} request
  * @returns {Promise<Response>}
  */
@@ -208,6 +327,16 @@ async function networkFirstPage(request) {
     const cached = await cache.match(key);
     if (cached && !isExpired(cached)) return cached;
     if (cached) await cache.delete(key);
+
+    if (request.mode === "navigate") {
+      const url = new URL(request.url);
+      const docPaths = await cachedDocPathnames(cache, url.origin);
+      const landing = offlineLandingFor(url.pathname, docPaths);
+      if (landing) {
+        return Response.redirect(new URL(landing, request.url).href, 302);
+      }
+    }
+
     throw new Error("offline");
   }
 }
@@ -253,19 +382,37 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data?.type !== "clear-caches") return;
+  if (event.data?.type === "clear-caches") {
+    event.waitUntil(
+      (async () => {
+        const names = await caches.keys();
+        await Promise.all(
+          names.filter(isHearthCache).map((name) => caches.delete(name)),
+        );
+        if (event.source) {
+          event.source.postMessage({ type: "clear-caches-done" });
+        }
+      })(),
+    );
+    return;
+  }
 
-  event.waitUntil(
-    (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names.filter(isHearthCache).map((name) => caches.delete(name)),
-      );
-      if (event.source) {
-        event.source.postMessage({ type: "clear-caches-done" });
-      }
-    })(),
-  );
+  if (event.data?.type === "prime-pages") {
+    event.waitUntil(
+      (async () => {
+        const urls = sanitizePrimeUrls(event.data.urls, self.location.origin);
+        let cached = 0;
+
+        for (const url of urls) {
+          if (await primePageUrl(url)) cached += 1;
+        }
+
+        if (event.source) {
+          event.source.postMessage({ type: "prime-pages-done", cached });
+        }
+      })(),
+    );
+  }
 });
 
 if (typeof module !== "undefined" && module.exports) {
@@ -275,7 +422,13 @@ if (typeof module !== "undefined" && module.exports) {
     isStaticAsset,
     shouldCacheResponse,
     pageCacheKey,
+    pageKeyFor,
+    KEY_PARAM,
+    offlineLandingFor,
+    sanitizePrimeUrls,
     SKIP_PREFIXES,
     SKIP_PATHS,
+    OFFLINE_LANDING_CANDIDATES,
+    PRIME_MAX_URLS,
   };
 }

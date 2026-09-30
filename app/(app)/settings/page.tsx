@@ -19,6 +19,7 @@ import PlanPanel from "./PlanPanel";
 import GuestPackPanel from "./GuestPackPanel";
 import CalendarFeedPanel from "./CalendarFeedPanel";
 import HubDisplayLink from "@/components/HubDisplayLink";
+import OfflineCacheStatus from "@/components/OfflineCacheStatus";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { loadGuestPack } from "@/lib/guests";
 import { appTitle } from "@/lib/brand";
@@ -125,6 +126,8 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
       <Card title="Hub display">
         <HubDisplayLink />
       </Card>
+
+      <OfflineCacheStatus />
 
       <Card title="Parent / child view">
         <ViewModeToggle />
