@@ -46,8 +46,13 @@ const {
   isStaticAsset,
   shouldCacheResponse,
   pageCacheKey,
+  pageKeyFor,
+  KEY_PARAM,
+  offlineLandingFor,
+  sanitizePrimeUrls,
   SKIP_PREFIXES,
   SKIP_PATHS,
+  PRIME_MAX_URLS,
 } = swModule.exports;
 
 let passed = 0;
@@ -191,8 +196,19 @@ const rscKey = pageCacheKey(
   req(`${ORIGIN}/dashboard`, { headers: { RSC: "1" } }),
 );
 assert(docKey !== rscKey, "doc and RSC keys must differ");
-assert(docKey.endsWith("#doc"), "navigation key uses #doc suffix");
-assert(rscKey.endsWith("#rsc"), "RSC key uses #rsc suffix");
+assert(
+  new URL(docKey).searchParams.get(KEY_PARAM) === "doc",
+  "navigation key carries kind=doc in the query (fragments are ignored by the Cache API)",
+);
+assert(
+  new URL(rscKey).searchParams.get(KEY_PARAM) === "rsc",
+  "RSC key carries kind=rsc in the query",
+);
+assert(!docKey.includes("#") && !rscKey.includes("#"), "keys never use URL fragments");
+assert(
+  pageKeyFor(`${ORIGIN}/dashboard#frag`, "doc") === docKey,
+  "a fragment on the request URL does not change the key",
+);
 
 // --- shouldCacheResponse ---
 
@@ -261,6 +277,71 @@ assert(
 );
 
 assert(pathShouldSkip("/sign-in"), "pathShouldSkip /sign-in");
+
+// --- offlineLandingFor ---
+
+assert(
+  offlineLandingFor("/", ["/family", "/dashboard"]) === "/dashboard",
+  "offlineLandingFor prefers /dashboard",
+);
+
+assert(
+  offlineLandingFor("/", ["/calendar", "/lists"]) === "/calendar",
+  "offlineLandingFor falls through candidate list in order",
+);
+
+assert(
+  offlineLandingFor("/", []) === null,
+  "offlineLandingFor returns null when nothing cached",
+);
+
+assert(
+  offlineLandingFor("/", ["/sign-in", "/api/foo"]) === null,
+  "offlineLandingFor never returns skip-listed paths",
+);
+
+assert(
+  offlineLandingFor("/dashboard", ["/dashboard"]) === null,
+  "offlineLandingFor only applies to /",
+);
+
+// --- sanitizePrimeUrls ---
+
+const primeInput = [
+  "/dashboard",
+  "/family",
+  `${ORIGIN}/calendar`,
+  "https://evil.example.com/lists",
+  "/sign-in",
+  "/onboarding",
+  "/documents",
+  "/settings",
+  "/hub",
+  "/lists",
+  "/calendar/extra",
+];
+
+const sanitized = sanitizePrimeUrls(primeInput, ORIGIN);
+
+assert(sanitized.length === PRIME_MAX_URLS, "sanitizePrimeUrls caps at 8 URLs");
+
+assert(
+  sanitized.every((url) => url.startsWith(ORIGIN)),
+  "sanitizePrimeUrls keeps same-origin URLs only",
+);
+
+assert(
+  !sanitized.some((url) => {
+    const path = new URL(url).pathname;
+    return pathShouldSkip(path);
+  }),
+  "sanitizePrimeUrls rejects skip-listed paths",
+);
+
+assert(
+  !sanitized.some((url) => url.includes("evil.example.com")),
+  "sanitizePrimeUrls rejects cross-origin URLs",
+);
 
 console.log(`sw policy: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
