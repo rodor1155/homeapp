@@ -7,6 +7,10 @@ const CACHE_VERSION = "v2";
 const KEY_PARAM = "__hearth";
 const STATIC_CACHE = `hearth-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `hearth-pages-${CACHE_VERSION}`;
+const MEDIA_CACHE = `hearth-media-${CACHE_VERSION}`;
+// The one /api route that is safe to cache: the Home hero map image. It is a GET-only
+// PNG derived from rounded coordinates; nothing else under /api is ever cached.
+const MAP_PATH = "/api/home-map";
 const PAGE_CACHE_MAX_ENTRIES = 80;
 const PAGE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const NETWORK_TIMEOUT_MS = 4000;
@@ -112,13 +116,15 @@ function isStaticAsset(url) {
 
 /**
  * @param {Request} request
- * @returns {"skip" | "static" | "page"}
+ * @returns {"skip" | "static" | "page" | "map"}
  */
 function classify(request) {
   if (request.method !== "GET") return "skip";
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return "skip";
+  // Must precede the skip list, which covers all of /api/.
+  if (url.pathname === MAP_PATH) return "map";
   if (pathShouldSkip(url.pathname)) return "skip";
   if (isStaticAsset(url)) return "static";
 
@@ -129,6 +135,32 @@ function classify(request) {
   if (url.searchParams.has("_rsc")) return "page";
 
   return "skip";
+}
+
+/**
+ * Cache key for the Home map image. The request carries a short-lived signed token `t`
+ * that changes on every page render, so it is dropped: the image is identified by its
+ * coordinates and style only (a cached page from any render then finds the same image).
+ * @param {string} absoluteUrl
+ */
+function mapCacheKey(absoluteUrl) {
+  const url = new URL(absoluteUrl);
+  const key = new URL(url.origin + url.pathname);
+  for (const name of ["lat", "lng", "style"]) {
+    const value = url.searchParams.get(name);
+    if (value !== null) key.searchParams.set(name, value);
+  }
+  return key.href;
+}
+
+/**
+ * @param {Response} response
+ * @returns {boolean}
+ */
+function shouldCacheMapResponse(response) {
+  if (response.status !== 200) return false;
+  if (response.type !== "basic") return false;
+  return (response.headers.get("content-type") || "").startsWith("image/");
 }
 
 /**
@@ -341,6 +373,33 @@ async function networkFirstPage(request) {
   }
 }
 
+/**
+ * Network-first with a cache fallback for the Home map image (see MAP_PATH).
+ * @param {Request} request
+ * @returns {Promise<Response>}
+ */
+async function networkFirstMap(request) {
+  const cache = await caches.open(MEDIA_CACHE);
+  const key = mapCacheKey(request.url);
+
+  try {
+    const response = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS);
+      }),
+    ]);
+    if (shouldCacheMapResponse(response)) {
+      await cache.put(key, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(key);
+    if (cached) return cached;
+    throw new Error("offline");
+  }
+}
+
 /** @param {string} name */
 function isHearthCache(name) {
   return name.startsWith("hearth-");
@@ -360,7 +419,8 @@ self.addEventListener("activate", (event) => {
             (name) =>
               isHearthCache(name) &&
               name !== STATIC_CACHE &&
-              name !== PAGE_CACHE,
+              name !== PAGE_CACHE &&
+              name !== MEDIA_CACHE,
           )
           .map((name) => caches.delete(name)),
       );
@@ -375,6 +435,11 @@ self.addEventListener("fetch", (event) => {
 
   if (kind === "static") {
     event.respondWith(cacheFirstStatic(event.request));
+    return;
+  }
+
+  if (kind === "map") {
+    event.respondWith(networkFirstMap(event.request));
     return;
   }
 
@@ -422,6 +487,9 @@ if (typeof module !== "undefined" && module.exports) {
     isStaticAsset,
     shouldCacheResponse,
     pageCacheKey,
+    mapCacheKey,
+    shouldCacheMapResponse,
+    MAP_PATH,
     pageKeyFor,
     KEY_PARAM,
     offlineLandingFor,

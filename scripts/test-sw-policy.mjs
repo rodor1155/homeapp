@@ -48,6 +48,9 @@ const {
   pageCacheKey,
   pageKeyFor,
   KEY_PARAM,
+  mapCacheKey,
+  shouldCacheMapResponse,
+  MAP_PATH,
   offlineLandingFor,
   sanitizePrimeUrls,
   SKIP_PREFIXES,
@@ -222,6 +225,51 @@ function mockResponse(overrides) {
     ...overrides,
   };
 }
+
+// --- Home map image (the only cacheable /api route) ---
+
+assert(MAP_PATH === "/api/home-map", "map path constant");
+assert(
+  classify(req(`${ORIGIN}/api/home-map?lat=51.2&lng=-0.3&style=light&t=abc`)) === "map",
+  "/api/home-map is classified as map",
+);
+assert(classify(req(`${ORIGIN}/api/export`)) === "skip", "/api/export stays skip");
+assert(classify(req(`${ORIGIN}/api/stripe/webhook`)) === "skip", "/api/stripe stays skip");
+assert(
+  classify(req(`${ORIGIN}/api/home-map?lat=1&lng=2`, { method: "POST" })) === "skip",
+  "non-GET map request is skip",
+);
+assert(
+  classify(req("https://evil.example/api/home-map?lat=1&lng=2")) === "skip",
+  "cross-origin map request is skip",
+);
+assert(
+  mapCacheKey(`${ORIGIN}/api/home-map?lat=51.2&lng=-0.3&style=light&t=AAA`) ===
+    mapCacheKey(`${ORIGIN}/api/home-map?t=BBB&style=light&lng=-0.3&lat=51.2`),
+  "map key ignores the short-lived token and parameter order",
+);
+assert(
+  mapCacheKey(`${ORIGIN}/api/home-map?lat=51.2&lng=-0.3&style=light&t=A`) !==
+    mapCacheKey(`${ORIGIN}/api/home-map?lat=51.2&lng=-0.3&style=dark&t=A`),
+  "map key separates light and dark styles",
+);
+assert(
+  !mapCacheKey(`${ORIGIN}/api/home-map?lat=1&lng=2&style=dark&t=SECRET`).includes("SECRET"),
+  "map key never contains the token",
+);
+assert(
+  shouldCacheMapResponse(mockResponse({ headers: new Headers({ "content-type": "image/png" }) })),
+  "200 basic image/png map response is cacheable",
+);
+assert(
+  !shouldCacheMapResponse(mockResponse({ status: 401, headers: new Headers({ "content-type": "text/plain" }) })),
+  "401 map response is not cached",
+);
+assert(
+  !shouldCacheMapResponse(mockResponse({ headers: new Headers({ "content-type": "text/html" }) })),
+  "non-image map response is not cached",
+);
+
 
 assert(
   shouldCacheResponse(mockResponse({})),
