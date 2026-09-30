@@ -9,7 +9,7 @@ import {
 } from "@/app/actions/calendar-feed";
 import CopyButton from "@/components/CopyButton";
 import { Button } from "@/components/ui";
-import { isCapacitorNative } from "@/lib/is-capacitor-native";
+import { openExternalUrl } from "@/lib/open-external";
 import { publicAppOrigin } from "@/lib/public-app-origin";
 
 type Props = {
@@ -23,15 +23,6 @@ function feedUrls(token: string) {
   const webcalUrl = `webcal://${host}/api/ics/${token}.ics`;
   const googleUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
   return { httpsUrl, webcalUrl, googleUrl };
-}
-
-async function openExternal(url: string) {
-  if (isCapacitorNative()) {
-    const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url });
-    return;
-  }
-  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export default function CalendarFeedPanel({ token }: Props) {
@@ -95,14 +86,14 @@ export default function CalendarFeedPanel({ token }: Props) {
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
-              onClick={() => openExternal(urls.webcalUrl)}
+              onClick={() => openExternalUrl(urls.webcalUrl)}
               className="btn min-h-11 w-full sm:w-auto"
             >
               Add to Apple Calendar
             </button>
             <button
               type="button"
-              onClick={() => openExternal(urls.googleUrl)}
+              onClick={() => openExternalUrl(urls.googleUrl)}
               className="btn min-h-11 w-full sm:w-auto"
             >
               Add to Google Calendar

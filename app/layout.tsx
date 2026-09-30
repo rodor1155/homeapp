@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import NativeExternalLinks from "@/components/NativeExternalLinks";
 import NativeOAuthListener from "@/components/NativeOAuthListener";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { APP_NAME } from "@/lib/brand";
@@ -48,6 +49,7 @@ export default function RootLayout({
     <html lang="en" className={`${fraunces.variable} ${plex.variable}`}>
       <body>
         <NativeOAuthListener />
+        <NativeExternalLinks />
         <ServiceWorkerRegister />
         {children}
       </body>
