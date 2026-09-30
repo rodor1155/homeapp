@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   CalendarDays,
@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { APP_TAB_HREFS } from "@/lib/app-routes";
 import { useViewMode } from "@/components/ViewModeToggle";
+import {
+  hasNativeVault,
+  openNativeVault,
+  useHasNativeVault,
+} from "@/lib/native-vault";
 
 type Tab = {
   href: (typeof APP_TAB_HREFS)[number];
@@ -42,9 +47,11 @@ function isActive(pathname: string, href: string): boolean {
 
 export default function BottomTabBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const viewMode = useViewMode();
+  const nativeVault = useHasNativeVault();
   const tabs =
     viewMode === "child"
       ? TABS.filter((tab) => tab.href !== "/documents")
@@ -67,7 +74,20 @@ export default function BottomTabBar() {
                 href={tab.href}
                 prefetch={true}
                 aria-current={active ? "page" : undefined}
-                onClick={() => {
+                onClick={(event) => {
+                  if (
+                    tab.href === "/documents" &&
+                    (nativeVault || hasNativeVault())
+                  ) {
+                    event.preventDefault();
+                    void openNativeVault().then((opened) => {
+                      if (!opened) {
+                        startTransition(() => setPendingHref(tab.href));
+                        router.push(tab.href);
+                      }
+                    });
+                    return;
+                  }
                   if (isActive(pathname, tab.href)) return;
                   startTransition(() => setPendingHref(tab.href));
                 }}

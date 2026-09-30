@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { FilePlus2 } from "lucide-react";
 import DocumentsList from "./DocumentsList";
 import DocumentsPageClient from "./DocumentsPageClient";
+import DocumentsVaultHandoff from "./DocumentsVaultHandoff";
 import ExportButton from "@/components/ExportButton";
 import { Card, SectionHeading } from "@/components/ui";
 import { getEntitlements, isBillingConfigured } from "@/lib/billing";
@@ -80,6 +81,7 @@ export default async function DocumentsPage({
   }));
 
   return (
+    <DocumentsVaultHandoff startUpload={startUpload}>
     <div className="flex flex-col gap-4">
       <Suspense fallback={null}>
         <DocumentsPageClient
@@ -182,5 +184,6 @@ export default async function DocumentsPage({
         )}
       </div>
     </div>
+    </DocumentsVaultHandoff>
   );
 }

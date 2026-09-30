@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:sw": "node scripts/test-sw-policy.mjs",
+    "test:links": "node scripts/test-external-links.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

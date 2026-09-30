@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BillingInterval, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
 import { Button } from "@/components/ui";
+import { openExternalUrl } from "@/lib/open-external";
 
 /* What each plan costs, as it is said to the household. Keep these in step
    with the Stripe prices behind STRIPE_PRICE_GBP_* / STRIPE_PRICE_USD_*. */
@@ -63,8 +64,8 @@ export default function PlanPanel({
       };
 
       if (response.ok && payload.url) {
-        // Stripe's page, not ours, so leave the app rather than route to it.
-        window.location.href = payload.url;
+        // Stripe lives off-site; in the app-bound WKWebView we must use the system browser sheet.
+        await openExternalUrl(payload.url, { sameTab: true });
         return;
       }
       setError(payload.error ?? "Something went wrong. Please try again.");

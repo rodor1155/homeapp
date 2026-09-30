@@ -10,6 +10,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BottomSheet from "@/components/BottomSheet";
+import {
+  hasNativeVault,
+  openNativeAdd,
+} from "@/lib/native-vault";
 
 type CreateOption = {
   href: string;
@@ -64,6 +68,15 @@ export default function CreateSheet({
     router.push(href);
   }
 
+  async function pickDocument() {
+    onClose();
+    if (hasNativeVault()) {
+      const opened = await openNativeAdd();
+      if (opened) return;
+    }
+    router.push("/documents?upload=1");
+  }
+
   return (
     <BottomSheet
       open={open}
@@ -78,7 +91,11 @@ export default function CreateSheet({
             <li key={option.href}>
               <button
                 type="button"
-                onClick={() => pick(option.href)}
+                onClick={() =>
+                  option.href.startsWith("/documents")
+                    ? void pickDocument()
+                    : pick(option.href)
+                }
                 className="tap-row flex min-h-[3.25rem] w-full items-center gap-3 px-1 py-3.5 text-left"
               >
                 <span

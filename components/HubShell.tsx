@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Circle } from "lucide-react";
+import OfflineBanner from "@/components/OfflineBanner";
 import HubClock from "@/components/HubClock";
 import HubRefresh from "@/components/HubRefresh";
 import { Wordmark } from "@/components/ui";
@@ -19,6 +20,7 @@ export default function HubShell({
   return (
     <div className="hub-shell flex min-h-screen flex-col bg-paper">
       <HubRefresh />
+      <OfflineBanner />
       <header className="border-b border-rule px-6 py-5 sm:px-8">
         <div className="mx-auto flex max-w-[1400px] items-start justify-between gap-6">
           <div className="min-w-0">
