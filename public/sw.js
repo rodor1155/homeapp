@@ -1,9 +1,8 @@
 /* global self, caches */
 
-// v2: page-cache keys moved from URL fragments (#doc/#rsc) to a query parameter. The Cache
-// API ignores URL fragments, so "#doc" and "#rsc" collided and an RSC payload could
-// overwrite (and be served as) a document. Bumping the version drops every v1 entry.
-const CACHE_VERSION = "v2";
+// v3: /settings and /documents are never cached (secrets + server-rendered doc data).
+// Bumping the version drops every v2 entry, including any cached /settings HTML.
+const CACHE_VERSION = "v3";
 const KEY_PARAM = "__hearth";
 const STATIC_CACHE = `hearth-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `hearth-pages-${CACHE_VERSION}`;
@@ -13,7 +12,10 @@ const MEDIA_CACHE = `hearth-media-${CACHE_VERSION}`;
 const MAP_PATH = "/api/home-map";
 const PAGE_CACHE_MAX_ENTRIES = 80;
 const PAGE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const STATIC_CACHE_MAX_ENTRIES = 200;
 const NETWORK_TIMEOUT_MS = 4000;
+const PRIME_MIN_AGE_MS = 6 * 60 * 60 * 1000;
+const TRIM_EVERY_N_PUTS = 10;
 const CACHED_AT_HEADER = "x-hearth-cached-at";
 
 const SKIP_PREFIXES = [
@@ -32,6 +34,8 @@ const SKIP_PATHS = [
   "/sign-up",
   "/onboarding",
   "/privacy",
+  "/settings",
+  "/documents",
 ];
 
 const OFFLINE_LANDING_CANDIDATES = [
@@ -39,14 +43,58 @@ const OFFLINE_LANDING_CANDIDATES = [
   "/family",
   "/calendar",
   "/lists",
-  "/documents",
-  "/settings",
 ];
 
 const PRIME_MAX_URLS = 8;
 
 const STATIC_EXTENSIONS =
   /\.(woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|webp|ico)$/i;
+
+/** @returns {string} */
+function parseBuildId() {
+  try {
+    const url = new URL(self.location.href);
+    return url.searchParams.get("v") || "dev";
+  } catch {
+    return "dev";
+  }
+}
+
+const BUILD_ID = parseBuildId();
+
+/** @param {string} buildId */
+function staticCacheName(buildId) {
+  return `${STATIC_CACHE}-${buildId}`;
+}
+
+/** @param {number} putCounter */
+function shouldTrim(putCounter) {
+  return (
+    putCounter % TRIM_EVERY_N_PUTS === 0 ||
+    putCounter >= PAGE_CACHE_MAX_ENTRIES
+  );
+}
+
+/**
+ * Decide how to proceed when a network-first fetch races a timeout.
+ * @param {{
+ *   fetchSettled: boolean;
+ *   fetchRejected: boolean;
+ *   cachePresent: boolean;
+ *   cacheExpired: boolean;
+ *   timeoutFired: boolean;
+ * }} state
+ * @returns {"serve-network" | "serve-cache" | "keep-waiting" | "offline"}
+ */
+function networkRaceDecision(state) {
+  if (state.fetchSettled && !state.fetchRejected) return "serve-network";
+  if (state.fetchRejected) return "offline";
+  if (state.timeoutFired) {
+    if (state.cachePresent && !state.cacheExpired) return "serve-cache";
+    return "keep-waiting";
+  }
+  return "keep-waiting";
+}
 
 /** @param {string} pathname */
 function pathShouldSkip(pathname) {
@@ -240,13 +288,48 @@ function isExpired(response) {
 }
 
 /**
+ * @param {Response | undefined} response
+ * @param {number} minAgeMs
+ * @returns {boolean}
+ */
+function isYoungerThan(response, minAgeMs) {
+  if (!response) return false;
+  const raw = response.headers.get(CACHED_AT_HEADER);
+  if (!raw) return false;
+  const cachedAt = Number(raw);
+  if (!Number.isFinite(cachedAt)) return false;
+  return Date.now() - cachedAt < minAgeMs;
+}
+
+let pagePutCounter = 0;
+
+/**
+ * @param {ExtendableEvent} event
+ * @param {Cache} cache
+ * @param {string} key
+ * @param {Response} response
+ */
+function schedulePageCachePut(event, cache, key, response) {
+  pagePutCounter += 1;
+  const runTrim = shouldTrim(pagePutCounter);
+  event.waitUntil(
+    (async () => {
+      await cache.put(key, withCachedTimestamp(response));
+      if (runTrim) await trimPageCache(cache);
+    })(),
+  );
+}
+
+/**
  * @param {Cache} cache
  * @param {string} key
  * @param {Response} response
  */
 async function putPageEntry(cache, key, response) {
+  pagePutCounter += 1;
+  const runTrim = shouldTrim(pagePutCounter);
   await cache.put(key, withCachedTimestamp(response));
-  await trimPageCache(cache);
+  if (runTrim) await trimPageCache(cache);
 }
 
 /**
@@ -270,6 +353,20 @@ async function trimPageCache(cache) {
   const excess = dated.length - PAGE_CACHE_MAX_ENTRIES;
   for (let i = 0; i < excess; i += 1) {
     await cache.delete(dated[i].request);
+  }
+}
+
+/**
+ * Drop oldest static entries when over cap (insertion order from cache.keys()).
+ * @param {Cache} cache
+ */
+async function trimStaticCache(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= STATIC_CACHE_MAX_ENTRIES) return;
+
+  const excess = keys.length - STATIC_CACHE_MAX_ENTRIES;
+  for (let i = 0; i < excess; i += 1) {
+    await cache.delete(keys[i]);
   }
 }
 
@@ -303,6 +400,8 @@ async function cachedDocPathnames(cache, origin) {
 async function primePageUrl(absoluteUrl) {
   const cache = await caches.open(PAGE_CACHE);
   const key = pageKeyFor(absoluteUrl, "doc");
+  const existing = await cache.match(key);
+  if (isYoungerThan(existing, PRIME_MIN_AGE_MS)) return false;
 
   try {
     const response = await fetch(absoluteUrl, {
@@ -321,88 +420,191 @@ async function primePageUrl(absoluteUrl) {
 
 /**
  * @param {Request} request
+ * @param {ExtendableEvent} event
  * @returns {Promise<Response>}
  */
-async function cacheFirstStatic(request) {
-  const cache = await caches.open(STATIC_CACHE);
+async function cacheFirstStatic(request, event) {
+  const cache = await caches.open(staticCacheName(BUILD_ID));
   const cached = await cache.match(request);
   if (cached) return cached;
 
   const response = await fetch(request);
   if (response.ok && response.type === "basic") {
-    await cache.put(request, response.clone());
+    event.waitUntil(
+      (async () => {
+        await cache.put(request, response.clone());
+        await trimStaticCache(cache);
+      })(),
+    );
   }
   return response;
 }
 
 /**
  * @param {Request} request
+ * @param {Cache} cache
+ * @param {string} key
  * @returns {Promise<Response>}
  */
-async function networkFirstPage(request) {
-  const cache = await caches.open(PAGE_CACHE);
-  const key = pageCacheKey(request);
+async function handlePageOffline(request, cache, key) {
+  const cached = await cache.match(key);
+  if (cached && !isExpired(cached)) return cached;
+  if (cached) await cache.delete(key);
 
-  try {
-    const response = await Promise.race([
-      fetch(request),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS);
-      }),
-    ]);
-
-    if (shouldCacheResponse(response)) {
-      await putPageEntry(cache, key, response.clone());
+  if (request.mode === "navigate") {
+    const url = new URL(request.url);
+    const docPaths = await cachedDocPathnames(cache, url.origin);
+    const landing = offlineLandingFor(url.pathname, docPaths);
+    if (landing) {
+      return Response.redirect(new URL(landing, request.url).href, 302);
     }
-    return response;
-  } catch {
-    const cached = await cache.match(key);
-    if (cached && !isExpired(cached)) return cached;
-    if (cached) await cache.delete(key);
-
-    if (request.mode === "navigate") {
-      const url = new URL(request.url);
-      const docPaths = await cachedDocPathnames(cache, url.origin);
-      const landing = offlineLandingFor(url.pathname, docPaths);
-      if (landing) {
-        return Response.redirect(new URL(landing, request.url).href, 302);
-      }
-    }
-
-    throw new Error("offline");
   }
+
+  throw new Error("offline");
 }
 
 /**
- * Network-first with a cache fallback for the Home map image (see MAP_PATH).
+ * Network-first for documents and RSC payloads.
+ *
+ * - The response is returned the moment the network answers; caching happens in `waitUntil`
+ *   (a clone must be read in full, which would otherwise block streaming).
+ * - The network is raced against NETWORK_TIMEOUT_MS only to decide whether a CACHED copy may be
+ *   served early. With no usable cache the fetch is awaited to its end (a slow network or a cold
+ *   start must not turn into a failure). A fetch that REJECTS (offline) goes straight to the
+ *   offline path: cached copy, then the "/" landing redirect, then failure.
  * @param {Request} request
+ * @param {ExtendableEvent} event
  * @returns {Promise<Response>}
  */
-async function networkFirstMap(request) {
+async function networkFirstPage(request, event) {
+  const cache = await caches.open(PAGE_CACHE);
+  const key = pageCacheKey(request);
+
+  // Never rejects, so a late rejection after we have moved on cannot become unhandled.
+  const settled = fetch(request).then(
+    (response) => ({ kind: "fetch", response }),
+    () => ({ kind: "rejected" }),
+  );
+
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "timeout" }), NETWORK_TIMEOUT_MS);
+  });
+  const first = await Promise.race([settled, timeout]);
+  clearTimeout(timer);
+
+  if (first.kind === "fetch") {
+    if (shouldCacheResponse(first.response)) {
+      schedulePageCachePut(event, cache, key, first.response.clone());
+    }
+    return first.response;
+  }
+  if (first.kind === "rejected") {
+    return handlePageOffline(request, cache, key);
+  }
+
+  // The timeout fired first.
+  const cached = await cache.match(key);
+  const decision = networkRaceDecision({
+    fetchSettled: false,
+    fetchRejected: false,
+    cachePresent: Boolean(cached),
+    cacheExpired: cached ? isExpired(cached) : true,
+    timeoutFired: true,
+  });
+
+  if (decision === "serve-cache" && cached) {
+    // Serve the cache now; let the late network response refresh it.
+    event.waitUntil(
+      settled.then((late) => {
+        if (late.kind === "fetch" && shouldCacheResponse(late.response)) {
+          schedulePageCachePut(event, cache, key, late.response.clone());
+        }
+      }),
+    );
+    return cached;
+  }
+
+  // Nothing usable in the cache: keep waiting for the network.
+  const late = await settled;
+  if (late.kind === "fetch") {
+    if (shouldCacheResponse(late.response)) {
+      schedulePageCachePut(event, cache, key, late.response.clone());
+    }
+    return late.response;
+  }
+  return handlePageOffline(request, cache, key);
+}
+
+/**
+ * Network-first with a cache fallback for the Home map image (see MAP_PATH). Same timeout and
+ * offline semantics as networkFirstPage.
+ * @param {Request} request
+ * @param {ExtendableEvent} event
+ * @returns {Promise<Response>}
+ */
+async function networkFirstMap(request, event) {
   const cache = await caches.open(MEDIA_CACHE);
   const key = mapCacheKey(request.url);
 
-  try {
-    const response = await Promise.race([
-      fetch(request),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS);
-      }),
-    ]);
-    if (shouldCacheMapResponse(response)) {
-      await cache.put(key, response.clone());
-    }
-    return response;
-  } catch {
+  const settled = fetch(request).then(
+    (response) => ({ kind: "fetch", response }),
+    () => ({ kind: "rejected" }),
+  );
+
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "timeout" }), NETWORK_TIMEOUT_MS);
+  });
+  const first = await Promise.race([settled, timeout]);
+  clearTimeout(timer);
+
+  const offline = async () => {
     const cached = await cache.match(key);
     if (cached) return cached;
     throw new Error("offline");
+  };
+
+  if (first.kind === "fetch") {
+    if (shouldCacheMapResponse(first.response)) {
+      event.waitUntil(cache.put(key, first.response.clone()));
+    }
+    return first.response;
   }
+  if (first.kind === "rejected") {
+    return offline();
+  }
+
+  const cached = await cache.match(key);
+  if (cached) {
+    event.waitUntil(
+      settled.then((late) => {
+        if (late.kind === "fetch" && shouldCacheMapResponse(late.response)) {
+          return cache.put(key, late.response.clone());
+        }
+      }),
+    );
+    return cached;
+  }
+
+  const late = await settled;
+  if (late.kind === "fetch") {
+    if (shouldCacheMapResponse(late.response)) {
+      event.waitUntil(cache.put(key, late.response.clone()));
+    }
+    return late.response;
+  }
+  return offline();
 }
 
 /** @param {string} name */
 function isHearthCache(name) {
   return name.startsWith("hearth-");
+}
+
+/** @param {string} name */
+function isStaleStaticCache(name) {
+  return name.startsWith(`${STATIC_CACHE}-`) && name !== staticCacheName(BUILD_ID);
 }
 
 self.addEventListener("install", (event) => {
@@ -417,10 +619,11 @@ self.addEventListener("activate", (event) => {
         names
           .filter(
             (name) =>
-              isHearthCache(name) &&
-              name !== STATIC_CACHE &&
-              name !== PAGE_CACHE &&
-              name !== MEDIA_CACHE,
+              (isHearthCache(name) &&
+                name !== staticCacheName(BUILD_ID) &&
+                name !== PAGE_CACHE &&
+                name !== MEDIA_CACHE) ||
+              isStaleStaticCache(name),
           )
           .map((name) => caches.delete(name)),
       );
@@ -434,16 +637,16 @@ self.addEventListener("fetch", (event) => {
   if (kind === "skip") return;
 
   if (kind === "static") {
-    event.respondWith(cacheFirstStatic(event.request));
+    event.respondWith(cacheFirstStatic(event.request, event));
     return;
   }
 
   if (kind === "map") {
-    event.respondWith(networkFirstMap(event.request));
+    event.respondWith(networkFirstMap(event.request, event));
     return;
   }
 
-  event.respondWith(networkFirstPage(event.request));
+  event.respondWith(networkFirstPage(event.request, event));
 });
 
 self.addEventListener("message", (event) => {
@@ -498,5 +701,13 @@ if (typeof module !== "undefined" && module.exports) {
     SKIP_PATHS,
     OFFLINE_LANDING_CANDIDATES,
     PRIME_MAX_URLS,
+    shouldTrim,
+    networkRaceDecision,
+    isYoungerThan,
+    PRIME_MIN_AGE_MS,
+    STATIC_CACHE_MAX_ENTRIES,
+    CACHE_VERSION,
+    networkFirstPage,
+    networkFirstMap,
   };
 }
