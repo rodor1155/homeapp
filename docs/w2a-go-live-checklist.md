@@ -4,7 +4,7 @@ Use this after W2a code (steps 1–6) is merged and deployed. Step 7 is the dest
 
 ## Pre-requisites (Ross, before merge)
 
-- [ ] Re-add any bills or documents you care about **on the iPhone** (Documents → +). The web account’s server-stored files are not migrated to the device.
+- [x] Ross confirmed (2 Oct 2026) the two server-stored documents are test documents and may be deleted; nothing needs re-adding. Any other real documents on a web account are not migrated to the device.
 - [ ] Confirm no one still relies on Gmail import or server-side document upload on the web app.
 
 ## Order of operations

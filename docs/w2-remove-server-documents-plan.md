@@ -4,7 +4,7 @@ Status: **DECIDED 2 Oct 2026 (Ross); W2a code removal in progress on branch `w2a
 
 ## 0. Before anything is deleted — two things only Ross can do
 
-1. **Rescue any documents you care about on the web account.** The web account currently holds at least two server-stored documents (`image.jpg`, "Mole Valley District Council" and "SES Water", filed 14 Sep 2026; screenshots 30 Sep). Re-add them through the iPhone app (Documents → +) before the table and bucket are dropped. There is no export-to-device path and none is planned (D4).
+1. **Rescue any documents you care about on the web account.** The web account currently holds at least two server-stored documents (`image.jpg`, "Mole Valley District Council" and "SES Water", filed 14 Sep 2026; screenshots 30 Sep). **Update 2 Oct 2026: Ross confirmed these are test documents; no rescue needed.** (Originally: re-add them through the iPhone app (Documents → +) before the table and bucket are dropped. There is no export-to-device path and none is planned (D4).)
 2. **Confirm scope** for the two product choices in section 4.
 
 ## 1. Where server documents live today
