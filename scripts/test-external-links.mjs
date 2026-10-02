@@ -2,7 +2,10 @@
 /**
  * Policy tests for external link interception — no deps, run via npm run test:links
  */
-import { shouldOpenExternalLink } from "../lib/open-external-link.mjs";
+import {
+  shouldNavigateForOsScheme,
+  shouldOpenExternalLink,
+} from "../lib/open-external-link.mjs";
 
 const ORIGIN = "https://homeapp-mu.vercel.app";
 
@@ -78,6 +81,31 @@ assert(
 assert(
   shouldOpenExternalLink("", ORIGIN) === false,
   "empty href should not intercept",
+);
+
+assert(
+  shouldNavigateForOsScheme("webcal://homeapp-mu.vercel.app/api/ics/token.ics"),
+  "webcal uses OS navigation in the shell",
+);
+
+assert(
+  shouldNavigateForOsScheme("mailto:hello@example.com"),
+  "mailto uses OS navigation in the shell",
+);
+
+assert(
+  shouldNavigateForOsScheme("tel:+441234567890"),
+  "tel uses OS navigation in the shell",
+);
+
+assert(
+  shouldNavigateForOsScheme("https://checkout.stripe.com/pay/cs_test") === false,
+  "https should not use OS navigation",
+);
+
+assert(
+  shouldNavigateForOsScheme("not a valid url %%") === false,
+  "malformed URL should not use OS navigation",
 );
 
 console.log(`external links: ${passed} passed, ${failed} failed`);
