@@ -1,4 +1,4 @@
--- DRAFT: DO NOT APPLY without Ross's explicit go-ahead; purge Storage objects first
+-- APPLIED to project fybpmpnfocaxhqiwiyhs on 2 Oct 2026 (Ross's go-ahead; Storage objects purged first).
 --
 -- W2a step 7 — remove server-side document storage, extraction webhook, email
 -- reminders and Gmail import tables. Apply only after:
@@ -127,6 +127,40 @@ drop table if exists public.gmail_connections cascade;
 drop table if exists public.document_chunks cascade;
 
 -- Renewal ↔ document link (renewals themselves stay until W2b)
+-- The insert/update RLS policies on renewal_items referenced document_id, so
+-- they are recreated without that clause before the column is dropped.
+drop policy if exists renewal_items_insert on public.renewal_items;
+drop policy if exists renewal_items_update on public.renewal_items;
+
+create policy renewal_items_insert on public.renewal_items
+  for insert to authenticated
+  with check (
+    private.is_household_member(household_id)
+    and (
+      person_id is null
+      or exists (
+        select 1 from public.household_people p
+        where p.id = renewal_items.person_id
+          and p.household_id = renewal_items.household_id
+      )
+    )
+  );
+
+create policy renewal_items_update on public.renewal_items
+  for update to authenticated
+  using (private.is_household_member(household_id))
+  with check (
+    private.is_household_member(household_id)
+    and (
+      person_id is null
+      or exists (
+        select 1 from public.household_people p
+        where p.id = renewal_items.person_id
+          and p.household_id = renewal_items.household_id
+      )
+    )
+  );
+
 alter table if exists public.renewal_items
   drop column if exists document_id;
 
