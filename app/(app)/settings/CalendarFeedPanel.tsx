@@ -52,10 +52,10 @@ export default function CalendarFeedPanel({ token }: Props) {
     <div className="flex flex-col gap-4">
       <p className="text-sm text-ink-soft">
         Subscribe in Apple Calendar, Google Calendar or any app that reads iCal
-        feeds. The feed includes key dates, renewals (with reminders), document
-        renewal and end dates, and birthdays. School and other shared calendars
-        you already link in Hearth are not repeated — subscribe to those feeds
-        directly in your calendar app.
+        feeds. The feed includes key dates, renewals (with calendar alarms),
+        and birthdays. School and other shared calendars you already link in
+        Hearth are not repeated — subscribe to those feeds directly in your
+        calendar app.
       </p>
       <p className="text-xs text-ink-faint">
         Calendar apps usually refresh every few hours.

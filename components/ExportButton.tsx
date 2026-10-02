@@ -70,7 +70,7 @@ export default function ExportButton({
           >
             Upgrade in Settings
           </Link>{" "}
-          to download your documents.
+          to download your household data.
         </span>
       </p>
     </div>
@@ -140,7 +140,7 @@ async function downloadExport(
       setError(
         inNativeShell
           ? "Export is unavailable in the app."
-          : "Export is a paid feature. Upgrade in Settings to download your documents."
+          : "Export is a paid feature. Upgrade in Settings to download your household data."
       );
       return;
     }

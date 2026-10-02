@@ -330,7 +330,7 @@ export function buildWeekAhead(
   const byPerson = new Map<string, WeekAheadPersonItem[]>();
   for (const entry of weekEntries) {
     if (entry.kind === "birthday" || entry.kind === "routine") continue;
-    if (entry.kind === "document" || entry.kind === "shared") continue;
+    if (entry.kind === "shared") continue;
     if (!isPersonKeyItem(entry)) continue;
 
     const ids = personIdsForEntry(entry, people, schoolByEventId);

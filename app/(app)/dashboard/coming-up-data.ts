@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   birthdayEntries,
-  documentEntries,
   eventEntries,
   mergeComingUp,
   renewalEntries,
@@ -35,8 +34,6 @@ import {
 } from "@/lib/family";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
-import { upcomingDates } from "@/lib/home-overview";
-import { loadOverviewDocuments } from "./overview-data";
 
 export type ComingUpData = {
   entries: ComingUpEntry[];
@@ -58,7 +55,6 @@ export async function loadComingUpData(
   const schoolLimit = inWeekAhead ? 50 : SCHOOL_ENTRY_LIMIT;
   const sharedLimit = inWeekAhead ? 30 : SHARED_ENTRY_LIMIT;
   const [
-    documents,
     peopleLoad,
     eventsLoad,
     schoolsLoad,
@@ -69,7 +65,6 @@ export async function loadComingUpData(
     routinesLoad,
     renewalsLoad,
   ] = await Promise.all([
-    loadOverviewDocuments(householdId),
     loadHouseholdPeople(supabase, householdId),
     loadHouseholdEvents(supabase, householdId),
     loadSchools(supabase, householdId),
@@ -83,7 +78,6 @@ export async function loadComingUpData(
 
   const people = peopleLoad.items;
   const entries = mergeComingUp(
-    documentEntries(upcomingDates(documents)),
     birthdayEntries(people, now, horizon ?? BIRTHDAY_HORIZON_DAYS),
     eventEntries(eventsLoad.items, people, now),
     schoolEntries(

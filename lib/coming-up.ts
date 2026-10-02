@@ -10,7 +10,6 @@ import {
   type School,
   type SchoolCalendarEvent,
 } from "@/lib/family";
-import type { UpcomingDate } from "@/lib/home-overview";
 import {
   childYearsForSchool,
   eventRelevantToYears,
@@ -27,13 +26,12 @@ import {
   type RenewalItem,
 } from "@/lib/renewals";
 
-/* One list for everything with a date on it: document renewals, tracked renewal
-   items, birthdays derived from the household's people, the dates someone typed in
+/* One list for everything with a date on it: tracked renewal items,
+   birthdays derived from the household's people, the dates someone typed in
    by hand, what the schools' own calendars say and what the household's own
    linked feeds do. Pure shaping — the caller loads the rows. */
 
 export type ComingUpKind =
-  | "document"
   | "renewal"
   | "birthday"
   | "event"
@@ -44,11 +42,9 @@ export type ComingUpKind =
 
 /**
  * The colour each kind wears in the list. The same assignment the calendar
- * uses (lib/calendar-month.ts), plus the neutral navy for a document — a
- * renewal is paperwork, not somewhere to be.
+ * uses (lib/calendar-month.ts).
  */
 export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
-  document: "navy",
   renewal: "ochre",
   birthday: "sage",
   event: "navy",
@@ -66,7 +62,7 @@ export type ComingUpEntry = {
   note: string;
   date: string;
   daysAway: number;
-  /** Primary row id — event, school/shared feed row, document, routine. */
+  /** Primary row id — event, school/shared feed row, routine. */
   recordId?: string;
   /** When the row belongs to one household person (birthday, event, timetable). */
   personId?: string | null;
@@ -147,8 +143,6 @@ export function comingUpHref(entry: ComingUpEntry): string | null {
       return entry.renewalId
         ? `/family?renewal=${entry.renewalId}#renewals`
         : null;
-    case "document":
-      return entry.recordId ? `/documents?doc=${entry.recordId}` : null;
     case "birthday":
       return entry.personId ? `/family?person=${entry.personId}` : null;
     case "routine":
@@ -161,21 +155,6 @@ export function comingUpHref(entry: ComingUpEntry): string | null {
     default:
       return null;
   }
-}
-
-export function documentEntries(
-  dates: readonly UpcomingDate[],
-  isReminded: (entry: UpcomingDate) => boolean = () => false
-): ComingUpEntry[] {
-  return dates.map((entry, i) => ({
-    key: `document-${entry.documentId}-${entry.date}-${entry.label}-${i}`,
-    kind: "document" as const,
-    title: entry.provider,
-    note: isReminded(entry) ? `${entry.label} · reminders on` : entry.label,
-    date: entry.date,
-    daysAway: entry.daysAway,
-    recordId: entry.documentId,
-  }));
 }
 
 /** Birthdays coming round inside the horizon, derived — never stored twice. */

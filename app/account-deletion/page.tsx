@@ -40,8 +40,10 @@ export default function AccountDeletionPage() {
               to confirm.
             </p>
             <p>
-              Before you delete, you can download a copy of your household data
-              from the same section using <strong>Download my data</strong>.
+              Before you delete, you can download a copy of the household data
+              we store on our servers from the same section using{" "}
+              <strong>Download my data</strong>. Documents on your iPhone are
+              not included — they stay on your device and in your iCloud.
             </p>
           </section>
 
@@ -55,13 +57,9 @@ export default function AccountDeletionPage() {
               <li>
                 <strong>Sole-member households</strong> — if you are the only
                 person who can sign in to a household, that household and
-                everything in it is permanently deleted: documents and files,
-                family people and dates, renewals, shopping lists, calendar
-                subscribe links, kid view links, and pending invites.
-              </li>
-              <li>
-                <strong>Gmail connections</strong> — any Gmail import connection
-                you set up is disconnected and its tokens are removed.
+                everything in it is permanently deleted: family people and dates,
+                renewals, shopping lists, calendar subscribe links, kid view
+                links, and pending invites.
               </li>
             </ul>
           </section>
@@ -70,8 +68,8 @@ export default function AccountDeletionPage() {
             <h2>Shared households</h2>
             <p>
               If other people can still sign in to a household, deleting your
-              account only removes <strong>your</strong> access. The household,
-              its documents and everything else stays for the remaining members.
+              account only removes <strong>your</strong> access. The household
+              and everything else stays for the remaining members.
             </p>
             <p>
               Your entry on the Family page (if you were linked to a person
