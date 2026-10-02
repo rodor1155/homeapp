@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui";
-import { APP_WARM_HREFS } from "@/lib/app-routes";
+import { SW_PRIME_HREFS } from "@/lib/app-routes";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
 
 // Read every page cache (hearth-pages-<version>) so a service-worker version bump never
@@ -66,7 +66,7 @@ export default function OfflineCacheStatus() {
         const registration = await navigator.serviceWorker.ready;
         registration.active?.postMessage({
           type: "prime-pages",
-          urls: [...APP_WARM_HREFS],
+          urls: [...SW_PRIME_HREFS],
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }

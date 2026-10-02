@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { APP_WARM_HREFS } from "@/lib/app-routes";
+import { SW_PRIME_HREFS } from "@/lib/app-routes";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
 
 const PRIME_DELAY_MS = 3000;
-const PRIME_INTERVAL_MS = 30 * 60 * 1000;
+const PRIME_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const SW_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "dev";
 
 let lastPrimeAt = 0;
 
@@ -24,7 +25,7 @@ async function primePages(): Promise<void> {
     const worker = registration.active;
     if (!worker) return;
 
-    worker.postMessage({ type: "prime-pages", urls: [...APP_WARM_HREFS] });
+    worker.postMessage({ type: "prime-pages", urls: [...SW_PRIME_HREFS] });
     lastPrimeAt = Date.now();
   } catch {
     // Never throw from priming.
@@ -46,7 +47,7 @@ export default function ServiceWorkerRegister() {
       let onVisible: (() => void) | null = null;
 
       void navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
+        .register(`/sw.js?v=${encodeURIComponent(SW_BUILD_ID)}`, { scope: "/" })
         .then(async () => {
           if (cancelled) return;
 
