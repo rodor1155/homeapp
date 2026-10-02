@@ -1,7 +1,10 @@
 "use client";
 
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
-import { shouldOpenExternalLink as shouldOpenExternalLinkImpl } from "./open-external-link.mjs";
+import {
+  shouldNavigateForOsScheme,
+  shouldOpenExternalLink as shouldOpenExternalLinkImpl,
+} from "./open-external-link.mjs";
 
 export type OpenExternalOptions = {
   /** In a plain browser, navigate the current tab instead of opening a new one. */
@@ -26,6 +29,11 @@ export async function openExternalUrl(
   options?: OpenExternalOptions
 ): Promise<void> {
   if (isCapacitorNative()) {
+    if (shouldNavigateForOsScheme(url)) {
+      window.location.href = url;
+      return;
+    }
+
     try {
       const { Browser } = await import("@capacitor/browser");
       await Browser.open({ url });

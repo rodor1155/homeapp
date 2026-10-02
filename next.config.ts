@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_BUILD_ID:
+      process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+      process.env.NEXT_PUBLIC_BUILD_ID?.trim() ||
+      "dev",
+  },
   // Pin the workspace root so bundler root inference doesn't walk up to
   // stray lockfiles outside the repo.
   turbopack: {
