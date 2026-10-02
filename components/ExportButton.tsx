@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { useIsCapacitorNative } from "@/lib/use-is-capacitor-native";
 
 type Props = {
   canExport: boolean;
@@ -22,10 +23,22 @@ export default function ExportButton({
   align = "end",
   children,
 }: Props) {
+  const inNativeShell = useIsCapacitorNative();
   const alignClass = align === "start" ? "items-start" : "items-end";
   const textAlign = align === "start" ? "text-left" : "text-right";
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (inNativeShell && billingConfigured && !canExport) {
+    return (
+      <div className={`flex flex-col gap-1 ${alignClass} ${className}`}>
+        <p className={`text-sm text-ink-soft ${textAlign}`}>
+          <span>{children}</span>
+          <span className="mark-review"> — Export is unavailable in the app.</span>
+        </p>
+      </div>
+    );
+  }
 
   if (!billingConfigured || canExport) {
     return (
@@ -36,7 +49,8 @@ export default function ExportButton({
         textAlign={textAlign}
         pending={pending}
         error={error}
-        onExport={() => downloadExport(setPending, setError)}
+        hideUpgradeLink={inNativeShell}
+        onExport={() => downloadExport(setPending, setError, inNativeShell)}
       >
         {children}
       </ExportTrigger>
@@ -70,6 +84,7 @@ function ExportTrigger({
   textAlign,
   pending,
   error,
+  hideUpgradeLink,
   onExport,
   children,
 }: {
@@ -79,6 +94,7 @@ function ExportTrigger({
   textAlign: string;
   pending: boolean;
   error: string | null;
+  hideUpgradeLink: boolean;
   onExport: () => void;
   children: React.ReactNode;
 }) {
@@ -95,7 +111,7 @@ function ExportTrigger({
       {error ? (
         <p className={`max-w-xs text-xs mark-fault ${textAlign}`}>
           {error}{" "}
-          {error.includes("paid feature") ? (
+          {error.includes("paid feature") && !hideUpgradeLink ? (
             <Link
               href="/settings"
               className="text-action underline-offset-2 hover:underline"
@@ -111,7 +127,8 @@ function ExportTrigger({
 
 async function downloadExport(
   setPending: (value: boolean) => void,
-  setError: (value: string | null) => void
+  setError: (value: string | null) => void,
+  inNativeShell: boolean
 ) {
   setPending(true);
   setError(null);
@@ -121,7 +138,9 @@ async function downloadExport(
 
     if (response.status === 402) {
       setError(
-        "Export is a paid feature. Upgrade in Settings to download your documents."
+        inNativeShell
+          ? "Export is unavailable in the app."
+          : "Export is a paid feature. Upgrade in Settings to download your documents."
       );
       return;
     }
