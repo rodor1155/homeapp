@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { extractTimetable } from "@/lib/timetable-extract";
 import {
   asTimeHm,
   asWeekday,
@@ -18,9 +17,6 @@ export type TimetableState =
   | {
       error?: string;
       ok?: boolean;
-      /** Present after a successful extract — parent reviews before replace. */
-      draftSlots?: TimetableSlotDraft[];
-      extractNotes?: string | null;
     }
   | undefined;
 
@@ -306,54 +302,4 @@ export async function replacePersonTimetable(
 
   refresh();
   return { ok: true };
-}
-
-/** Scan a photo and/or pasted text; return draft slots for review (no write). */
-export async function extractTimetableAction(
-  _prev: TimetableState,
-  formData: FormData
-): Promise<TimetableState> {
-  const personId = text(formData, "person_id");
-  if (!personId) return { error: "Pick whose timetable this is." };
-
-  const pastedText = optional(formData, "pasted_text");
-  const file = formData.get("photo");
-
-  let imageBytes: Uint8Array | null = null;
-  let mimeType: string | null = null;
-  let filename: string | null = null;
-
-  if (file && typeof file === "object" && "arrayBuffer" in file) {
-    const blob = file as File;
-    if (blob.size > 0) {
-      imageBytes = new Uint8Array(await blob.arrayBuffer());
-      mimeType = blob.type || null;
-      filename = blob.name || "timetable.jpg";
-    }
-  }
-
-  const supabase = await createClient();
-  const caller = await resolveCaller(supabase);
-  if (!caller.ok) return { error: caller.error };
-
-  const personErr = await assertChildInHousehold(
-    supabase,
-    caller.householdId,
-    personId
-  );
-  if (personErr) return { error: personErr };
-
-  const result = await extractTimetable({
-    imageBytes,
-    mimeType,
-    filename,
-    pastedText,
-  });
-  if (!result.ok) return { error: result.error };
-
-  return {
-    ok: true,
-    draftSlots: result.slots,
-    extractNotes: result.notes,
-  };
 }

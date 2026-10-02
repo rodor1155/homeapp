@@ -99,8 +99,8 @@ export default function PlanPanel({
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-ink">
-            You are on the full plan — unlimited reminders, export, and
-            everyone you share the household with.
+            You are on the full plan — export and everyone you share the
+            household with.
           </p>
           {periodEnd ? (
             <p className="tnum mt-1 text-sm text-ink-soft">
@@ -133,12 +133,10 @@ export default function PlanPanel({
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-sm text-ink">
-          You are on the free plan: keep as many documents as you like, with up
-          to three reminders running.
+          You are on the free plan.
         </p>
         <p className="mt-1 text-sm text-ink-soft">
-          Paying adds unlimited reminders, export, and sharing the household
-          with someone else.
+          Paying adds export and sharing the household with someone else.
         </p>
       </div>
 
