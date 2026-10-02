@@ -6,8 +6,6 @@ import { isCapacitorNative } from "@/lib/is-capacitor-native";
 type HearthVaultPlugin = {
   openVault?: () => Promise<void>;
   openAdd?: () => Promise<void>;
-  getStatus?: () => Promise<unknown>;
-  getSummaries?: () => Promise<unknown>;
 };
 
 type CapacitorWithPlugins = {
