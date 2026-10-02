@@ -4,8 +4,6 @@ import { useActionState, useCallback, useEffect, useMemo, useState } from "react
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   deleteTimetableSlot,
-  extractTimetableAction,
-  replacePersonTimetable,
   saveTimetableSlot,
   type TimetableState,
 } from "@/app/actions/timetable";
@@ -17,7 +15,6 @@ import {
   WEEKDAY_SHORT,
   WEEKDAYS,
   type PersonTimetableSlot,
-  type TimetableSlotDraft,
   type Weekday,
 } from "@/lib/timetable";
 
@@ -85,7 +82,6 @@ export default function TimetablePanel({
 
   const childSlots = slots.filter((s) => s.person_id === personId);
   const byDay = groupSlotsByWeekday(childSlots);
-  const child = children.find((c) => c.id === personId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -116,8 +112,6 @@ export default function TimetablePanel({
           ))}
         </select>
       </div>
-
-      <ExtractCard personId={personId} childName={child?.name ?? "them"} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {SCHOOL_DAYS.map((day) => (
@@ -441,234 +435,5 @@ function RemoveSlot({ slotId }: { slotId: string }) {
         <p className="w-full text-sm text-oxblood">{state.error}</p>
       ) : null}
     </form>
-  );
-}
-
-function ExtractCard({
-  personId,
-  childName,
-}: {
-  personId: string;
-  childName: string;
-}) {
-  const [state, submit, pending] = useActionState<TimetableState, FormData>(
-    extractTimetableAction,
-    undefined
-  );
-  const [open, setOpen] = useState(false);
-
-  const drafts = state?.draftSlots;
-
-  if (drafts && drafts.length > 0) {
-    return (
-      <ReviewDraft
-        personId={personId}
-        childName={childName}
-        drafts={drafts}
-        notes={state?.extractNotes ?? null}
-        onCancel={() => setOpen(false)}
-      />
-    );
-  }
-
-  if (!open) {
-    return (
-      <div className="rounded-lg border border-dashed border-rule px-3 py-2.5">
-        <p className="text-sm text-ink-soft">
-          Photo or paste {childName}&rsquo;s week — we&rsquo;ll draft the grid
-          for you to check.
-        </p>
-        <Button
-          type="button"
-          variant="quiet"
-          className="mt-2"
-          onClick={() => setOpen(true)}
-        >
-          Scan or paste timetable
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <form
-      action={submit}
-      className="flex flex-col gap-3 rounded-lg border border-rule bg-paper-sunk p-3"
-    >
-      <input type="hidden" name="person_id" value={personId} />
-      <Field label="Photo of the timetable">
-        <input
-          type="file"
-          name="photo"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          className="field-input"
-        />
-      </Field>
-      <Field label="Or paste the week">
-        <textarea
-          name="pasted_text"
-          className="field-input min-h-24"
-          placeholder={"Mon\nP1 Maths\nP2 PE\n…"}
-        />
-      </Field>
-      {state?.error ? (
-        <p role="status" className="text-sm text-oxblood">
-          {state.error}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Reading…" : "Read timetable"}
-        </Button>
-        <Button type="button" variant="quiet" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function ReviewDraft({
-  personId,
-  childName,
-  drafts,
-  notes,
-  onCancel,
-}: {
-  personId: string;
-  childName: string;
-  drafts: TimetableSlotDraft[];
-  notes: string | null;
-  onCancel: () => void;
-}) {
-  const [rows, setRows] = useState(drafts);
-  const [state, submit, pending] = useActionState<TimetableState, FormData>(
-    replacePersonTimetable,
-    undefined
-  );
-
-  useEffect(() => {
-    if (state?.ok) onCancel();
-  }, [state, onCancel]);
-
-  function updateRow(index: number, patch: Partial<TimetableSlotDraft>) {
-    setRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
-    );
-  }
-
-  function removeRow(index: number) {
-    setRows((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-ochre/40 bg-ochre-wash p-3">
-      <div>
-        <p className="text-sm font-medium text-ink">
-          Check {childName}&rsquo;s week before saving
-        </p>
-        <p className="text-xs text-ink-soft">
-          Saving replaces their current timetable with this draft.
-        </p>
-        {notes ? (
-          <p className="mt-1 text-xs text-ink-faint">{notes}</p>
-        ) : null}
-      </div>
-
-      <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
-        {rows.map((row, index) => (
-          <li
-            key={`${row.weekday}-${row.subject}-${index}`}
-            className="rounded bg-paper-raised p-2"
-          >
-            <div className="grid gap-2 sm:grid-cols-4">
-              <select
-                className="field-input"
-                value={row.weekday}
-                onChange={(e) =>
-                  updateRow(index, {
-                    weekday: Number(e.target.value) as Weekday,
-                  })
-                }
-              >
-                {WEEKDAYS.map((d) => (
-                  <option key={d} value={d}>
-                    {WEEKDAY_SHORT[d]}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="field-input sm:col-span-2"
-                value={row.subject}
-                onChange={(e) => updateRow(index, { subject: e.target.value })}
-              />
-              <button
-                type="button"
-                className="text-xs text-oxblood"
-                onClick={() => removeRow(index)}
-              >
-                Drop
-              </button>
-            </div>
-            <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-ink-soft">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={row.bring_kit}
-                  onChange={(e) =>
-                    updateRow(index, {
-                      bring_kit: e.target.checked,
-                      kit_label: e.target.checked
-                        ? row.kit_label || "PE kit"
-                        : null,
-                    })
-                  }
-                />
-                Kit
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={row.bring_ingredients}
-                  onChange={(e) =>
-                    updateRow(index, {
-                      bring_ingredients: e.target.checked,
-                      ingredients_note: e.target.checked
-                        ? row.ingredients_note ||
-                          `Ingredients for ${row.subject}`
-                        : null,
-                    })
-                  }
-                />
-                Ingredients
-              </label>
-              <span className="text-ink-faint">
-                {[row.period_label || row.start_time, row.location]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <form action={submit} className="flex flex-wrap gap-2">
-        <input type="hidden" name="person_id" value={personId} />
-        <input
-          type="hidden"
-          name="slots_json"
-          value={JSON.stringify(rows)}
-        />
-        <Button type="submit" disabled={pending || rows.length === 0}>
-          {pending ? "Saving…" : `Save ${rows.length} lessons`}
-        </Button>
-        <Button type="button" variant="quiet" onClick={onCancel}>
-          Discard draft
-        </Button>
-        {state?.error ? (
-          <p className="w-full text-sm text-oxblood">{state.error}</p>
-        ) : null}
-      </form>
-    </div>
   );
 }

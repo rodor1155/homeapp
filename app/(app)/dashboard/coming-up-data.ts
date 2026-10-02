@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   birthdayEntries,
-  documentEntries,
   eventEntries,
   mergeComingUp,
   renewalEntries,
@@ -35,23 +34,6 @@ import {
 } from "@/lib/family";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
-import {
-  documentLabel,
-  upcomingDates,
-  type OverviewDocument,
-} from "@/lib/home-overview";
-import { loadOverviewDocuments } from "./overview-data";
-
-type ReminderRow = {
-  document_id: string;
-  kind: string;
-  due_date: string;
-};
-
-const KIND_LABEL: Record<string, string> = {
-  renewal: "Renews",
-  end: "Ends",
-};
 
 export type ComingUpData = {
   entries: ComingUpEntry[];
@@ -73,8 +55,6 @@ export async function loadComingUpData(
   const schoolLimit = inWeekAhead ? 50 : SCHOOL_ENTRY_LIMIT;
   const sharedLimit = inWeekAhead ? 30 : SHARED_ENTRY_LIMIT;
   const [
-    documents,
-    scheduled,
     peopleLoad,
     eventsLoad,
     schoolsLoad,
@@ -85,8 +65,6 @@ export async function loadComingUpData(
     routinesLoad,
     renewalsLoad,
   ] = await Promise.all([
-    loadOverviewDocuments(householdId),
-    scheduledReminders(supabase, householdId),
     loadHouseholdPeople(supabase, householdId),
     loadHouseholdEvents(supabase, householdId),
     loadSchools(supabase, householdId),
@@ -99,11 +77,7 @@ export async function loadComingUpData(
   ]);
 
   const people = peopleLoad.items;
-  const reminded = remindedEntries(scheduled, documents);
   const entries = mergeComingUp(
-    documentEntries(upcomingDates(documents), (entry) =>
-      reminded.has(entryKey(entry))
-    ),
     birthdayEntries(people, now, horizon ?? BIRTHDAY_HORIZON_DAYS),
     eventEntries(eventsLoad.items, people, now),
     schoolEntries(
@@ -150,49 +124,4 @@ export async function loadComingUpData(
   );
 
   return { entries, people, loadFault, weekAhead };
-}
-
-function entryKey(entry: {
-  documentId: string;
-  provider: string;
-  date: string;
-  label: string;
-}) {
-  return `${entry.documentId}|${entry.provider}|${entry.date}|${entry.label}`;
-}
-
-async function scheduledReminders(
-  supabase: SupabaseClient,
-  householdId: string
-): Promise<ReminderRow[]> {
-  const { data } = await supabase
-    .from("reminders")
-    .select("document_id, kind, due_date")
-    .eq("household_id", householdId)
-    .eq("status", "scheduled");
-  return (data as ReminderRow[] | null) ?? [];
-}
-
-function remindedEntries(
-  reminders: readonly ReminderRow[],
-  documents: readonly OverviewDocument[]
-): Set<string> {
-  const byId = new Map(documents.map((doc) => [doc.id, doc]));
-  const keys = new Set<string>();
-
-  for (const row of reminders) {
-    const doc = byId.get(row.document_id);
-    const label = KIND_LABEL[row.kind];
-    if (!doc || !label) continue;
-    keys.add(
-      entryKey({
-        documentId: doc.id,
-        provider: documentLabel(doc),
-        date: row.due_date,
-        label,
-      })
-    );
-  }
-
-  return keys;
 }

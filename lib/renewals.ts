@@ -2,8 +2,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysUntil, parseDateParts, type FamilyList, type HouseholdPerson, type PersonKind } from "@/lib/family";
-import { effectiveCategory, type Category } from "@/lib/categories";
-import type { DocumentRow } from "@/lib/document-types";
 
 // --- kinds -----------------------------------------------------------------
 
@@ -26,7 +24,7 @@ export type RenewalScope = "person" | "house";
 
 export type RepeatUnit = "none" | "month" | "year";
 
-export type RenewalSource = "manual" | "suggestion" | "document";
+export type RenewalSource = "manual" | "suggestion";
 
 export type RenewalStatus = "active" | "done" | "dismissed";
 
@@ -144,7 +142,6 @@ export type RenewalItem = {
   provider: string | null;
   cost: number | string | null;
   notes: string | null;
-  document_id: string | null;
   source: RenewalSource;
   status: RenewalStatus;
   last_done_at: string | null;
@@ -153,7 +150,7 @@ export type RenewalItem = {
 };
 
 export const RENEWAL_ITEMS_SELECT =
-  "id, household_id, person_id, title, kind, due_date, repeat_unit, repeat_every, remind_days, reference, provider, cost, notes, document_id, source, status, last_done_at, created_at, updated_at";
+  "id, household_id, person_id, title, kind, due_date, repeat_unit, repeat_every, remind_days, reference, provider, cost, notes, source, status, last_done_at, created_at, updated_at";
 
 export function asRenewalKind(value: unknown): RenewalKind | null {
   return (RENEWAL_KINDS as readonly string[]).includes(value as string)
@@ -391,60 +388,6 @@ export function suggestionsFor(
   );
 }
 
-/** Infer a renewal kind from a document's category and title/filename. */
-export function inferRenewalKindFromDocument(doc: DocumentRow): RenewalKind {
-  const hay = [
-    doc.original_filename,
-    doc.doc_type,
-    doc.provider,
-    effectiveCategory(doc),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  if (/passport/.test(hay)) return "passport";
-  if (/driv(ing|er).?licen[cs]e|licen[cs]e/.test(hay) && /car|motor|driv/.test(hay)) {
-    return "driving_licence";
-  }
-  if (/ghic|ehic|global health/.test(hay)) return "ghic";
-  if (/\bmot\b|ministry of transport/.test(hay)) return "car_mot";
-  if (/car tax|vehicle tax|road tax|ved/.test(hay)) return "car_tax";
-  if (/tv licen[cs]e|television licen[cs]e/.test(hay)) return "tv_licence";
-  if (/boiler|heating service|gas service/.test(hay)) return "boiler_service";
-  if (/insurance|policy/.test(hay)) {
-    if (/car|motor|vehicle|auto/.test(hay)) return "car_insurance";
-    if (/home|house|building|contents/.test(hay)) return "home_insurance";
-    const cat = effectiveCategory(doc);
-    if (cat === "Insurance") {
-      return /car|motor|vehicle/.test(hay) ? "car_insurance" : "home_insurance";
-    }
-  }
-
-  const cat = effectiveCategory(doc) as Category | null;
-  if (cat === "Insurance") {
-    return /car|motor|vehicle/.test(hay) ? "car_insurance" : "home_insurance";
-  }
-
-  return "other";
-}
-
-export function documentRenewalDue(doc: DocumentRow): string | null {
-  return doc.renewal_date ?? doc.end_date ?? null;
-}
-
-export function renewalByDocumentId(
-  items: readonly RenewalItem[]
-): Map<string, RenewalItem> {
-  const map = new Map<string, RenewalItem>();
-  for (const item of items) {
-    if (item.document_id && item.status !== "dismissed") {
-      map.set(item.document_id, item);
-    }
-  }
-  return map;
-}
-
 export type RenewalDraft = {
   id?: string;
   person_id: string | null;
@@ -458,7 +401,6 @@ export type RenewalDraft = {
   provider: string | null;
   cost: string | null;
   notes: string | null;
-  document_id: string | null;
   source: RenewalSource;
 };
 
@@ -467,29 +409,25 @@ export function draftFromKind(
   opts: {
     person?: HouseholdPerson | null;
     personName?: string;
-    document?: DocumentRow | null;
   } = {}
 ): RenewalDraft {
   const meta = RENEWAL_KIND_META[kind];
   const person = opts.person ?? null;
   const repeat = defaultRepeat(kind, person?.kind);
-  const title =
-    opts.document?.original_filename ??
-    (person ? `${person.name}'s ${meta.label}` : meta.label);
+  const title = person ? `${person.name}'s ${meta.label}` : meta.label;
 
   return {
     person_id: meta.scope === "house" ? null : person?.id ?? null,
     title,
     kind,
-    due_date: opts.document ? documentRenewalDue(opts.document) ?? "" : "",
+    due_date: "",
     repeat_unit: repeat.unit,
     repeat_every: repeat.every,
     remind_days: defaultRemindDays(kind),
-    reference: opts.document?.reference ?? null,
-    provider: opts.document?.provider ?? null,
-    cost: opts.document?.amount != null ? String(opts.document.amount) : null,
+    reference: null,
+    provider: null,
+    cost: null,
     notes: null,
-    document_id: opts.document?.id ?? null,
-    source: opts.document ? "document" : "suggestion",
+    source: "suggestion",
   };
 }

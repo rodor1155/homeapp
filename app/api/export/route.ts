@@ -2,56 +2,10 @@ import JSZip from "jszip";
 import { getEntitlements } from "@/lib/billing";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
+import { loadExportHouseholdData } from "@/app/(app)/dashboard/export-data";
 
 export const runtime = "nodejs";
-// Downloading every file in the household adds up; Hobby caps at 60s.
 export const maxDuration = 60;
-
-const EXPORT_SELECT =
-  "id, storage_path, original_filename, created_at, extraction_status, doc_type, provider, reference, start_date, end_date, renewal_date, amount, currency, key_contact_name, key_contact_phone";
-
-const CSV_COLUMNS = [
-  "filename",
-  "created_at",
-  "extraction_status",
-  "doc_type",
-  "provider",
-  "reference",
-  "start_date",
-  "end_date",
-  "renewal_date",
-  "amount",
-  "currency",
-  "key_contact_name",
-  "key_contact_phone",
-] as const;
-
-type ExportRow = {
-  id: string;
-  storage_path: string | null;
-  original_filename: string | null;
-  created_at: string | null;
-  extraction_status: string | null;
-  doc_type: string | null;
-  provider: string | null;
-  reference: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  renewal_date: string | null;
-  amount: number | string | null;
-  currency: string | null;
-  key_contact_name: string | null;
-  key_contact_phone: string | null;
-};
-
-function safeFilename(name: string): string {
-  const cleaned = name
-    .trim()
-    .replace(/[^\w.\- ]+/g, "_")
-    .replace(/\s+/g, "_")
-    .replace(/^\.+/, "");
-  return cleaned.slice(-120) || "document";
-}
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -61,6 +15,17 @@ function csvCell(value: unknown): string {
 
 function csvRow(values: unknown[]): string {
   return values.map(csvCell).join(",");
+}
+
+function csvFromRows(
+  columns: readonly string[],
+  rows: readonly Record<string, unknown>[]
+): string {
+  const lines = [csvRow([...columns])];
+  for (const row of rows) {
+    lines.push(csvRow(columns.map((column) => row[column] ?? "")));
+  }
+  return `${lines.join("\r\n")}\r\n`;
 }
 
 export async function GET() {
@@ -73,10 +38,7 @@ export async function GET() {
     return Response.json({ error: "You are not signed in." }, { status: 401 });
   }
 
-  const { data: membership } = await queryActiveMembership(
-    supabase,
-    user.id
-  );
+  const { data: membership } = await queryActiveMembership(supabase, user.id);
   if (!membership) {
     return Response.json(
       { error: "No household found for your account." },
@@ -84,8 +46,6 @@ export async function GET() {
     );
   }
 
-  // Inert until Stripe keys are set: with billing unconfigured every household
-  // can export, exactly as before.
   const entitlements = await getEntitlements(membership.household_id);
   if (!entitlements.canExport) {
     return Response.json(
@@ -94,84 +54,167 @@ export async function GET() {
     );
   }
 
-  const { data, error } = await supabase
-    .from("documents")
-    .select(EXPORT_SELECT)
-    .eq("household_id", membership.household_id)
-    .order("created_at", { ascending: true });
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  const data = await loadExportHouseholdData(membership.household_id);
+  if (data.error) {
+    return Response.json({ error: data.error }, { status: 500 });
   }
 
-  const documents = (data as ExportRow[] | null) ?? [];
   const zip = new JSZip();
-  const pad = Math.max(String(documents.length).length, 3);
-  const csvLines = [csvRow([...CSV_COLUMNS])];
-  const errors: string[] = [];
-
-  for (const [index, doc] of documents.entries()) {
-    const original = doc.original_filename ?? "document";
-    const entryName = `${String(index + 1).padStart(pad, "0")}-${safeFilename(
-      original
-    )}`;
-    let filed = false;
-
-    if (doc.storage_path) {
-      const download = await supabase.storage
-        .from("documents")
-        .download(doc.storage_path);
-      if (download.error || !download.data) {
-        errors.push(
-          `${original} (${doc.id}): ${
-            download.error?.message ?? "could not download the file"
-          }`
-        );
-      } else {
-        zip.file(`files/${entryName}`, await download.data.arrayBuffer());
-        filed = true;
-      }
-    } else {
-      errors.push(`${original} (${doc.id}): no stored file`);
-    }
-
-    csvLines.push(
-      csvRow([
-        filed ? entryName : original,
-        doc.created_at,
-        doc.extraction_status,
-        doc.doc_type,
-        doc.provider,
-        doc.reference,
-        doc.start_date,
-        doc.end_date,
-        doc.renewal_date,
-        doc.amount,
-        doc.currency,
-        doc.key_contact_name,
-        doc.key_contact_phone,
-      ])
-    );
-  }
-
   const today = new Date().toISOString().slice(0, 10);
 
-  zip.file("documents.csv", `${csvLines.join("\r\n")}\r\n`);
-  zip.file(
-    "README.txt",
-    `Hearth Home export — ${today}\r\n\r\nThis is everything Hearth Home holds for your household. The original ` +
-      `document files are in the files/ folder, named in the order they were ` +
-      `added. documents.csv lists one row per document, with the details read ` +
-      `off each one — its filename column matches the names in files/. ` +
-      `Everything here is yours to keep, open in any spreadsheet, or take ` +
-      `elsewhere.\r\n`
-  );
-  if (errors.length > 0) {
+  if (data.household) {
     zip.file(
-      "errors.txt",
-      `These documents are listed in documents.csv but their files could not be ` +
-        `included in this export:\r\n\r\n${errors.join("\r\n")}\r\n`
+      "household.csv",
+      csvFromRows(["id", "name", "locale", "created_at"], [data.household])
     );
   }
+
+  zip.file(
+    "properties.csv",
+    csvFromRows(
+      ["id", "address", "type", "year_built", "created_at"],
+      data.properties as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "people.csv",
+    csvFromRows(
+      [
+        "id",
+        "name",
+        "kind",
+        "relation",
+        "birthday",
+        "school_id",
+        "year_group",
+        "notes",
+        "colour",
+        "sort_order",
+        "created_at",
+      ],
+      data.people as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "schools.csv",
+    csvFromRows(
+      ["id", "name", "address", "postcode", "notes", "calendar_url", "created_at"],
+      data.schools as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "events.csv",
+    csvFromRows(
+      [
+        "id",
+        "title",
+        "event_date",
+        "event_type",
+        "person_id",
+        "school_id",
+        "notes",
+        "created_at",
+      ],
+      data.events as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "renewals.csv",
+    csvFromRows(
+      [
+        "id",
+        "person_id",
+        "title",
+        "kind",
+        "due_date",
+        "repeat_unit",
+        "repeat_every",
+        "remind_days",
+        "reference",
+        "provider",
+        "cost",
+        "notes",
+        "source",
+        "status",
+        "last_done_at",
+        "created_at",
+        "updated_at",
+      ],
+      data.renewals as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "routines.csv",
+    csvFromRows(
+      [
+        "id",
+        "title",
+        "cadence",
+        "weekday",
+        "day_of_month",
+        "anchor_date",
+        "notes",
+        "active",
+        "sort_order",
+        "created_at",
+      ],
+      data.routines as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "meal_plans.csv",
+    csvFromRows(
+      ["id", "week_start", "weekday", "title", "ingredients_note", "sort_order", "created_at"],
+      data.meals as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "shopping_lists.csv",
+    csvFromRows(
+      ["id", "name", "sort_order", "created_at"],
+      data.lists as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "shopping_list_items.csv",
+    csvFromRows(
+      ["id", "list_id", "title", "checked", "sort_order", "created_at"],
+      data.listItems as Record<string, unknown>[]
+    )
+  );
+  zip.file(
+    "timetable.csv",
+    csvFromRows(
+      [
+        "id",
+        "person_id",
+        "weekday",
+        "start_time",
+        "end_time",
+        "period_label",
+        "subject",
+        "location",
+        "bring_kit",
+        "kit_label",
+        "bring_ingredients",
+        "ingredients_note",
+        "notes",
+        "sort_order",
+        "created_at",
+      ],
+      data.timetable as Record<string, unknown>[]
+    )
+  );
+
+  zip.file(
+    "README.txt",
+    `Hearth Home export — ${today}\r\n\r\n` +
+      `This zip is the household data Hearth Home stores on our servers: people, ` +
+      `schools, key dates, renewals, routines, meal plans, shopping lists and ` +
+      `timetable slots. Documents live only on your iPhone (encrypted on-device ` +
+      `and synced through your own iCloud) — they are not included here.\r\n\r\n` +
+      `Each CSV is one table. Open in any spreadsheet or keep as a backup.\r\n`
+  );
 
   const body = await zip.generateAsync({
     type: "arraybuffer",

@@ -22,8 +22,6 @@ export type PlanKey = `${"gbp" | "usd"}_${BillingInterval}`;
 export type Entitlements = {
   plan: Plan;
   canExport: boolean;
-  /** Active reminders allowed, or null for no limit. */
-  reminderLimit: number | null;
   activeSubscription: boolean;
 };
 
@@ -43,20 +41,15 @@ export const SUBSCRIPTION_SELECT =
 /** Stripe statuses that count as paid. Everything else is treated as free. */
 const PAID_STATUSES = ["active", "trialing"];
 
-/** Free households keep every document, but only a handful of live reminders. */
-export const FREE_REMINDER_LIMIT = 3;
-
 const PAID: Entitlements = {
   plan: "paid",
   canExport: true,
-  reminderLimit: null,
   activeSubscription: true,
 };
 
 const FREE: Entitlements = {
   plan: "free",
   canExport: false,
-  reminderLimit: FREE_REMINDER_LIMIT,
   activeSubscription: false,
 };
 

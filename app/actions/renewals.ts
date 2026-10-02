@@ -51,7 +51,6 @@ function optional(formData: FormData, key: string): string | null {
 function refresh() {
   revalidatePath("/family");
   revalidatePath("/dashboard");
-  revalidatePath("/documents");
 }
 
 async function assertPersonInHousehold(
@@ -66,20 +65,6 @@ async function assertPersonInHousehold(
     .eq("household_id", householdId)
     .maybeSingle();
   return data ? null : "That person isn’t in your household.";
-}
-
-async function assertDocumentInHousehold(
-  supabase: SupabaseClient,
-  householdId: string,
-  documentId: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("documents")
-    .select("id")
-    .eq("id", documentId)
-    .eq("household_id", householdId)
-    .maybeSingle();
-  return data ? null : "That document isn’t in your household.";
 }
 
 function parseRepeatUnit(value: string): RepeatUnit | null {
@@ -151,15 +136,8 @@ async function readForm(
     return { ok: false, error: "Remind me must be between 0 and 365 days." };
   }
 
-  const documentId = optional(formData, "document_id");
-  if (documentId) {
-    const err = await assertDocumentInHousehold(supabase, householdId, documentId);
-    if (err) return { ok: false, error: err };
-  }
-
   const sourceRaw = text(formData, "source") as RenewalSource;
-  const source: RenewalSource =
-    sourceRaw === "document" || sourceRaw === "suggestion" ? sourceRaw : "manual";
+  const source: RenewalSource = sourceRaw === "suggestion" ? "suggestion" : "manual";
 
   const cost = parseCost(optional(formData, "cost"));
 
@@ -177,7 +155,6 @@ async function readForm(
       provider: optional(formData, "provider"),
       cost,
       notes: optional(formData, "notes"),
-      document_id: documentId,
       source,
       updated_at: new Date().toISOString(),
     },

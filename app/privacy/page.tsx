@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
-const LAST_UPDATED = "18 September 2026";
+const LAST_UPDATED = "2 October 2026";
 
 export default function PrivacyPage() {
   return (
@@ -33,10 +33,13 @@ export default function PrivacyPage() {
           <section>
             <h2>Who we are</h2>
             <p>
-              Hearth Home is a household app operated by Rodor. It helps you file
-              documents, track dates, manage shopping lists and share a home
-              with the people who live there. For data protection purposes, Rodor
-              is the controller of the personal data described in this policy.
+              Hearth Home is a household app operated by Rodor. It helps you
+              track dates, manage shopping lists and share a home with the
+              people who live there. Bills and household documents live on your
+              iPhone, encrypted on-device and synced through your own iCloud —
+              Rodor&apos;s servers never receive document bytes or extracted
+              text. For data protection purposes, Rodor is the controller of the
+              personal data described in this policy.
             </p>
           </section>
 
@@ -60,17 +63,15 @@ export default function PrivacyPage() {
                 key dates you add.
               </li>
               <li>
-                <strong>Documents and photos</strong> — files you upload (PDFs,
-                images and similar), the information extracted from them (such
-                as provider, reference numbers and renewal dates), and any
-                category you assign. If you connect Gmail, we scan your inbox
-                read-only for PDF attachments you choose to import; we do not
-                read your email for any other purpose.
+                <strong>Renewals and deadlines</strong> — passports, MOT,
+                insurance and similar dates you track manually in the app
+                (server-stored until native renewals ship; not linked to
+                documents).
               </li>
               <li>
                 <strong>Calendars</strong> — ICS or web calendar URLs you paste
-                for a school, and the term dates and events we cache from those
-                feeds.
+                for a school or household feed, and the term dates and events we
+                cache from those feeds.
               </li>
               <li>
                 <strong>Shopping lists</strong> — list names and item text you
@@ -89,6 +90,12 @@ export default function PrivacyPage() {
                 identifiers.
               </li>
             </ul>
+            <p className="mt-3">
+              <strong>Documents on your iPhone</strong> — photos and PDFs you
+              file in the Hearth Home app stay on your device (and in your
+              personal iCloud if you use iCloud). They are not uploaded to
+              Rodor&apos;s servers.
+            </p>
           </section>
 
           <section>
@@ -96,17 +103,14 @@ export default function PrivacyPage() {
             <p>We use this information to:</p>
             <ul>
               <li>provide and secure your account and household;</li>
-              <li>store, extract and organise documents you upload;</li>
-              <li>show dates, reminders, calendars and lists to your household;</li>
-              <li>send reminder emails when you have upcoming document dates;</li>
+              <li>show dates, calendars and lists to your household;</li>
               <li>process subscriptions where billing is enabled; and</li>
               <li>respond to support requests and keep the service reliable.</li>
             </ul>
             <p>
               We process your data to perform our contract with you (providing
               the app) and, where needed, for our legitimate interests in
-              running a secure, well-maintained service. We ask for your consent
-              before connecting Gmail or other optional integrations.
+              running a secure, well-maintained service.
             </p>
           </section>
 
@@ -127,34 +131,25 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li>
-                <strong>Supabase</strong> — authentication, database and file
-                storage for your household data.
+                <strong>Supabase</strong> — authentication and database for your
+                household data (not document files).
               </li>
               <li>
                 <strong>Vercel</strong> — hosting and delivery of the web app.
-              </li>
-              <li>
-                <strong>Resend</strong> — sending reminder emails (when
-                configured).
               </li>
               <li>
                 <strong>Stripe</strong> — subscription payments (when billing is
                 enabled).
               </li>
               <li>
-                <strong>Anthropic</strong> — automated reading of uploaded
-                documents to extract key fields (your files are sent for
-                processing; we do not use them to train models).
-              </li>
-              <li>
-                <strong>Google</strong> — optional sign-in and optional Gmail
-                read-only import, only if you choose to connect.
+                <strong>Google</strong> — optional sign-in only, if you choose
+                Continue with Google.
               </li>
             </ul>
             <p>
-              Other members of your household can see the documents, dates,
-              lists and family information shared in that household. We do not
-              sell your personal data.
+              Other members of your household can see the dates, lists and family
+              information shared in that household. We do not sell your personal
+              data.
             </p>
           </section>
 
@@ -163,11 +158,9 @@ export default function PrivacyPage() {
             <p>
               We keep your data for as long as your account and household exist.
               If you delete your account in Settings, we remove your sign-in and
-              delete households where you are the only member, including
-              documents in storage. If you share a household, deleting your
-              account removes your access but leaves the shared household data
-              for other members. Gmail connection tokens are removed when you
-              disconnect Gmail or delete your account. Deletion is immediate;
+              delete households where you are the only member. If you share a
+              household, deleting your account removes your access but leaves the
+              shared household data for other members. Deletion is immediate;
               copies in our provider&apos;s backups are overwritten on their
               normal schedule.
             </p>

@@ -33,7 +33,6 @@ import RenewalEditSheet from "@/components/RenewalEditSheet";
 import CopyButton from "@/components/CopyButton";
 import { Button } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
-import type { DocumentRow } from "@/lib/document-types";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
 import {
@@ -53,8 +52,6 @@ import {
   type RenewalKind,
 } from "@/lib/renewals";
 
-type DocOption = Pick<DocumentRow, "id" | "original_filename" | "category">;
-
 const ICON_MAP: Record<RenewalIconName, LucideIcon> = {
   "id-card": IdCard,
   car: Car,
@@ -71,7 +68,6 @@ const ICON_MAP: Record<RenewalIconName, LucideIcon> = {
 type Props = {
   items: RenewalItem[];
   people: HouseholdPerson[];
-  documents: DocOption[];
   locale: Locale;
   fault?: string | null;
   initialRenewalId?: string | null;
@@ -80,7 +76,6 @@ type Props = {
 export default function RenewalsPanel({
   items,
   people,
-  documents,
   locale,
   fault,
   initialRenewalId,
@@ -187,7 +182,6 @@ export default function RenewalsPanel({
         draft={draft}
         editing={editing}
         people={people}
-        documents={documents}
         locale={locale}
         onDone={() => router.refresh()}
       />

@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import CreateSheet from "@/components/CreateSheet";
+import { useHasNativeVault } from "@/lib/native-vault";
 import { useViewMode } from "@/components/ViewModeToggle";
 
 /** Centre + above the tab bar — opens the create chooser sheet. */
 export default function CreateFab() {
   const [open, setOpen] = useState(false);
   const viewMode = useViewMode();
+  const nativeVault = useHasNativeVault();
 
   return (
     <>
@@ -33,7 +35,7 @@ export default function CreateFab() {
       <CreateSheet
         open={open}
         onClose={() => setOpen(false)}
-        hideDocuments={viewMode === "child"}
+        hideDocuments={viewMode === "child" || !nativeVault}
       />
     </>
   );

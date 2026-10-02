@@ -1,11 +1,11 @@
 import "server-only";
 
 import {
-  documentEntries,
   mergeComingUp,
   routineEntries,
   schoolEntries,
   timetableEntries,
+  comingUpHref,
   type ComingUpEntry,
 } from "@/lib/coming-up";
 import {
@@ -15,13 +15,11 @@ import {
   loadSchools,
   type HouseholdPerson,
 } from "@/lib/family";
-import { upcomingDates } from "@/lib/home-overview";
 import { loadMealPlans, weekStartMonday, type MealPlan } from "@/lib/meals";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots, weekdayForDate } from "@/lib/timetable";
 import { loadPersonDayStatuses, todayIso } from "@/lib/whos-where";
 import { createClient } from "@/lib/supabase-server";
-import { loadOverviewDocuments } from "@/app/(app)/dashboard/overview-data";
 
 export type HubTodayRow = {
   key: string;
@@ -112,7 +110,7 @@ function comingUpRows(entries: ComingUpEntry[]): HubComingUpRow[] {
     key: entry.key,
     title: entry.title,
     note: entry.note,
-    href: entry.kind === "document" ? "/documents" : "/calendar",
+    href: comingUpHref(entry) ?? "/calendar",
   }));
 }
 
@@ -145,7 +143,7 @@ function mealRows(
   ];
 }
 
-/** One load for the kitchen hub — reuses the same family/overview sources as Home. */
+/** One load for the kitchen hub — reuses the same family loaders as Home. */
 export async function loadHubData(householdId: string): Promise<HubData> {
   const supabase = await createClient();
   const date = todayIso();
@@ -155,7 +153,6 @@ export async function loadHubData(householdId: string): Promise<HubData> {
   const tomorrowWeekday = weekdayForDate(tomorrow);
 
   const [
-    documents,
     peopleLoad,
     schoolsLoad,
     schoolDatesLoad,
@@ -164,7 +161,6 @@ export async function loadHubData(householdId: string): Promise<HubData> {
     mealsLoad,
     statusLoad,
   ] = await Promise.all([
-    loadOverviewDocuments(householdId),
     loadHouseholdPeople(supabase, householdId),
     loadSchools(supabase, householdId),
     loadSchoolCalendarEvents(supabase, householdId),
@@ -200,10 +196,7 @@ export async function loadHubData(householdId: string): Promise<HubData> {
   const schoolList = schoolEntries(schoolDates, schools, people).filter(
     (e) => e.daysAway > 0
   );
-  const docList = documentEntries(upcomingDates(documents)).filter(
-    (e) => e.daysAway > 0
-  );
-  const comingUp = mergeComingUp(schoolList, docList);
+  const comingUp = mergeComingUp(schoolList);
 
   const byPerson = new Map(
     statusLoad.items.map((s) => [s.person_id, s.status_text])

@@ -25,13 +25,13 @@ is current.
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 1 | Next.js App Router + TypeScript + Tailwind scaffold; three Supabase client helpers. | done |
-| 2 | Auth (email/password, magic link, Google OAuth), household onboarding, document upload to Storage. | done |
-| 3 | Document extraction worker — DB webhook → Claude vision → fields + confidence + chunked text; review/confirm UI; internal test harness. | done |
-| 1b | Embeddings for `document_chunks` + retrieval (ask-your-home RAG). | not started |
-| 3b | Mistral OCR fallback for `needs_review` long / poor-quality scans (after the 20-doc benchmark). | not started |
+| 2 | Auth (email/password, magic link, Google OAuth), household onboarding. | done — **document upload removed W2a** |
+| 3 | Document extraction worker (removed W2a). | **removed W2a** — was DB webhook → Claude → review UI |
+| 1b | Embeddings for `document_chunks` + retrieval (ask-your-home RAG). | **cancelled** (W2a) |
+| 3b | Mistral OCR fallback. | **cancelled** (W2a) |
 | 3c | Household invite-accept flow (`/invite` + three SECURITY DEFINER RPCs, email invites). | done, applied |
 | 3d | Household sharing v2 — single-use link invites (`/join/[token]`), member colours, revocable kid view (`/kid/[token]`). | done, applied |
-| 4 | Reminder engine — dates → `reminders` rows → daily cron → Resend email. | done, applied; Resend + `CRON_SECRET` wired on Vercel |
+| 4 | Reminder engine (removed W2a). | **removed W2a** — was Resend email for document dates |
 | 5 | Settings — household/property/locale editing, people + invites, sign out, account deletion. | done, applied |
 | 6 | Billing — Stripe subscriptions, checkout + portal + webhook, export gate, plan card. | done, migration applied; confirm the four `STRIPE_PRICE_*` + `STRIPE_WEBHOOK_SECRET` are set before relying on it end-to-end |
 | 7 | Home solution slice 1 — household people + schools + key dates, birthdays, property hub. | done, applied — **but see "Property hub" below: the hub is now orphaned, not "redesigned"** |
@@ -39,15 +39,19 @@ is current.
 | 7c | Household (shared) ICS calendars — **inbound**, a family Google calendar, a club's fixtures, cached the same way as a school's. | done, applied |
 | 8 | Shopping lists — several lists per household, checklist items, tick/untick. | done, applied |
 | 9 | Family-life v2 (overnight build, 12 Sept) — school timetable, household routines, meal plan, who's-where, maintenance clock, guests pack, shared inbox, device-local child view. | done, applied — see below |
-| 10 | Gmail document import — read-only OAuth scan of the last 12 months for household PDFs, review-before-confirm. | done, applied |
+| 10 | Gmail document import (removed W2a). | **removed W2a** |
 | 11 | Hub / Lounge mode — read-mostly `/hub` display for a kitchen iPad. | done (no migration; composes existing loaders) |
 | 12 | iOS via Capacitor — thin native shell in a **separate** repo (`ios-shell-template`), loads this app's live URL. | in progress — see iOS section; last known blocker was an App Store Connect Issuer ID |
 | 13 | Rebrand to "Hearth Home" v1 — `AppMark`, deepened ink/navy/sage palette, map-forward hero. | done — superseded/extended by phase 16 |
-| 14 | Renewals & deadlines — passports, licences, MOT, insurance, boiler service etc. tracked per person or per house; Coming up surfacing; a document's "Track renewal" offer. | done, applied — does not feed the email reminder engine yet |
-| 15 | Household calendar subscribe feed — **outbound**, one ICS URL per household (key dates, renewals, document dates, birthdays) that a phone's own calendar app can subscribe to; `GET /api/ics/[token]`. | done, applied — **not the same feature as 7c**, see below |
+| 14 | Renewals & deadlines — manual server-side until W2b; Coming up surfacing. | done — **no document link W2a** |
+| 15 | Household calendar subscribe feed — key dates, renewals, birthdays (no document dates post-W2a). | done, applied |
 | 16 | Theme system v2 + Home redesign — full light/dark via `prefers-color-scheme` (semantic CSS tokens, no in-app toggle), an evening map, the Home "card deck" (Coming up as a shuffleable stack), a weekend-only "Your week ahead" briefing. | done — replaced the phase-13 hero-and-list Home shape described in earlier revisions of this doc |
+| **W2a** | **Remove server-side document storage** — no upload/extraction/Gmail/reminder email; `/documents` is a native-vault handoff; export is household CSVs only; privacy copy updated; draft migration written but **not applied**. Branch `w2a-remove-server-documents`. See `docs/w2-remove-server-documents-plan.md` + `docs/w2a-go-live-checklist.md`. | **in progress** (code on branch; step-7 migration awaits Ross) |
+| **W2b** | Native renewals on iPhone; then retire server `renewal_items`. | not started |
 
-Every migration file under `supabase/migrations/` (31 as of this writing) is
+**W2a (Oct 2026) supersedes much of phases 2–4, 10 and the document parts of 14–15 in running code** — the rows above stay as history. Documents live on-device (iPhone + user's iCloud); Rodor servers hold household/family/calendar/list data only until W2b moves renewals too. Removed from the app (W2a-1 + W2a-2): extraction worker, Gmail import, email reminders, server document reads in Coming up / ICS / export / account deletion, house-file hub, `PropertyHub`/`HouseFileSection`, document categories, Maintenance/Filing/HelpfulHints dashboard orphans. `/documents` → `DocumentsVaultHandoff.tsx` only. DB tables + Storage bucket still exist until the drafted migration is applied — see checklist.
+
+Every migration file under `supabase/migrations/` (32 as of W2a-2 draft; 31 applied + 1 **draft unapplied** `20261002120000_remove_server_documents.sql`) is
 applied to the linked project (`fybpmpnfocaxhqiwiyhs`) — verified directly
 against the live migration history, not just the filesystem or an older
 revision of this doc. **This doc has twice claimed migrations were "written

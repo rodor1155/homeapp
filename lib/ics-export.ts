@@ -48,19 +48,7 @@ export type IcsRenewalItem = {
   reference: string | null;
   provider: string | null;
   notes: string | null;
-  document_id: string | null;
   updated_at?: string | null;
-  created_at?: string | null;
-};
-
-export type IcsDocument = {
-  id: string;
-  original_filename: string;
-  doc_type: string | null;
-  provider: string | null;
-  renewal_date: string | null;
-  end_date: string | null;
-  superseded_by: string | null;
   created_at?: string | null;
 };
 
@@ -77,7 +65,6 @@ export type IcsFeedInput = {
   generatedAt: Date;
   events: readonly IcsHouseholdEvent[];
   renewals: readonly IcsRenewalItem[];
-  documents: readonly IcsDocument[];
   people: readonly IcsPerson[];
   /** event_type → CATEGORIES label */
   eventTypeLabels: Readonly<Record<string, string>>;
@@ -226,10 +213,6 @@ function maxDtStamp(stamps: readonly string[]): string {
   return stamps.reduce((max, stamp) => (stamp > max ? stamp : max));
 }
 
-function documentTitle(doc: IcsDocument): string {
-  return sanitizeIcsText(doc.doc_type || doc.provider || doc.original_filename);
-}
-
 function renewalSummary(
   item: IcsRenewalItem,
   personName: string | null,
@@ -322,11 +305,6 @@ export function buildHouseholdIcs(
 ): string {
   const window = feedWindow(now);
   const peopleById = new Map(input.people.map((person) => [person.id, person.name]));
-  const linkedDocIds = new Set(
-    input.renewals
-      .filter((item) => item.document_id)
-      .map((item) => item.document_id as string)
-  );
 
   const events: string[] = [
     "BEGIN:VCALENDAR",
@@ -377,40 +355,6 @@ export function buildHouseholdIcs(
     });
     veventDtStamps.push(built.dtStamp);
     vevents.push(...built.lines);
-  }
-
-  for (const doc of input.documents) {
-    if (doc.superseded_by) continue;
-    if (linkedDocIds.has(doc.id)) continue;
-
-    const title = documentTitle(doc) || "Document";
-    const stampSource = doc.created_at;
-
-    if (doc.renewal_date && dateInWindow(doc.renewal_date, window)) {
-      const built = buildVEvent({
-        uid: `doc-${doc.id}-renewal@hearth-home`,
-        summary: `Renews: ${title}`,
-        startDate: doc.renewal_date,
-        stampSource,
-        categories: "Document",
-        url: `${input.appOrigin}/documents`,
-      });
-      veventDtStamps.push(built.dtStamp);
-      vevents.push(...built.lines);
-    }
-
-    if (doc.end_date && dateInWindow(doc.end_date, window)) {
-      const built = buildVEvent({
-        uid: `doc-${doc.id}-end@hearth-home`,
-        summary: `Ends: ${title}`,
-        startDate: doc.end_date,
-        stampSource,
-        categories: "Document",
-        url: `${input.appOrigin}/documents`,
-      });
-      veventDtStamps.push(built.dtStamp);
-      vevents.push(...built.lines);
-    }
   }
 
   for (const person of input.people) {

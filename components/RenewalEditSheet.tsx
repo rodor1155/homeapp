@@ -12,8 +12,6 @@ import BottomSheet from "@/components/BottomSheet";
 import CopyButton from "@/components/CopyButton";
 import { Button, Field } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
-import { effectiveCategory } from "@/lib/categories";
-import type { DocumentRow } from "@/lib/document-types";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
 import {
@@ -23,15 +21,12 @@ import {
   type RenewalItem,
 } from "@/lib/renewals";
 
-type DocOption = Pick<DocumentRow, "id" | "original_filename" | "category">;
-
 type Props = {
   open: boolean;
   onClose: () => void;
   draft: RenewalDraft | null;
   editing?: RenewalItem | null;
   people: HouseholdPerson[];
-  documents: DocOption[];
   locale: Locale;
   onDone?: () => void;
 };
@@ -42,7 +37,6 @@ export default function RenewalEditSheet({
   draft,
   editing,
   people,
-  documents,
   locale,
   onDone,
 }: Props) {
@@ -58,7 +52,7 @@ export default function RenewalEditSheet({
   const dueRef = useRef<HTMLInputElement>(null);
 
   const initial = editing ?? draft;
-  const title = isEdit ? "Edit renewal" : "Track renewal";
+  const title = isEdit ? "Edit renewal" : "Add renewal";
 
   useEffect(() => {
     if (!open || !initial || isEdit) return;
@@ -215,25 +209,6 @@ export default function RenewalEditSheet({
           />
         </Field>
 
-        <Field label="Linked document">
-          <select
-            name="document_id"
-            defaultValue={initial.document_id ?? ""}
-            className="field-input"
-          >
-            <option value="">None</option>
-            {documents.map((doc) => {
-              const cat = effectiveCategory(doc as DocumentRow);
-              return (
-                <option key={doc.id} value={doc.id}>
-                  {doc.original_filename}
-                  {cat ? ` · ${cat}` : ""}
-                </option>
-              );
-            })}
-          </select>
-        </Field>
-
         {state?.error ? (
           <p className="text-sm mark-fault">{state.error}</p>
         ) : null}
@@ -248,7 +223,7 @@ export default function RenewalEditSheet({
 
         <div className="flex flex-col gap-2 pt-1">
           <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : isEdit ? "Save changes" : "Track renewal"}
+            {pending ? "Saving…" : isEdit ? "Save changes" : "Add renewal"}
           </Button>
 
           {isEdit ? (

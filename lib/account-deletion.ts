@@ -11,17 +11,7 @@ import {
 } from "@/lib/billing";
 import { createAdminClient } from "@/lib/supabase-admin";
 
-/** Storage's own page size, and the most paths remove() is given at once. */
-const STORAGE_PAGE = 1000;
-const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-const GOOGLE_REVOKE_TIMEOUT_MS = 5000;
-
 const TERMINAL_STRIPE_STATUSES = new Set(["canceled", "incomplete_expired"]);
-
-type Bucket = ReturnType<SupabaseClient["storage"]["from"]>;
-type StorageEntry = NonNullable<
-  Awaited<ReturnType<Bucket["list"]>>["data"]
->[number];
 
 type MembershipRow = {
   household_id: string;
@@ -63,9 +53,7 @@ export type StripeDeletionResult = {
 export type DeletionReport = {
   soleHouseholdsDeleted: string[];
   sharedHouseholdsLeft: string[];
-  storageObjectsRemoved: number;
   stripe: StripeDeletionResult[];
-  gmailRevoked: number;
 };
 
 export type AccountDeletionHouseholdPreview = {
@@ -175,14 +163,6 @@ export async function deleteAccountForUser(
     }
   }
 
-  const gmailRevoked = await revokeAndDeleteGmailConnections(admin, userId);
-
-  const bucket = admin.storage.from("documents");
-  let storageObjectsRemoved = 0;
-  for (const householdId of soleIds) {
-    storageObjectsRemoved += await removeHouseholdFiles(bucket, householdId);
-  }
-
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
     throw new AccountDeletionError(deleteError.message);
@@ -211,21 +191,12 @@ export async function deleteAccountForUser(
         true
       );
     }
-
-    const remaining = await countStorageObjects(bucket, householdId);
-    if (remaining > 0) {
-      console.warn(
-        `[account-deletion] ${remaining} storage object(s) remain under ${householdId}/ after user delete`
-      );
-    }
   }
 
   return {
     soleHouseholdsDeleted: soleIds,
     sharedHouseholdsLeft: sharedIds,
-    storageObjectsRemoved,
     stripe,
-    gmailRevoked,
   };
 }
 
@@ -379,131 +350,4 @@ function isStripeMissingResource(error: unknown): boolean {
     return error.code === "resource_missing";
   }
   return false;
-}
-
-async function revokeAndDeleteGmailConnections(
-  admin: SupabaseClient,
-  userId: string
-): Promise<number> {
-  const { data, error } = await admin
-    .from("gmail_connections")
-    .select("id, refresh_token, access_token")
-    .eq("user_id", userId);
-  if (error) throw new AccountDeletionError(error.message);
-
-  const rows =
-    (data as Array<{
-      id: string;
-      refresh_token: string;
-      access_token: string;
-    }> | null) ?? [];
-
-  let revoked = 0;
-  for (const row of rows) {
-    const token = row.refresh_token || row.access_token;
-    if (token && (await revokeGoogleToken(token))) revoked += 1;
-    const { error: deleteError } = await admin
-      .from("gmail_connections")
-      .delete()
-      .eq("id", row.id);
-    if (deleteError) throw new AccountDeletionError(deleteError.message);
-  }
-
-  return revoked;
-}
-
-async function revokeGoogleToken(token: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      GOOGLE_REVOKE_TIMEOUT_MS
-    );
-    const response = await fetch(GOOGLE_REVOKE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `token=${encodeURIComponent(token)}`,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Every object under a household prefix. Recurses to any depth and paginates
- * each folder listing.
- */
-async function removeHouseholdFiles(
-  bucket: Bucket,
-  householdId: string
-): Promise<number> {
-  const paths = await collectStoragePaths(bucket, householdId);
-
-  for (let i = 0; i < paths.length; i += STORAGE_PAGE) {
-    const batch = paths.slice(i, i + STORAGE_PAGE);
-    if (batch.length === 0) continue;
-    const { error } = await bucket.remove(batch);
-    if (error) {
-      throw new AccountDeletionError(
-        "We could not remove your files. Please try again in a moment.",
-        true
-      );
-    }
-  }
-
-  const remaining = await countStorageObjects(bucket, householdId);
-  if (remaining > 0) {
-    throw new AccountDeletionError(
-      "We could not remove all of your files. Please try again in a moment.",
-      true
-    );
-  }
-
-  return paths.length;
-}
-
-async function collectStoragePaths(
-  bucket: Bucket,
-  prefix: string
-): Promise<string[]> {
-  const paths: string[] = [];
-
-  for (const entry of await listAll(bucket, prefix)) {
-    const entryPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.id !== null) {
-      paths.push(entryPath);
-      continue;
-    }
-    paths.push(...(await collectStoragePaths(bucket, entryPath)));
-  }
-
-  return paths;
-}
-
-async function countStorageObjects(
-  bucket: Bucket,
-  householdId: string
-): Promise<number> {
-  return (await collectStoragePaths(bucket, householdId)).length;
-}
-
-async function listAll(
-  bucket: Bucket,
-  prefix: string
-): Promise<StorageEntry[]> {
-  const entries: StorageEntry[] = [];
-
-  for (let offset = 0; ; offset += STORAGE_PAGE) {
-    const { data, error } = await bucket.list(prefix, {
-      limit: STORAGE_PAGE,
-      offset,
-    });
-    if (error) throw new AccountDeletionError(error.message);
-    const page = data ?? [];
-    entries.push(...page);
-    if (page.length < STORAGE_PAGE) return entries;
-  }
 }

@@ -13,7 +13,6 @@ import { loadPendingInviteLinks } from "@/lib/invite-links";
 import { requireOnboarded, type Locale } from "@/lib/household";
 import { loadMealPlans, weekStartMonday } from "@/lib/meals";
 import { loadRenewalItems } from "@/lib/renewals";
-import type { DocumentRow } from "@/lib/document-types";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots } from "@/lib/timetable";
 import EventsPanel from "./EventsPanel";
@@ -63,7 +62,6 @@ export default async function FamilyPage({
     routinesLoad,
     mealsLoad,
     renewalsLoad,
-    documentsResult,
     inviteLinks,
     kidLinksResult,
   ] = await Promise.all([
@@ -75,11 +73,6 @@ export default async function FamilyPage({
     loadHouseholdRoutines(supabase, household.id),
     loadMealPlans(supabase, household.id, weekStart),
     loadRenewalItems(supabase, household.id),
-    supabase
-      .from("documents")
-      .select("id, original_filename, category")
-      .eq("household_id", household.id)
-      .order("created_at", { ascending: false }),
     loadPendingInviteLinks(supabase, household.id),
     supabase
       .from("person_kid_links")
@@ -95,13 +88,6 @@ export default async function FamilyPage({
   const routines = routinesLoad.items;
   const meals = mealsLoad.items;
   const renewals = renewalsLoad.items;
-  const documents = ((documentsResult.data as DocumentRow[] | null) ?? []).map(
-    (doc) => ({
-      id: doc.id,
-      original_filename: doc.original_filename,
-      category: doc.category,
-    })
-  );
 
   const loadFault = firstFault(
     peopleLoad,
@@ -201,7 +187,6 @@ export default async function FamilyPage({
           <RenewalsPanel
             items={renewals}
             people={people}
-            documents={documents}
             locale={locale}
             fault={renewalsLoad.fault}
             initialRenewalId={openRenewalId}

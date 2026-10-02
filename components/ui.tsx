@@ -1,5 +1,4 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import type { Confidence } from "@/lib/document-types";
 import { APP_NAME } from "@/lib/brand";
 
 /* Shared building blocks for the card system.
@@ -136,53 +135,5 @@ export function Field({
       {children}
       {note ? <span className="margin-note">{note}</span> : null}
     </label>
-  );
-}
-
-export function ConfidencePill({ level }: { level: Confidence }) {
-  const word = level.charAt(0).toUpperCase() + level.slice(1);
-  return <span className={`pill pill-${level}`}>{word}</span>;
-}
-
-type Tone = "filed" | "review" | "fault" | "ready" | "reading";
-
-export const STATUS_META: Record<
-  string,
-  { label: string; tone: Tone }
-> = {
-  pending: { label: "Awaiting a read", tone: "reading" },
-  processing: { label: "Reading it now", tone: "reading" },
-  extracted: { label: "Ready to check", tone: "ready" },
-  needs_review: { label: "Needs a look", tone: "review" },
-  confirmed: { label: "Filed", tone: "filed" },
-  failed: { label: "Couldn’t read it", tone: "fault" },
-};
-
-const TONE_MARK: Record<Tone, string> = {
-  filed: "mark-filed",
-  review: "mark-review",
-  fault: "mark-fault",
-  ready: "text-ink",
-  reading: "mark-muted",
-};
-
-const TONE_EDGE: Record<Tone, string> = {
-  filed: "entry--filed",
-  review: "entry--review",
-  fault: "entry--fault",
-  ready: "",
-  reading: "",
-};
-
-export function statusEdgeClass(status: string): string {
-  return TONE_EDGE[STATUS_META[status]?.tone ?? "reading"];
-}
-
-export function StatusMark({ status }: { status: string }) {
-  const meta = STATUS_META[status] ?? { label: status, tone: "reading" as Tone };
-  return (
-    <span className={`text-xs font-medium ${TONE_MARK[meta.tone]}`}>
-      {meta.label}
-    </span>
   );
 }

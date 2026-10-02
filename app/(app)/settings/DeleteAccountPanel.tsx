@@ -16,7 +16,7 @@ function memberLabel(count: number): string {
 
 function householdConsequence(row: AccountDeletionHouseholdPreview): string {
   if (row.soleMember) {
-    return `Your household “${row.name}” and everything in it — documents, dates, renewals, lists, calendar links, kid links, invites — will be permanently deleted.`;
+    return `Your household “${row.name}” and everything in it — dates, renewals, lists, calendar links, kid links, invites — will be permanently deleted.`;
   }
 
   const others = memberLabel(row.otherMemberCount);
@@ -83,8 +83,9 @@ export default function DeleteAccountPanel({
           </ExportButton>
         )}
         <p className="text-sm text-ink-soft">
-          A zip of your household&apos;s documents and the details we hold about
-          your home, family, lists and dates.
+          A zip of the household data we store on our servers — people, dates,
+          renewals, lists and the rest. Documents live on your iPhone only and
+          are not included.
         </p>
       </div>
 
@@ -109,11 +110,6 @@ export default function DeleteAccountPanel({
               cancelled immediately.
             </li>
           ) : null}
-          <li>
-            Gmail connections you set up are disconnected and their tokens
-            removed.
-          </li>
-          <li>Reminder emails stop, including any already scheduled.</li>
         </ul>
 
         <div className="mt-5 border-t border-rule pt-4">
