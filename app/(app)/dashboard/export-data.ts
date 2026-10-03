@@ -4,8 +4,8 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase-server";
 
 /**
- * Household rows the export bundles — people, dates, renewals, lists and the
- * rest. Documents are on-device only and are not included.
+ * Household rows the export bundles — people, dates, lists and the rest.
+ * Documents and renewals are on-device only and are not included.
  */
 export const loadExportHouseholdData = cache(async (householdId: string) => {
   const supabase = await createClient();
@@ -16,7 +16,6 @@ export const loadExportHouseholdData = cache(async (householdId: string) => {
     peopleRes,
     schoolsRes,
     eventsRes,
-    renewalsRes,
     routinesRes,
     mealsRes,
     listsRes,
@@ -48,13 +47,6 @@ export const loadExportHouseholdData = cache(async (householdId: string) => {
       .select("id, title, event_date, event_type, person_id, school_id, notes, created_at")
       .eq("household_id", householdId)
       .order("event_date", { ascending: true }),
-    supabase
-      .from("renewal_items")
-      .select(
-        "id, person_id, title, kind, due_date, repeat_unit, repeat_every, remind_days, reference, provider, cost, notes, source, status, last_done_at, created_at, updated_at"
-      )
-      .eq("household_id", householdId)
-      .order("due_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("household_routines")
       .select(
@@ -99,7 +91,6 @@ export const loadExportHouseholdData = cache(async (householdId: string) => {
     peopleRes.error?.message ??
     schoolsRes.error?.message ??
     eventsRes.error?.message ??
-    renewalsRes.error?.message ??
     routinesRes.error?.message ??
     mealsRes.error?.message ??
     listsRes.error?.message ??
@@ -114,7 +105,6 @@ export const loadExportHouseholdData = cache(async (householdId: string) => {
     people: peopleRes.data ?? [],
     schools: schoolsRes.data ?? [],
     events: eventsRes.data ?? [],
-    renewals: renewalsRes.data ?? [],
     routines: routinesRes.data ?? [],
     meals: mealsRes.data ?? [],
     lists: listsRes.data ?? [],

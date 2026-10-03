@@ -43,15 +43,15 @@ is current.
 | 11 | Hub / Lounge mode — read-mostly `/hub` display for a kitchen iPad. | done (no migration; composes existing loaders) |
 | 12 | iOS via Capacitor — thin native shell in a **separate** repo (`ios-shell-template`), loads this app's live URL. | in progress — see iOS section; last known blocker was an App Store Connect Issuer ID |
 | 13 | Rebrand to "Hearth Home" v1 — `AppMark`, deepened ink/navy/sage palette, map-forward hero. | done — superseded/extended by phase 16 |
-| 14 | Renewals & deadlines — manual server-side until W2b; Coming up surfacing. | done — **no document link W2a** |
-| 15 | Household calendar subscribe feed — key dates, renewals, birthdays (no document dates post-W2a). | done, applied |
+| 14 | Renewals & deadlines — manual server-side until W2b; Coming up surfacing. | **removed W2b** — renewals live on-device in the native vault |
+| 15 | Household calendar subscribe feed — key dates and birthdays (no document dates post-W2a; no renewals post-W2b). | done, applied |
 | 16 | Theme system v2 + Home redesign — full light/dark via `prefers-color-scheme` (semantic CSS tokens, no in-app toggle), an evening map, the Home "card deck" (Coming up as a shuffleable stack), a weekend-only "Your week ahead" briefing. | done — replaced the phase-13 hero-and-list Home shape described in earlier revisions of this doc |
 | **W2a** | **Remove server-side document storage** — no upload/extraction/Gmail/reminder email; `/documents` is a native-vault handoff; export is household CSVs only; privacy copy updated; draft migration written but **not applied**. Branch `w2a-remove-server-documents`. See `docs/w2-remove-server-documents-plan.md` + `docs/w2a-go-live-checklist.md`. | **in progress** (code on branch; step-7 migration awaits Ross) |
-| **W2b** | Native renewals on iPhone; then retire server `renewal_items`. | not started |
+| **W2b** | Native renewals on iPhone; retire server `renewal_items`. | **in progress** (native vault shipped build 21; web branch removes server reads; draft migration `20261003100000_remove_server_renewals.sql` awaits deploy + Ross) |
 
-**W2a (Oct 2026) supersedes much of phases 2–4, 10 and the document parts of 14–15 in running code** — the rows above stay as history. Documents live on-device (iPhone + user's iCloud); Rodor servers hold household/family/calendar/list data only until W2b moves renewals too. Removed from the app (W2a-1 + W2a-2): extraction worker, Gmail import, email reminders, server document reads in Coming up / ICS / export / account deletion, house-file hub, `PropertyHub`/`HouseFileSection`, document categories, Maintenance/Filing/HelpfulHints dashboard orphans. `/documents` → `DocumentsVaultHandoff.tsx` only. DB tables + Storage bucket still exist until the drafted migration is applied — see checklist.
+**W2a (Oct 2026) supersedes much of phases 2–4, 10 and the document parts of 14–15 in running code; W2b (Oct 2026) supersedes phase 14 and the renewal parts of 15** — the rows above stay as history. Documents and renewals both live on-device (iPhone + user's iCloud); Rodor servers hold household/family/calendar/list data only. Removed from the app (W2a-1 + W2a-2): extraction worker, Gmail import, email reminders, server document reads in Coming up / ICS / export / account deletion, house-file hub, `PropertyHub`/`HouseFileSection`, document categories, Maintenance/Filing/HelpfulHints dashboard orphans. `/documents` → `DocumentsVaultHandoff.tsx` only. Removed in W2b: `lib/renewals.ts`, `/family` Renewals panel, renewal rows in Coming up / week-ahead / ICS export / household CSV export. DB `renewal_items` still exists until the W2b migration is applied.
 
-Every migration file under `supabase/migrations/` (32 as of W2a-2 draft; 31 applied + 1 **draft unapplied** `20261002120000_remove_server_documents.sql`) is
+Every migration file under `supabase/migrations/` (33 as of W2b draft; 32 applied + 1 **draft unapplied** `20261003100000_remove_server_renewals.sql`) is
 applied to the linked project (`fybpmpnfocaxhqiwiyhs`) — verified directly
 against the live migration history, not just the filesystem or an older
 revision of this doc. **This doc has twice claimed migrations were "written
@@ -177,7 +177,7 @@ app/
                          extraction review/confirm + renewal "Track renewal" offer +
                          MaintenanceSection; reads `?category=` and `?upload=1`
     family/               who lives here + schools + key dates + timetable + routines +
-                         meals + who's-where + renewals + kid-view links (see below)
+                         meals + who's-where + kid-view links (see below)
     calendar/              month grid + tappable day list, birthdays/events/school
                          feeds/shared feeds merged, `?ym=`, `?day=`, `?event=`
     lists/                 the shopping lists (ListsPanel) + `[listId]/` (ItemsPanel)
@@ -201,7 +201,7 @@ app/
                            invite-links.ts, kid-links.ts, extraction-test.ts,
                            settings.ts, account.ts, family.ts, lists.ts, gmail.ts,
                            guests.ts, meals.ts, routines.ts, timetable.ts,
-                           whos-where.ts, calendar-feed.ts, renewals (see lib/renewals.ts)
+                           whos-where.ts, calendar-feed.ts
 components/
   ui.tsx                   design primitives
   AuthPanel.tsx, SignOutButton.tsx
@@ -253,7 +253,7 @@ lib/
                            SchoolCalendarEvent shapes + arithmetic
   member-colours.ts            client-safe: 8-colour palette, personColour /
                            nextFreeColour / memberEdgeClass — chips, deck tints,
-                           avatars, calendar dots, renewal group headers
+                           avatars, calendar dots
   evening-map.ts               client-safe: evening Home briefing helpers +
                            cardTintForEntry(); re-exports member-colours helpers
   week-ahead.ts                client-safe: isWeekAheadWindow() / buildWeekAhead() —
@@ -266,8 +266,6 @@ lib/
                            subscribe feed (phase 15) — no server-only import by design
   ics-feed-load.ts              server-only: loads household rows on the admin
                            client and calls the ics-export builder for GET /api/ics/[token]
-  renewals.ts                   client-safe: renewal_items shapes, RENEWAL_KINDS,
-                           load/save helpers for phase-14 renewals & deadlines
   timetable.ts                 client-safe: person_timetable_slots load +
                            Coming-up/calendar expansion + kit-flag inference
   school-year-match.ts          pure: match a school ICS event's title (e.g.
@@ -288,7 +286,7 @@ lib/
   calendar-month.ts               month-grid + day-list shaping, incl. school-year filter
   coming-up.ts                    server-only: the one merged dated list — documents,
                            birthdays, household events, school + household **inbound**
-                           calendar feeds, timetable, routines, renewals. Also owns
+                           calendar feeds, timetable, routines. Also owns
                            `comingUpHref(entry)`, the single place that decides where
                            tapping any entry navigates to.
   tones.ts                        status-hue / kind-pastel <-> pill/dot class mapping
@@ -364,21 +362,7 @@ docs/
   date, status_text not null, updated_at, unique(person_id, status_date))` —
   "who's where today"; same person-belongs-to-household RLS shape as timetable
   slots.
-- `renewal_items(id, household_id, person_id null → household_people, title,
-  kind check passport|driving_licence|ghic|car_mot|car_tax|car_insurance|
-  home_insurance|boiler_service|tv_licence|other, due_date date (null only when
-  status = dismissed), repeat_unit check none|month|year, repeat_every
-  smallint, remind_days smallint, reference, provider, cost numeric(10,2),
-  notes, document_id null → documents on delete set null, source check
-  manual|suggestion|document, status check active|done|dismissed, last_done_at,
-  created_at, updated_at)` — tracked renewals per person or for the house
-  (`person_id` null). A partial unique index on
-  `(household_id, coalesce(person_id, zero uuid), kind) where status = 'dismissed'`
-  stops duplicate dismissed suggestions. Surfaced in Coming up inside each
-  item's remind window and offered from a document's review form ("Track
-  renewal"). **Does not write `reminders` rows or send email** — confirmed
-  `lib/reminders.ts` has zero references to `renewal_items`; that engine
-  stays document-only for now.
+- `renewal_items` — **dropped W2b** (draft migration `20261003100000_remove_server_renewals.sql`; apply after web deploy). Renewals (passport, MOT, boiler service, etc.) live in the native iPhone vault only.
 - `household_calendar_feeds(household_id pk → households, token text unique not
   null check length ≥ 32, created_at, rotated_at, created_by → auth.users)` —
   **outbound**: one ICS subscribe URL per household, for the household's own
@@ -386,11 +370,8 @@ docs/
   `households` so it never rides along with `select *`. Members read/write to
   show/copy/regenerate/revoke; `GET /api/ics/[token]` looks the row up on the
   service role with no session. Regenerate replaces the token (old URL 404s).
-  The generated feed includes `household_events`, active `renewal_items` with
-  due dates (VALARM when `remind_days > 0`), document `renewal_date`/`end_date`
-  (skipping superseded documents and ones with a linked active renewal, so a
-  date isn't double-counted), and recurring birthdays (RRULE) from
-  `household_people` — it deliberately **excludes** school/household inbound
+  The generated feed includes `household_events` and recurring birthdays (RRULE)
+  from `household_people` — it deliberately **excludes** school/household inbound
   calendars, routines, timetable slots and reminder rows. `lib/ics-export.ts`
   is the pure builder (genuinely no `server-only` import); `lib/ics-feed-load.ts`
   is the server-only loader that feeds it.
@@ -405,7 +386,7 @@ docs/
   Exposes only that child's own next-6-days schedule: timetable slots (incl.
   kit/ingredients), key dates linked to them, their school's cached inbound
   ICS dates, who's-where status, birthday countdown — never documents,
-  renewals, routines, meals, other people or notes.
+  routines, meals, other people or notes.
 - `household_invites(id, household_id, email null, token text unique null,
   expires_at, invited_by, accepted_by, accepted_at, status, created_at)` —
   email rows from onboarding/legacy settings; **link** rows (phase 3d) carry a
@@ -611,8 +592,8 @@ new since the original billing write-up.
 Unchanged in shape (`/family`, `app/actions/family.ts`, `nextBirthday()`,
 `lib/coming-up.ts` merge). `household_people.relation` and `.colour` and
 `schools.postcode` were added across two different waves of work — see
-Database. `/family` now also surfaces renewals and kid-view link management
-per person (phases 14 and 3d).
+Database. `/family` now also surfaces kid-view link management per person
+(phase 3d).
 
 ## School & household calendars — inbound (phase 7b / 7c)
 
@@ -631,8 +612,8 @@ per person (phases 14 and 3d).
   dates out. Don't conflate `household_calendars` (7c, inbound) with
   `household_calendar_feeds` (15, outbound) — similar names, opposite data
   flow, added roughly two weeks apart by different work.
-- **Coming up / `/calendar`** merge every feed alongside documents,
-  birthdays, household events, timetable, routines and renewals. Tapping any
+- **Coming up / `/calendar`** merge every feed alongside birthdays,
+  household events, timetable and routines. Tapping any
   entry opens `CalendarEventDetailSheet` via the single `comingUpHref()`
   router in `lib/coming-up.ts`.
 
@@ -645,17 +626,13 @@ Database for exactly what it includes/excludes and `lib/ics-export.ts` /
 `CalendarFeedPanel` (create/copy/regenerate/revoke). Nothing about this
 touches the reminder-email engine or the inbound feeds above.
 
-## Renewals & deadlines (phase 14)
+## Renewals & deadlines (phase 14 — moved on-device W2b)
 
-Tracked expiry-style dates — passports, driving licences, GHIC, MOT, car
-tax/insurance, home insurance, boiler service, TV licence, or a free-text
-"other" — attached to a person or to the house itself (`person_id` null).
-See the `renewal_items` row in Database for the full shape. Surfaced on
-Coming up inside each item's own remind window, and offered as a "Track
-renewal" action from a confirmed document (`app/(app)/documents/DocumentsList.tsx`,
-`components/RenewalEditSheet.tsx`). **Does not feed the email reminder
-engine** — that stays document-only; a tracked renewal only ever shows up
-on Coming up, the calendar, and (if due-dated) the outbound ICS feed.
+Passports, MOT, boiler service and similar expiry dates live in the native
+iPhone vault (shipped build 21), not on Rodor servers. The web app no longer
+reads or writes `renewal_items`; the `/family` Renewals panel, Coming up
+renewal rows, ICS-feed renewal events and `renewals.csv` export are removed.
+Apply `20261003100000_remove_server_renewals.sql` after the W2b web deploy.
 
 ## Family-life v2 — overnight build (12 Sept 2026)
 
@@ -736,8 +713,8 @@ older shape, re-read this section — it changed underneath the same route.
 - **Tapping any card or Coming-up row opens the real record**, not a generic
   popup: `comingUpHref(entry)` in `lib/coming-up.ts` is the single
   destination map (event/school/shared → `/calendar?...&event=<kind>:<id>`
-  opening `CalendarEventDetailSheet`; renewal → `/family?renewal=<id>`;
-  document → `/documents?doc=<id>`; birthday → `/family?person=<id>`;
+  opening `CalendarEventDetailSheet`; document → `/documents?doc=<id>`;
+  birthday → `/family?person=<id>`;
   routine → `/family?routine=<id>`; timetable →
   `/family?timetable=<personId>&weekday=<n>`). The deck animates a
   grow/morph into the destination (a plain fade under reduced-motion) before
@@ -750,7 +727,7 @@ older shape, re-read this section — it changed underneath the same route.
   leads the card deck as its own card; tapping it grow-morphs into
   `WeekAheadSheet` — the upcoming Mon–Sun grouped by day (empty days read
   "Nothing planned"), colour-coded per person, covering key dates,
-  renewals, birthdays and routines. `/dashboard?week=1` deep-links straight
+  birthdays and routines. `/dashboard?week=1` deep-links straight
   into this sheet.
 - **Theme**: see the Design system section above — this whole rewrite is
   also where the light/dark semantic token system and the theme-aware home

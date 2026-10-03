@@ -14,7 +14,6 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
-  RefreshCw,
   Repeat,
   Share2,
   type LucideIcon,
@@ -29,7 +28,6 @@ import { TONE_PILL } from "@/lib/tones";
 
 const COMING_UP_ICON: Record<string, LucideIcon> = {
   document: FileText,
-  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,

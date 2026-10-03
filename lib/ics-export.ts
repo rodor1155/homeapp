@@ -38,20 +38,6 @@ export type IcsHouseholdEvent = {
   created_at?: string | null;
 };
 
-export type IcsRenewalItem = {
-  id: string;
-  person_id: string | null;
-  title: string;
-  kind: string;
-  due_date: string;
-  remind_days: number;
-  reference: string | null;
-  provider: string | null;
-  notes: string | null;
-  updated_at?: string | null;
-  created_at?: string | null;
-};
-
 export type IcsPerson = {
   id: string;
   name: string;
@@ -64,12 +50,9 @@ export type IcsFeedInput = {
   appOrigin: string;
   generatedAt: Date;
   events: readonly IcsHouseholdEvent[];
-  renewals: readonly IcsRenewalItem[];
   people: readonly IcsPerson[];
   /** event_type → CATEGORIES label */
   eventTypeLabels: Readonly<Record<string, string>>;
-  /** renewal kind → human label */
-  renewalKindLabels: Readonly<Record<string, string>>;
 };
 
 export type IcsFeedWindow = {
@@ -213,23 +196,6 @@ function maxDtStamp(stamps: readonly string[]): string {
   return stamps.reduce((max, stamp) => (stamp > max ? stamp : max));
 }
 
-function renewalSummary(
-  item: IcsRenewalItem,
-  personName: string | null,
-  kindLabels: Readonly<Record<string, string>>
-): string {
-  const kindLabel = kindLabels[item.kind] ?? item.kind;
-  if (personName) return `${kindLabel} renewal — ${personName}`;
-  return sanitizeIcsText(item.title) || `${kindLabel} renewal`;
-}
-
-function renewalDescription(item: IcsRenewalItem): string | null {
-  const lines = [item.provider, item.reference, item.notes]
-    .map((line) => sanitizeIcsText(line))
-    .filter(Boolean);
-  return lines.length > 0 ? lines.join("\n") : null;
-}
-
 type VEventBlock = {
   uid: string;
   summary: string;
@@ -304,7 +270,6 @@ export function buildHouseholdIcs(
   now: Date = input.generatedAt
 ): string {
   const window = feedWindow(now);
-  const peopleById = new Map(input.people.map((person) => [person.id, person.name]));
 
   const events: string[] = [
     "BEGIN:VCALENDAR",
@@ -333,25 +298,6 @@ export function buildHouseholdIcs(
       description: sanitizeIcsText(event.notes) || null,
       categories: category,
       url: `${input.appOrigin}/family`,
-    });
-    veventDtStamps.push(built.dtStamp);
-    vevents.push(...built.lines);
-  }
-
-  for (const item of input.renewals) {
-    if (!item.due_date || !dateInWindow(item.due_date, window)) continue;
-    const personName = item.person_id
-      ? peopleById.get(item.person_id) ?? null
-      : null;
-    const built = buildVEvent({
-      uid: `renewal-${item.id}@hearth-home`,
-      summary: renewalSummary(item, personName, input.renewalKindLabels),
-      startDate: item.due_date,
-      stampSource: item.updated_at ?? item.created_at,
-      description: renewalDescription(item),
-      categories: "Renewal",
-      url: `${input.appOrigin}/family?renewal=${item.id}`,
-      alarmDays: item.remind_days,
     });
     veventDtStamps.push(built.dtStamp);
     vevents.push(...built.lines);

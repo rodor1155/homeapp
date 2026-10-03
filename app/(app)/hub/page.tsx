@@ -90,7 +90,7 @@ export default async function HubPage() {
       <HubColumn title="Coming up" icon={CalendarDays} href="/calendar">
         {data.comingUp.length === 0 ? (
           <HubEmpty
-            message="Birthdays, renewals and term dates land here once you've added people, schools, or documents."
+            message="Birthdays and term dates land here once you've added people and schools."
           />
         ) : (
           <ul className="divide-y divide-dashed divide-rule">

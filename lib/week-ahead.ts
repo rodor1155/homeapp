@@ -14,7 +14,6 @@ import { WEEKDAY_LABEL, weekdayForDate } from "@/lib/timetable";
 const LONDON_TZ = "Europe/London";
 
 const BUSY_THRESHOLD = 5;
-const QUIET_THRESHOLD = 1;
 
 export type WeekAheadRange = {
   monday: string;
@@ -57,7 +56,6 @@ export type WeekAheadCompactLine =
       colour: MemberColourKey;
       label: string;
     }
-  | { kind: "renewal"; label: string }
   | { kind: "birthday"; label: string };
 
 export type WeekAheadDay = {
@@ -72,13 +70,11 @@ export type WeekAheadModel = {
   headline: string;
   ariaLabel: string;
   totalCount: number;
-  renewalCount: number;
   birthdayCount: number;
   compactLines: WeekAheadCompactLine[];
   people: WeekAheadPersonLine[];
   birthdays: WeekAheadBirthday[];
   routines: WeekAheadRoutineLine[];
-  renewals: ComingUpEntry[];
   days: WeekAheadDay[];
   calendarHref: string;
 };
@@ -245,35 +241,23 @@ function personIdsForEntry(
 }
 
 function isPersonKeyItem(entry: ComingUpEntry): boolean {
-  if (entry.kind === "event" || entry.kind === "renewal" || entry.kind === "school") {
+  if (entry.kind === "event" || entry.kind === "school") {
     return true;
   }
   if (entry.kind === "timetable") return isNotableTimetable(entry);
   return false;
 }
 
-function headlineFor(total: number, renewalCount: number): string {
+function headlineFor(total: number): string {
   if (total === 0) return "Nothing planned yet";
 
   const things =
     total === 1 ? "1 thing" : `${total} things`;
 
-  let line: string;
   if (total >= BUSY_THRESHOLD) {
-    line = `A busy week: ${things}`;
-  } else if (total >= QUIET_THRESHOLD) {
-    line = `A quiet week: ${things}`;
-  } else {
-    line = `A quiet week: ${things}`;
+    return `A busy week: ${things}`;
   }
-
-  if (renewalCount > 0) {
-    const renewals =
-      renewalCount === 1 ? "1 renewal due" : `${renewalCount} renewals due`;
-    line = `${line}, ${renewals}`;
-  }
-
-  return line;
+  return `A quiet week: ${things}`;
 }
 
 function routineLabel(title: string, weekday: string): string {
@@ -295,7 +279,6 @@ export function buildWeekAhead(
         a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
     );
 
-  const renewals = weekEntries.filter((e) => e.kind === "renewal");
   const birthdays = weekEntries.filter((e) => e.kind === "birthday");
   const routines = weekEntries.filter((e) => e.kind === "routine");
 
@@ -360,15 +343,10 @@ export function buildWeekAhead(
     .filter((line) => line.items.length > 0 || line.moreCount > 0);
 
   const totalCount = weekEntries.length;
-  const renewalCount = renewals.length;
   const birthdayCount = birthdayLines.length;
-  const headline = headlineFor(totalCount, renewalCount);
+  const headline = headlineFor(totalCount);
 
-  const compactLines = buildCompactLines(
-    peopleLines,
-    renewals,
-    birthdayLines
-  );
+  const compactLines = buildCompactLines(peopleLines, birthdayLines);
 
   const days: WeekAheadDay[] = [];
   for (let i = 0; i < 7; i++) {
@@ -389,13 +367,11 @@ export function buildWeekAhead(
     headline,
     ariaLabel: `Your week ahead. ${headline}. ${rangeLabel}.`,
     totalCount,
-    renewalCount,
     birthdayCount,
     compactLines,
     people: peopleLines,
     birthdays: birthdayLines,
     routines: condensedRoutines,
-    renewals,
     days,
     calendarHref: `/calendar?date=${range.monday}`,
   };
@@ -428,7 +404,6 @@ function condenseRoutines(lines: WeekAheadRoutineLine[]): WeekAheadRoutineLine[]
 
 function buildCompactLines(
   peopleLines: WeekAheadPersonLine[],
-  renewals: ComingUpEntry[],
   birthdayLines: WeekAheadBirthday[]
 ): WeekAheadCompactLine[] {
   const lines: WeekAheadCompactLine[] = [];
@@ -445,14 +420,6 @@ function buildCompactLines(
   };
 
   if (peopleLines[0]) pushPerson(peopleLines[0]);
-
-  if (renewals.length > 0 && lines.length < 3) {
-    const renewal = renewals[0]!;
-    lines.push({
-      kind: "renewal",
-      label: `${renewal.title} due ${weekdayLabel(renewal.date)}`,
-    });
-  }
 
   if (birthdayLines.length > 0 && lines.length < 3) {
     lines.push({
