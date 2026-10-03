@@ -5,7 +5,7 @@ import type { BillingInterval, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
 import { Button } from "@/components/ui";
 import { openExternalUrl } from "@/lib/open-external";
-import { useIsCapacitorNative } from "@/lib/use-is-capacitor-native";
+import { useCapacitorNativeState } from "@/lib/use-is-capacitor-native";
 
 /* What each plan costs, as it is said to the household. Keep these in step
    with the Stripe prices behind STRIPE_PRICE_GBP_* / STRIPE_PRICE_USD_*. */
@@ -42,7 +42,7 @@ export default function PlanPanel({
   cancelAtPeriodEnd,
   justPaid,
 }: Props) {
-  const inNativeShell = useIsCapacitorNative();
+  const inNativeShell = useCapacitorNativeState() !== "web";
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prices = PRICES[locale ?? "UK"];
