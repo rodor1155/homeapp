@@ -119,31 +119,6 @@ export async function GET() {
     )
   );
   zip.file(
-    "renewals.csv",
-    csvFromRows(
-      [
-        "id",
-        "person_id",
-        "title",
-        "kind",
-        "due_date",
-        "repeat_unit",
-        "repeat_every",
-        "remind_days",
-        "reference",
-        "provider",
-        "cost",
-        "notes",
-        "source",
-        "status",
-        "last_done_at",
-        "created_at",
-        "updated_at",
-      ],
-      data.renewals as Record<string, unknown>[]
-    )
-  );
-  zip.file(
     "routines.csv",
     csvFromRows(
       [
@@ -210,9 +185,10 @@ export async function GET() {
     "README.txt",
     `Hearth Home export — ${today}\r\n\r\n` +
       `This zip is the household data Hearth Home stores on our servers: people, ` +
-      `schools, key dates, renewals, routines, meal plans, shopping lists and ` +
-      `timetable slots. Documents live only on your iPhone (encrypted on-device ` +
-      `and synced through your own iCloud) — they are not included here.\r\n\r\n` +
+      `schools, key dates, routines, meal plans, shopping lists and ` +
+      `timetable slots. Documents and renewals live only on your iPhone ` +
+      `(encrypted on-device and synced through your own iCloud) — they are ` +
+      `not included here.\r\n\r\n` +
       `Each CSV is one table. Open in any spreadsheet or keep as a backup.\r\n`
   );
 

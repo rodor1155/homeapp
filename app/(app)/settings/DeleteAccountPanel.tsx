@@ -16,7 +16,7 @@ function memberLabel(count: number): string {
 
 function householdConsequence(row: AccountDeletionHouseholdPreview): string {
   if (row.soleMember) {
-    return `Your household “${row.name}” and everything in it — dates, renewals, lists, calendar links, kid links, invites — will be permanently deleted.`;
+    return `Your household “${row.name}” and everything in it — dates, lists, calendar links, kid links, invites — will be permanently deleted.`;
   }
 
   const others = memberLabel(row.otherMemberCount);
@@ -84,8 +84,8 @@ export default function DeleteAccountPanel({
         )}
         <p className="text-sm text-ink-soft">
           A zip of the household data we store on our servers — people, dates,
-          renewals, lists and the rest. Documents live on your iPhone only and
-          are not included.
+          lists and the rest. Documents and renewals live on your iPhone only
+          and are not included.
         </p>
       </div>
 

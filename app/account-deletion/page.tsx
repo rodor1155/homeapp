@@ -58,8 +58,8 @@ export default function AccountDeletionPage() {
                 <strong>Sole-member households</strong> — if you are the only
                 person who can sign in to a household, that household and
                 everything in it is permanently deleted: family people and dates,
-                renewals, shopping lists, calendar subscribe links, kid view
-                links, and pending invites.
+                shopping lists, calendar subscribe links, kid view links, and
+                pending invites.
               </li>
             </ul>
           </section>

@@ -66,8 +66,7 @@ export const CALENDAR_KIND_TONE: Record<CalendarKind, Tone> = {
   timetable: "ochre",
 };
 
-/** One thing on one day. Documents are deliberately not in here — a renewal
- *  is a reminder, not somewhere the household has to be. */
+/** One thing on one day — birthdays, key dates, school/shared feeds and lessons. */
 export type CalendarItem = {
   key: string;
   kind: CalendarKind;

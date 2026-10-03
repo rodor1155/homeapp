@@ -246,7 +246,7 @@ export function PersonForm({
         />
       </Field>
 
-      <Field label="Colour" note="Shows on the home map, calendar and renewals.">
+      <Field label="Colour" note="Shows on the home map and calendar.">
         <MemberColourPicker value={colour} onChange={setColour} disabled={pending} />
       </Field>
 

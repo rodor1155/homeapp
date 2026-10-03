@@ -3,7 +3,6 @@ import {
   birthdayEntries,
   eventEntries,
   mergeComingUp,
-  renewalEntries,
   schoolEntries,
   BIRTHDAY_HORIZON_DAYS,
   SHARED_ENTRY_LIMIT,
@@ -22,7 +21,6 @@ import {
   weekAheadRange,
   type WeekAheadModel,
 } from "@/lib/week-ahead";
-import { loadRenewalItems } from "@/lib/renewals";
 import {
   firstFault,
   loadHouseholdCalendarEvents,
@@ -63,7 +61,6 @@ export async function loadComingUpData(
     sharedDatesLoad,
     timetableLoad,
     routinesLoad,
-    renewalsLoad,
   ] = await Promise.all([
     loadHouseholdPeople(supabase, householdId),
     loadHouseholdEvents(supabase, householdId),
@@ -73,7 +70,6 @@ export async function loadComingUpData(
     loadHouseholdCalendarEvents(supabase, householdId),
     loadPersonTimetableSlots(supabase, householdId),
     loadHouseholdRoutines(supabase, householdId),
-    loadRenewalItems(supabase, householdId),
   ]);
 
   const people = peopleLoad.items;
@@ -96,8 +92,7 @@ export async function loadComingUpData(
       sharedLimit
     ),
     timetableEntries(timetableLoad.items, people, now),
-    routineEntries(routinesLoad.items, now),
-    renewalEntries(renewalsLoad.items, now)
+    routineEntries(routinesLoad.items, now)
   );
 
   const schoolByEventId = new Map(
@@ -119,8 +114,7 @@ export async function loadComingUpData(
     calendarsLoad,
     sharedDatesLoad,
     timetableLoad,
-    routinesLoad,
-    renewalsLoad
+    routinesLoad
   );
 
   return { entries, people, loadFault, weekAhead };

@@ -63,12 +63,6 @@ export default function PrivacyPage() {
                 key dates you add.
               </li>
               <li>
-                <strong>Renewals and deadlines</strong> — passports, MOT,
-                insurance and similar dates you track manually in the app
-                (server-stored until native renewals ship; not linked to
-                documents).
-              </li>
-              <li>
                 <strong>Calendars</strong> — ICS or web calendar URLs you paste
                 for a school or household feed, and the term dates and events we
                 cache from those feeds.

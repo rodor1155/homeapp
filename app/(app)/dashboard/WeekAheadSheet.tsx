@@ -7,7 +7,6 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
-  RefreshCw,
   Repeat,
   Share2,
   type LucideIcon,
@@ -39,7 +38,6 @@ function personNameForEntry(
 
 const COMING_UP_ICON: Record<string, LucideIcon> = {
   document: FileText,
-  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,

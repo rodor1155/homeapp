@@ -19,7 +19,6 @@ import {
   ChevronRight,
   FileText,
   GraduationCap,
-  RefreshCw,
   Repeat,
   Share2,
   Shuffle,
@@ -51,7 +50,6 @@ import WeekAheadSheet from "./WeekAheadSheet";
 
 const COMING_UP_ICON: Record<string, LucideIcon> = {
   document: FileText,
-  renewal: RefreshCw,
   birthday: Cake,
   event: CalendarDays,
   school: GraduationCap,

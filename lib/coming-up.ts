@@ -20,19 +20,13 @@ import type { HouseholdRoutine } from "@/lib/routines";
 import { routineComingUpEntries } from "@/lib/routines";
 import type { PersonTimetableSlot } from "@/lib/timetable";
 import { timetableComingUpEntries, weekdayForDate } from "@/lib/timetable";
-import {
-  renewalStatusLabel,
-  renewalWindow,
-  type RenewalItem,
-} from "@/lib/renewals";
 
-/* One list for everything with a date on it: tracked renewal items,
-   birthdays derived from the household's people, the dates someone typed in
-   by hand, what the schools' own calendars say and what the household's own
-   linked feeds do. Pure shaping — the caller loads the rows. */
+/* One list for everything with a date on it: birthdays derived from the
+   household's people, the dates someone typed in by hand, what the schools'
+   own calendars say and what the household's own linked feeds do. Pure shaping
+   — the caller loads the rows. */
 
 export type ComingUpKind =
-  | "renewal"
   | "birthday"
   | "event"
   | "school"
@@ -45,7 +39,6 @@ export type ComingUpKind =
  * uses (lib/calendar-month.ts).
  */
 export const COMING_UP_TONE: Record<ComingUpKind, Tone> = {
-  renewal: "ochre",
   birthday: "sage",
   event: "navy",
   school: "sage",
@@ -70,11 +63,7 @@ export type ComingUpEntry = {
   slotId?: string;
   /** London weekday 0=Mon … 6=Sun for timetable deep links. */
   weekday?: number;
-  /** Tracked renewal rows — link target on /family. */
-  renewalId?: string;
-  /** Reference number for renewal detail (CopyButton). */
-  renewalReference?: string | null;
-  /** Overdue renewals sort first and read as "today" on the evening map. */
+  /** Overdue items sort first and read as "today" on the evening map. */
   overdue?: boolean;
   /** ICS school / shared feeds — enough to open the same detail sheet. */
   allDay?: boolean;
@@ -139,10 +128,6 @@ export function comingUpHref(entry: ComingUpEntry): string | null {
       const ym = entry.date.slice(0, 7);
       return `/calendar?ym=${ym}&date=${entry.date}&event=${entry.kind}:${entry.recordId}`;
     }
-    case "renewal":
-      return entry.renewalId
-        ? `/family?renewal=${entry.renewalId}#renewals`
-        : null;
     case "birthday":
       return entry.personId ? `/family?person=${entry.personId}` : null;
     case "routine":
@@ -351,41 +336,7 @@ export function timetableEntries(
   }));
 }
 
-/** Active renewal items inside their remind window or overdue. */
-export function renewalEntries(
-  items: readonly RenewalItem[],
-  now: Date = new Date()
-): ComingUpEntry[] {
-  const entries: ComingUpEntry[] = [];
-
-  for (const item of items) {
-    if (item.status !== "active" || !item.due_date) continue;
-    const window = renewalWindow(item, now);
-    if (!window?.inWindow) continue;
-
-    const status = renewalStatusLabel(item, now);
-    const note = [status, item.provider].filter(Boolean).join(" · ");
-    const overdue = window.overdue;
-    const daysAway = overdue ? 0 : window.daysAway;
-
-    entries.push({
-      key: `renewal-${item.id}`,
-      kind: "renewal",
-      title: item.title,
-      note,
-      date: item.due_date,
-      daysAway,
-      personId: item.person_id,
-      renewalId: item.id,
-      renewalReference: item.reference,
-      overdue,
-    });
-  }
-
-  return entries;
-}
-
-/** Soonest first; overdue renewals before everything else. */
+/** Soonest first; overdue items before everything else. */
 export function mergeComingUp(
   ...lists: readonly ComingUpEntry[][]
 ): ComingUpEntry[] {
