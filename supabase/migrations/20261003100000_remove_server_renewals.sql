@@ -1,4 +1,4 @@
--- DRAFT: apply after the web change that stops reading renewal_items is deployed
+-- APPLIED to project fybpmpnfocaxhqiwiyhs on 3 Oct 2026 (applied by Ross via Grok Bot after the web deploy; verified: renewal_items gone, household_is_empty ok, no new advisor warnings).
 --
 -- W2b — remove server-side renewal_items. Apply only after the W2b web deploy
 -- (no code reads renewal_items) is live.
