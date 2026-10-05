@@ -4,7 +4,7 @@ import { Card } from "@/components/ui";
 import { appTitle } from "@/lib/brand";
 import { requireOnboarded } from "@/lib/household";
 
-export const metadata = { title: appTitle("Documents") };
+export const metadata = { title: appTitle("Vault") };
 
 export default async function DocumentsPage() {
   await requireOnboarded();
@@ -13,7 +13,7 @@ export default async function DocumentsPage() {
     <DocumentsVaultHandoff>
       <div className="flex flex-col gap-4">
         <div className="px-1">
-          <h1 className="text-2xl">Documents</h1>
+          <h1 className="text-2xl">Vault</h1>
         </div>
 
         <Card className="text-center">

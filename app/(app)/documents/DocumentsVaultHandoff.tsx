@@ -30,7 +30,7 @@ export default function DocumentsVaultHandoff({
   return (
     <div className="flex flex-col gap-4">
       <div className="px-1">
-        <h1 className="text-2xl">Documents</h1>
+        <h1 className="text-2xl">Vault</h1>
         <p className="mt-0.5 text-sm text-ink-soft">
           Stored securely on this iPhone
         </p>
