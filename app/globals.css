@@ -22,14 +22,14 @@
   --surface-raised: #ffffff;
   --surface-sunk: #f3efe7;
 
-  --surface-glass: rgb(255 255 255 / 0.72);
-  --surface-glass-strong: rgb(255 255 255 / 0.85);
-  --surface-glass-card: rgb(255 255 255 / 0.78);
-  --surface-glass-card-front: #ffffff;
-  --surface-glass-peek-near: rgb(255 255 255 / 0.55);
-  --surface-glass-peek-far: rgb(255 255 255 / 0.4);
-  --surface-deck-control: rgb(255 255 255 / 0.94);
-  --surface-deck-control-hover: rgb(255 255 255 / 0.97);
+  --surface-glass: rgb(252 248 242 / 0.82);
+  --surface-glass-strong: rgb(255 252 247 / 0.9);
+  --surface-glass-card: rgb(255 252 247 / 0.86);
+  --surface-glass-card-front: #fffdf9;
+  --surface-glass-peek-near: rgb(248 242 234 / 0.72);
+  --surface-glass-peek-far: rgb(242 236 226 / 0.58);
+  --surface-deck-control: rgb(255 252 247 / 0.96);
+  --surface-deck-control-hover: rgb(255 253 250 / 0.98);
   --deck-control-border: rgb(31 42 68 / 0.14);
 
   --glass-border: rgb(31 42 68 / 0.08);
@@ -42,8 +42,8 @@
   --border: #e6e8ee;
   --border-strong: #ced3de;
 
-  --accent: #e8b35a;
-  --accent-text: #9a6a1f;
+  --accent: #d4923a;
+  --accent-text: #7a4f12;
 
   --map-text: #1f2a44;
   --map-text-muted: #5b6478;
@@ -69,38 +69,38 @@
   --tabbar-bg: rgb(255 255 255 / 0.72);
   --tabbar-icon: rgb(31 42 68 / 0.7);
   --tabbar-icon-hover: rgb(31 42 68 / 0.9);
-  --tabbar-active: #e8b35a;
-  --tabbar-active-bg: rgb(232 179 90 / 0.18);
+  --tabbar-active: #d4923a;
+  --tabbar-active-bg: rgb(212 146 58 / 0.28);
   --tabbar-shadow: 0 8px 24px rgb(31 42 68 / 0.12), 0 1px 0 rgb(255 255 255 / 0.6) inset;
 
-  --member-amber: #e8b35a;
-  --member-amber-soft: color-mix(in oklab, var(--member-amber) 24%, transparent);
-  --member-amber-ink: color-mix(in oklab, var(--member-amber) 60%, var(--text));
-  --member-rose: #c98b9b;
-  --member-rose-soft: color-mix(in oklab, var(--member-rose) 24%, transparent);
-  --member-rose-ink: color-mix(in oklab, var(--member-rose) 60%, var(--text));
-  --member-sky: #7fb2d9;
-  --member-sky-soft: color-mix(in oklab, var(--member-sky) 24%, transparent);
-  --member-sky-ink: color-mix(in oklab, var(--member-sky) 60%, var(--text));
-  --member-sage: #6f9272;
-  --member-sage-soft: color-mix(in oklab, var(--member-sage) 24%, transparent);
-  --member-sage-ink: color-mix(in oklab, var(--member-sage) 60%, var(--text));
-  --member-lilac: #8f87b8;
-  --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 24%, transparent);
-  --member-lilac-ink: color-mix(in oklab, var(--member-lilac) 60%, var(--text));
-  --member-coral: #d4897a;
-  --member-coral-soft: color-mix(in oklab, var(--member-coral) 24%, transparent);
-  --member-coral-ink: color-mix(in oklab, var(--member-coral) 60%, var(--text));
-  --member-teal: #5a9e9e;
-  --member-teal-soft: color-mix(in oklab, var(--member-teal) 24%, transparent);
-  --member-teal-ink: color-mix(in oklab, var(--member-teal) 60%, var(--text));
-  --member-slate: #7a8499;
-  --member-slate-soft: color-mix(in oklab, var(--member-slate) 24%, transparent);
-  --member-slate-ink: color-mix(in oklab, var(--member-slate) 60%, var(--text));
+  --member-amber: #d4923a;
+  --member-amber-soft: color-mix(in oklab, var(--member-amber) 38%, transparent);
+  --member-amber-ink: color-mix(in oklab, var(--member-amber) 72%, var(--text));
+  --member-rose: #b45f74;
+  --member-rose-soft: color-mix(in oklab, var(--member-rose) 38%, transparent);
+  --member-rose-ink: color-mix(in oklab, var(--member-rose) 72%, var(--text));
+  --member-sky: #3d7aa8;
+  --member-sky-soft: color-mix(in oklab, var(--member-sky) 38%, transparent);
+  --member-sky-ink: color-mix(in oklab, var(--member-sky) 72%, var(--text));
+  --member-sage: #4a7350;
+  --member-sage-soft: color-mix(in oklab, var(--member-sage) 38%, transparent);
+  --member-sage-ink: color-mix(in oklab, var(--member-sage) 72%, var(--text));
+  --member-lilac: #5f5494;
+  --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 38%, transparent);
+  --member-lilac-ink: color-mix(in oklab, var(--member-lilac) 72%, var(--text));
+  --member-coral: #c45a48;
+  --member-coral-soft: color-mix(in oklab, var(--member-coral) 38%, transparent);
+  --member-coral-ink: color-mix(in oklab, var(--member-coral) 72%, var(--text));
+  --member-teal: #2f7a7a;
+  --member-teal-soft: color-mix(in oklab, var(--member-teal) 38%, transparent);
+  --member-teal-ink: color-mix(in oklab, var(--member-teal) 72%, var(--text));
+  --member-slate: #4f5a6e;
+  --member-slate-soft: color-mix(in oklab, var(--member-slate) 38%, transparent);
+  --member-slate-ink: color-mix(in oklab, var(--member-slate) 72%, var(--text));
   --member-neutral: #8b93a5;
 
-  --pin-halo: rgb(232 179 90 / 0.45);
-  --pin-glow: rgb(232 179 90 / 0.55);
+  --pin-halo: rgb(212 146 58 / 0.52);
+  --pin-glow: rgb(212 146 58 / 0.62);
   --fab-ring: rgb(255 255 255 / 0.35);
 
   --shadow-card: 0 1px 2px rgb(31 42 68 / 0.05), 0 2px 8px rgb(31 42 68 / 0.06),
@@ -126,31 +126,31 @@
   --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231f2a44' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 
   /* Status + kind hues (light) */
-  --hue-sage: #4f7256;
-  --hue-sage-soft: #6f9272;
-  --hue-sage-tint: #e2efe4;
-  --hue-sage-wash: #eef5ef;
-  --hue-ochre: #9a6b1c;
-  --hue-ochre-tint: #f7efe0;
-  --hue-ochre-wash: #fbf6ec;
-  --hue-oxblood: #a94a41;
-  --hue-oxblood-tint: #fbeceb;
-  --hue-lilac: #5c5488;
-  --hue-lilac-soft: #8f87b8;
-  --hue-lilac-tint: #eeeef4;
-  --hue-lilac-wash: #f6f6f9;
-  --hue-peach: #9a6340;
-  --hue-peach-soft: #c9926e;
-  --hue-peach-tint: #f3ebe4;
-  --hue-peach-wash: #f8f4f0;
-  --hue-sky: #3a6284;
-  --hue-sky-soft: #7a9fb8;
-  --hue-sky-tint: #e8eef3;
-  --hue-sky-wash: #f3f6f8;
-  --hue-navy: #1f2a44;
-  --hue-navy-soft: #33405f;
-  --hue-navy-tint: #e4e8f0;
-  --hue-navy-wash: #eef1f6;
+  --hue-sage: #3d5c42;
+  --hue-sage-soft: #4a7350;
+  --hue-sage-tint: #d4e6d8;
+  --hue-sage-wash: #e0ede3;
+  --hue-ochre: #8a5a14;
+  --hue-ochre-tint: #f0e0c4;
+  --hue-ochre-wash: #f5ead6;
+  --hue-oxblood: #9a3f36;
+  --hue-oxblood-tint: #f5ddd9;
+  --hue-lilac: #4a4278;
+  --hue-lilac-soft: #5f5494;
+  --hue-lilac-tint: #ddd6ec;
+  --hue-lilac-wash: #e8e2f2;
+  --hue-peach: #8a5230;
+  --hue-peach-soft: #b87850;
+  --hue-peach-tint: #ecd4c0;
+  --hue-peach-wash: #f2e0d2;
+  --hue-sky: #2d5678;
+  --hue-sky-soft: #3d7aa8;
+  --hue-sky-tint: #d0e0ec;
+  --hue-sky-wash: #dce8f2;
+  --hue-navy: #1a2438;
+  --hue-navy-soft: #2a3858;
+  --hue-navy-tint: #d8dee8;
+  --hue-navy-wash: #e4e9f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -159,14 +159,14 @@
     --surface-raised: #1e2a44;
     --surface-sunk: #1a2438;
 
-    --surface-glass: rgb(20 28 46 / 0.62);
-    --surface-glass-strong: rgb(20 28 46 / 0.72);
-    --surface-glass-card: rgb(20 28 46 / 0.78);
-    --surface-glass-card-front: #1e2a44;
-    --surface-glass-peek-near: rgb(30 42 68 / 0.55);
-    --surface-glass-peek-far: rgb(30 42 68 / 0.4);
-    --surface-deck-control: rgb(30 42 68 / 0.94);
-    --surface-deck-control-hover: rgb(36 48 76 / 0.97);
+    --surface-glass: rgb(18 26 44 / 0.78);
+    --surface-glass-strong: rgb(22 32 54 / 0.86);
+    --surface-glass-card: rgb(24 34 58 / 0.88);
+    --surface-glass-card-front: #24304e;
+    --surface-glass-peek-near: rgb(28 40 66 / 0.72);
+    --surface-glass-peek-far: rgb(32 46 74 / 0.58);
+    --surface-deck-control: rgb(30 42 70 / 0.96);
+    --surface-deck-control-hover: rgb(36 50 80 / 0.98);
     --deck-control-border: rgb(255 255 255 / 0.2);
 
     --glass-border: rgb(255 255 255 / 0.1);
@@ -179,8 +179,8 @@
     --border: #2e3a52;
     --border-strong: #3d4d66;
 
-    --accent: #e8b35a;
-    --accent-text: #e8b35a;
+    --accent: #e0a84a;
+    --accent-text: #f0c878;
 
     --map-text: #ffffff;
     --map-text-muted: #8b9ab5;
@@ -206,34 +206,34 @@
     --tabbar-bg: rgb(20 28 46 / 0.72);
     --tabbar-icon: rgb(255 255 255 / 0.7);
     --tabbar-icon-hover: rgb(255 255 255 / 0.9);
-    --tabbar-active: #e8b35a;
-    --tabbar-active-bg: rgb(232 179 90 / 0.18);
+    --tabbar-active: #e0a84a;
+    --tabbar-active-bg: rgb(224 168 74 / 0.32);
     --tabbar-shadow: 0 4px 24px rgb(0 0 0 / 0.35), 0 1px 0 rgb(255 255 255 / 0.06) inset;
 
-    --member-amber: #e8b35a;
-    --member-amber-soft: color-mix(in oklab, var(--member-amber) 28%, transparent);
-    --member-amber-ink: var(--member-amber);
-    --member-rose: #d9a0ad;
-    --member-rose-soft: color-mix(in oklab, var(--member-rose) 28%, transparent);
-    --member-rose-ink: var(--member-rose);
-    --member-sky: #8fc0e3;
-    --member-sky-soft: color-mix(in oklab, var(--member-sky) 28%, transparent);
-    --member-sky-ink: var(--member-sky);
-    --member-sage: #9dbb9f;
-    --member-sage-soft: color-mix(in oklab, var(--member-sage) 28%, transparent);
-    --member-sage-ink: var(--member-sage);
-    --member-lilac: #b0a8d4;
-    --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 28%, transparent);
-    --member-lilac-ink: var(--member-lilac);
-    --member-coral: #e0a090;
-    --member-coral-soft: color-mix(in oklab, var(--member-coral) 28%, transparent);
-    --member-coral-ink: var(--member-coral);
-    --member-teal: #6eb8b8;
-    --member-teal-soft: color-mix(in oklab, var(--member-teal) 28%, transparent);
-    --member-teal-ink: var(--member-teal);
-    --member-slate: #9aa5b8;
-    --member-slate-soft: color-mix(in oklab, var(--member-slate) 28%, transparent);
-    --member-slate-ink: var(--member-slate);
+    --member-amber: #e0a84a;
+    --member-amber-soft: color-mix(in oklab, var(--member-amber) 42%, transparent);
+    --member-amber-ink: #f5d898;
+    --member-rose: #d87890;
+    --member-rose-soft: color-mix(in oklab, var(--member-rose) 42%, transparent);
+    --member-rose-ink: #f0b0c0;
+    --member-sky: #6aa8d8;
+    --member-sky-soft: color-mix(in oklab, var(--member-sky) 42%, transparent);
+    --member-sky-ink: #a8d0f0;
+    --member-sage: #78a880;
+    --member-sage-soft: color-mix(in oklab, var(--member-sage) 42%, transparent);
+    --member-sage-ink: #b0d8b4;
+    --member-lilac: #9a90c8;
+    --member-lilac-soft: color-mix(in oklab, var(--member-lilac) 42%, transparent);
+    --member-lilac-ink: #c8c0e8;
+    --member-coral: #e08878;
+    --member-coral-soft: color-mix(in oklab, var(--member-coral) 42%, transparent);
+    --member-coral-ink: #f0b8a8;
+    --member-teal: #58b0b0;
+    --member-teal-soft: color-mix(in oklab, var(--member-teal) 42%, transparent);
+    --member-teal-ink: #98e0e0;
+    --member-slate: #8898b0;
+    --member-slate-soft: color-mix(in oklab, var(--member-slate) 42%, transparent);
+    --member-slate-ink: #b8c4d8;
     --member-neutral: #8b9ab5;
 
     --pin-halo: rgb(232 179 90 / 0.45);
@@ -251,27 +251,27 @@
 
     --paper-texture: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e8eaf0' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 
-    --hue-sage: #9dbb9f;
-    --hue-sage-soft: #7c9b7e;
-    --hue-sage-tint: #1e2a20;
-    --hue-sage-wash: #1a231c;
-    --hue-ochre: #d5a860;
-    --hue-ochre-tint: #2c2417;
-    --hue-ochre-wash: #241e14;
-    --hue-oxblood: #de8880;
-    --hue-oxblood-tint: #2e1d1c;
-    --hue-lilac: #b9b0e6;
-    --hue-lilac-soft: #a79ed6;
-    --hue-lilac-tint: #262239;
-    --hue-lilac-wash: #1e1c2a;
-    --hue-peach: #e4ab86;
-    --hue-peach-soft: #e3a985;
-    --hue-peach-tint: #33251b;
-    --hue-peach-wash: #251c15;
-    --hue-sky: #9dc2e0;
-    --hue-sky-soft: #8cb4d4;
-    --hue-sky-tint: #1d2835;
-    --hue-sky-wash: #171f28;
+    --hue-sage: #88b890;
+    --hue-sage-soft: #6ca074;
+    --hue-sage-tint: #243028;
+    --hue-sage-wash: #1c2820;
+    --hue-ochre: #e0b060;
+    --hue-ochre-tint: #302818;
+    --hue-ochre-wash: #282014;
+    --hue-oxblood: #e87870;
+    --hue-oxblood-tint: #381e1c;
+    --hue-lilac: #a8a0d8;
+    --hue-lilac-soft: #9488c8;
+    --hue-lilac-tint: #2a2640;
+    --hue-lilac-wash: #221e34;
+    --hue-peach: #e8a878;
+    --hue-peach-soft: #d89868;
+    --hue-peach-tint: #382818;
+    --hue-peach-wash: #2c2014;
+    --hue-sky: #88c0e8;
+    --hue-sky-soft: #70b0d8;
+    --hue-sky-tint: #1c2838;
+    --hue-sky-wash: #182030;
     --hue-navy: #c9d2e6;
     --hue-navy-soft: #dbe2f0;
     --hue-navy-tint: #232a3a;
@@ -948,13 +948,19 @@
     pointer-events: none;
   }
 
+  /* The stitched map is centred on the home point. To put that point 25% down the
+     viewport (clear of the card deck) the image is made 150% of the layer height and
+     shifted up by 50%: its centre then lands at 0.5*150% - 50% = 25%, and the image
+     still covers the whole layer (it spans -50% .. +100%). The pin below is at the
+     same 25%, so the marker and the real home location coincide. */
   .evening-map-layer img {
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: -50%;
     width: 100%;
-    height: 100%;
+    height: 150%;
     object-fit: cover;
-    object-position: center;
+    object-position: center center;
   }
 
   .evening-map-fallback {
@@ -985,7 +991,7 @@
   .evening-map-pin {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 25%;
     z-index: 5;
     transform: translate(-50%, -50%);
     pointer-events: none;
@@ -1195,7 +1201,7 @@
   }
 
   .evening-glass-card-peek-near {
-    --card-tint-mix: 26%;
+    --card-tint-mix: 36%;
     --deck-depth-shadow: var(--shadow-deck-peek-near);
     background:
       linear-gradient(
@@ -1206,7 +1212,7 @@
   }
 
   .evening-glass-card-peek-far {
-    --card-tint-mix: 22%;
+    --card-tint-mix: 32%;
     --deck-depth-shadow: var(--shadow-deck-peek-far);
     background:
       linear-gradient(
@@ -1218,11 +1224,11 @@
 
   @media (prefers-color-scheme: dark) {
     .evening-glass-card-peek-near {
-      --card-tint-mix: 28%;
+      --card-tint-mix: 38%;
     }
 
     .evening-glass-card-peek-far {
-      --card-tint-mix: 24%;
+      --card-tint-mix: 34%;
     }
   }
 

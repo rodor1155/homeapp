@@ -274,7 +274,7 @@ export function buildHouseholdIcs(
   const events: string[] = [
     "BEGIN:VCALENDAR",
     property("VERSION", "2.0"),
-    property("PRODID", "-//Hearth Home//Household feed//EN"),
+    property("PRODID", "-//Hearth//Household feed//EN"),
     property("CALSCALE", "GREGORIAN"),
     property("METHOD", "PUBLISH"),
     textProperty("X-WR-CALNAME", `${input.householdName} · Hearth`),

@@ -27,7 +27,7 @@ export default async function DocumentsPage() {
             Documents now live on your iPhone
           </h2>
           <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-soft">
-            Documents now live on your iPhone in the Hearth Home app, encrypted
+            Documents now live on your iPhone in the Hearth app, encrypted
             on your device and synced through your own iCloud.
           </p>
         </Card>
