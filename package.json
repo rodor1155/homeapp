@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:sw": "node scripts/test-sw-policy.mjs",
-    "test:links": "node scripts/test-external-links.mjs"
+    "test:links": "node scripts/test-external-links.mjs",
+    "test:calendar": "node scripts/test-calendar-window.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

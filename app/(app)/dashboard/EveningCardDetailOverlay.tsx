@@ -80,12 +80,11 @@ export default function EveningCardDetailOverlay({
     returnFocusRef.current?.focus();
   }, [onDone, returnFocusRef]);
 
-  const navigate = useCallback(() => {
+  const startNavigation = useCallback(() => {
     if (navigatedRef.current) return;
     navigatedRef.current = true;
     router.push(href);
-    finish();
-  }, [finish, href, router]);
+  }, [href, router]);
 
   const runFlip = useCallback(
     (expand: boolean, rect: CardDetailRect, target: CardDetailRect) => {
@@ -124,18 +123,21 @@ export default function EveningCardDetailOverlay({
     if (!open || !entry) return;
     navigatedRef.current = false;
 
+    // Start the route load immediately — morph/fade runs in parallel.
+    startNavigation();
+
     if (reducedMotion) {
       backdropRef.current?.animate([{ opacity: 0 }, { opacity: 0.35 }], {
         duration: FADE_MS,
         easing: "ease-out",
         fill: "forwards",
       });
-      const timer = window.setTimeout(navigate, FADE_MS);
+      const timer = window.setTimeout(finish, FADE_MS);
       return () => window.clearTimeout(timer);
     }
 
     if (!originRect) {
-      const timer = window.setTimeout(navigate, MORPH_MS);
+      const timer = window.setTimeout(finish, MORPH_MS);
       return () => window.clearTimeout(timer);
     }
 
@@ -145,9 +147,9 @@ export default function EveningCardDetailOverlay({
       fill: "forwards",
     });
     runFlip(true, originRect, targetRect());
-    const timer = window.setTimeout(navigate, MORPH_MS);
+    const timer = window.setTimeout(finish, MORPH_MS);
     return () => window.clearTimeout(timer);
-  }, [entry, navigate, open, originRect, reducedMotion, runFlip]);
+  }, [entry, finish, open, originRect, reducedMotion, runFlip, startNavigation]);
 
   useEffect(() => {
     if (!open) return;

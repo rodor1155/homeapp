@@ -5,7 +5,7 @@ import { appTitle } from "@/lib/brand";
 
 export const metadata = {
   title: appTitle("Account deleted"),
-  description: "Your Hearth Home account and data have been deleted.",
+  description: "Your Hearth account and data have been deleted.",
 };
 
 export default function AccountDeletedPage() {
@@ -26,7 +26,7 @@ export default function AccountDeletedPage() {
             Create a new account
           </Link>
           <Link href="/" className="text-action text-sm">
-            Back to Hearth Home
+            Back to Hearth
           </Link>
         </div>
       </LedgerPage>

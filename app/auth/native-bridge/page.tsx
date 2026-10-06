@@ -14,7 +14,7 @@ const WEB_FALLBACK_DELAY_MS = 1500;
  * Belt-and-braces fallback: if this page is reached from a plain browser
  * (native detection false positive, or the app isn't installed), the custom
  * scheme navigation silently no-ops and this page would otherwise hang on
- * "Returning to Hearth Home…" forever. If the document is still visible after
+ * "Returning to Hearth…" forever. If the document is still visible after
  * a short delay — meaning the OS never handed off to the app — fall back to
  * completing the OAuth exchange in this same browser tab.
  */

@@ -534,8 +534,12 @@ export default function EveningCardStack({
   const frontIsWeekAhead = frontItem?.kind === "week-ahead";
 
   useEffect(() => {
-    if (frontHref) router.prefetch(frontHref);
-  }, [frontHref, router]);
+    for (const item of visible) {
+      if (item.kind !== "entry") continue;
+      const href = comingUpHref(item.entry);
+      if (href) router.prefetch(href);
+    }
+  }, [router, visible]);
 
   const measureCardWidth = useCallback(() => {
     const w = frontCardRef.current?.offsetWidth;
