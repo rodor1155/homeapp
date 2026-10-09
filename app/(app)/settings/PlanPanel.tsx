@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { BillingInterval, Plan } from "@/lib/billing";
+import type { BillingInterval, EntitlementSource, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
 import { Button } from "@/components/ui";
 import { openExternalUrl } from "@/lib/open-external";
 import { useIsCapacitorNative } from "@/lib/use-is-capacitor-native";
+import NativePlanPanel from "./NativePlanPanel";
 
 /* What each plan costs, as it is said to the household. Keep these in step
    with the Stripe prices behind STRIPE_PRICE_GBP_* / STRIPE_PRICE_USD_*. */
@@ -15,10 +16,15 @@ const PRICES: Record<Locale, Record<BillingInterval, string>> = {
 };
 
 type Props = {
+  /** Billing of either kind (Stripe or the App Store) is switched on. */
   configured: boolean;
+  /** Stripe specifically — what the web checkout below needs. */
+  stripeConfigured: boolean;
   plan: Plan;
+  source: EntitlementSource;
+  householdId: string;
   locale: Locale | null;
-  /** ISO timestamp from the subscriptions row, if Stripe has told us one. */
+  /** ISO timestamp for when the current period ends, if we have been told. */
   periodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   justPaid: boolean;
@@ -36,7 +42,10 @@ function formatDate(iso: string, locale: Locale): string {
 
 export default function PlanPanel({
   configured,
+  stripeConfigured,
   plan,
+  source,
+  householdId,
   locale,
   periodEnd,
   cancelAtPeriodEnd,
@@ -47,9 +56,19 @@ export default function PlanPanel({
   const [error, setError] = useState<string | null>(null);
   const prices = PRICES[locale ?? "UK"];
 
+  // In the iPhone app the plan is bought and managed through Apple only:
+  // nothing below this point (web checkout, the billing portal) is rendered.
   if (inNativeShell) {
     return (
-      <p className="text-sm text-ink-soft">Manage your plan on the web.</p>
+      <NativePlanPanel
+        configured={configured}
+        plan={plan}
+        source={source}
+        householdId={householdId}
+        locale={locale}
+        periodEnd={periodEnd}
+        cancelAtPeriodEnd={cancelAtPeriodEnd}
+      />
     );
   }
 
@@ -94,6 +113,31 @@ export default function PlanPanel({
     );
   }
 
+  if (plan === "paid" && source !== "stripe") {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-ink">
+          You are on the full plan — export and everyone you share the
+          household with.
+        </p>
+        {source === "app_store" ? (
+          <>
+            {periodEnd ? (
+              <p className="tnum text-sm text-ink-soft">
+                {cancelAtPeriodEnd ? "Ends on " : "Renews on "}
+                {formatDate(periodEnd, locale ?? "UK")}
+              </p>
+            ) : null}
+            <p className="text-xs text-ink-faint">
+              Subscribed in the iPhone app. Manage or cancel it in your Apple
+              Account subscriptions.
+            </p>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
   if (plan === "paid") {
     return (
       <div className="flex flex-col gap-4">
@@ -125,6 +169,18 @@ export default function PlanPanel({
             Change card, see invoices, or cancel in one click.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (!stripeConfigured) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-ink">You are on the free plan.</p>
+        <p className="text-sm text-ink-soft">
+          Paying adds export and sharing the household with someone else. You
+          can subscribe in the Hearth Home iPhone app.
+        </p>
       </div>
     );
   }

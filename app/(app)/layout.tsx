@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import NativeStoreSync from "@/components/NativeStoreSync";
 import ShellRouter from "@/components/ShellRouter";
 import { requireOnboarded } from "@/lib/household";
 
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <ShellRouter user={user} householdName={household.name}>
+      <NativeStoreSync />
       {children}
     </ShellRouter>
   );

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui";
 import {
   getEntitlements,
   isBillingConfigured,
+  isStripeConfigured,
   loadSubscription,
 } from "@/lib/billing";
 import { requireOnboarded } from "@/lib/household";
@@ -43,7 +44,7 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
     loadHouseholdMembers(supabase, household.id),
     loadSentInvites(supabase, household.id),
     loadPendingInviteLinks(supabase, household.id),
-    getEntitlements(household.id),
+    getEntitlements(household.id, { userEmail: user.email }),
     loadGuestPack(supabase, household.id),
     supabase
       .from("household_calendar_feeds")
@@ -60,7 +61,7 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
   // household has no date to show, and with billing unconfigured there is no
   // row at all — so neither case touches the table.
   const subscription =
-    billingConfigured && entitlements.activeSubscription
+    entitlements.source === "stripe"
       ? await loadSubscription(household.id)
       : null;
 
@@ -100,10 +101,21 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
       <Card title="Plan">
         <PlanPanel
           configured={billingConfigured}
+          stripeConfigured={isStripeConfigured()}
           plan={entitlements.plan}
+          source={entitlements.source}
+          householdId={household.id}
           locale={household.locale}
-          periodEnd={subscription?.current_period_end ?? null}
-          cancelAtPeriodEnd={subscription?.cancel_at_period_end ?? false}
+          periodEnd={
+            entitlements.source === "app_store"
+              ? entitlements.appStoreAccessEndsAt
+              : (subscription?.current_period_end ?? null)
+          }
+          cancelAtPeriodEnd={
+            entitlements.source === "app_store"
+              ? entitlements.appStoreAutoRenew === false
+              : (subscription?.cancel_at_period_end ?? false)
+          }
           justPaid={billing === "success"}
         />
       </Card>

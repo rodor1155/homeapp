@@ -34,7 +34,17 @@ export default function ExportButton({
       <div className={`flex flex-col gap-1 ${alignClass} ${className}`}>
         <p className={`text-sm text-ink-soft ${textAlign}`}>
           <span>{children}</span>
-          <span className="mark-review"> — Export is unavailable in the app.</span>
+          <span className="mark-review">
+            {" "}
+            — Export is part of Hearth Household.{" "}
+            <Link
+              href="/settings"
+              className="text-action underline-offset-2 hover:underline"
+            >
+              See plans in Settings
+            </Link>
+            .
+          </span>
         </p>
       </div>
     );
@@ -139,7 +149,7 @@ async function downloadExport(
     if (response.status === 402) {
       setError(
         inNativeShell
-          ? "Export is unavailable in the app."
+          ? "Export is part of Hearth Household. See plans in Settings."
           : "Export is a paid feature. Upgrade in Settings to download your household data."
       );
       return;

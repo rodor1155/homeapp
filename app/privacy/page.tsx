@@ -1,5 +1,9 @@
 import Link from "next/link";
 import AppMark from "@/components/AppMark";
+import {
+  BillingDataCopy,
+  PaymentSubprocessors,
+} from "@/components/PrivacyBillingCopy";
 import { LedgerPage, Wordmark } from "@/components/ui";
 import { appTitle } from "@/lib/brand";
 
@@ -10,7 +14,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
-const LAST_UPDATED = "2 October 2026";
+const LAST_UPDATED = "9 October 2026";
 
 export default function PrivacyPage() {
   return (
@@ -72,9 +76,7 @@ export default function PrivacyPage() {
                 and your household add.
               </li>
               <li>
-                <strong>Billing</strong> — if you subscribe, Stripe holds payment
-                details; we store your plan status and Stripe customer reference
-                on our side.
+                <strong>Billing</strong> — <BillingDataCopy />
               </li>
               <li>
                 <strong>Technical data</strong> — session cookies that keep you
@@ -131,10 +133,7 @@ export default function PrivacyPage() {
               <li>
                 <strong>Vercel</strong> — hosting and delivery of the web app.
               </li>
-              <li>
-                <strong>Stripe</strong> — subscription payments (when billing is
-                enabled).
-              </li>
+              <PaymentSubprocessors />
               <li>
                 <strong>Google</strong> — optional sign-in only, if you choose
                 Continue with Google.
