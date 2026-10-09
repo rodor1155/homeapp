@@ -76,7 +76,7 @@ export default function NativePlanPanel({
   if (!configured) {
     return (
       <p className="text-sm text-ink-soft">
-        Everything in Hearth Home is switched on for this household.
+        Everything in Hearth is switched on for this household.
       </p>
     );
   }

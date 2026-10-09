@@ -6,7 +6,7 @@ import { appTitle } from "@/lib/brand";
 export const metadata = {
   title: appTitle("Delete your account"),
   description:
-    "How to delete your Hearth Home account, what is removed, and what happens in shared households.",
+    "How to delete your Hearth account, what is removed, and what happens in shared households.",
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
@@ -22,7 +22,7 @@ export default function AccountDeletionPage() {
           </div>
           <h1 className="font-display text-2xl text-ink">Delete your account</h1>
           <p className="text-sm text-ink-soft">
-            How to remove your Hearth Home sign-in and what happens to your
+            How to remove your Hearth sign-in and what happens to your
             data.
           </p>
         </header>

@@ -84,7 +84,7 @@ export async function submitSignedTransactions(
       ok: false,
       entitled: false,
       error:
-        "Your purchase went through, but we could not reach Hearth Home to update your plan. It will catch up next time you open the app.",
+        "Your purchase went through, but we could not reach Hearth to update your plan. It will catch up next time you open the app.",
     };
   }
 }

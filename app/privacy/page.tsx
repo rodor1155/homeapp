@@ -10,7 +10,7 @@ import { appTitle } from "@/lib/brand";
 export const metadata = {
   title: appTitle("Privacy policy"),
   description:
-    "How Hearth Home collects, uses and protects your household data.",
+    "How Hearth collects, uses and protects your household data.",
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           <h1 className="font-display text-2xl text-ink">Privacy policy</h1>
           <p className="text-sm text-ink-soft">
             Last updated {LAST_UPDATED}. This policy explains how{" "}
-            <span className="font-display italic">Hearth Home</span>
+            <span className="font-display italic">Hearth</span>
             handles personal data for households in the United Kingdom.
           </p>
         </header>
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
           <section>
             <h2>Who we are</h2>
             <p>
-              Hearth Home is a household app operated by Rodor. It helps you
+              Hearth is a household app operated by Rodor. It helps you
               track dates, manage shopping lists and share a home with the
               people who live there. Bills and household documents live on your
               iPhone, encrypted on-device and synced through your own iCloud —
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="mt-3">
               <strong>Documents on your iPhone</strong> — photos and PDFs you
-              file in the Hearth Home app stay on your device (and in your
+              file in the Hearth app stay on your device (and in your
               personal iCloud if you use iCloud). They are not uploaded to
               Rodor&apos;s servers.
             </p>
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
           <section>
             <h2>Cookies and session storage</h2>
             <p>
-              Hearth Home uses essential cookies set by Supabase Auth to maintain
+              Hearth uses essential cookies set by Supabase Auth to maintain
               your signed-in session. These are required for the app to work. We
               do not use advertising or third-party tracking cookies.
             </p>
@@ -210,7 +210,7 @@ export default function PrivacyPage() {
           </Link>
           <span className="mx-2">·</span>
           <Link href="/" className="text-action">
-            Hearth Home
+            Hearth
           </Link>
         </footer>
       </LedgerPage>

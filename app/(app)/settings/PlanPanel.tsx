@@ -5,7 +5,7 @@ import type { BillingInterval, EntitlementSource, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
 import { Button } from "@/components/ui";
 import { openExternalUrl } from "@/lib/open-external";
-import { useIsCapacitorNative } from "@/lib/use-is-capacitor-native";
+import { useCapacitorNativeState } from "@/lib/use-is-capacitor-native";
 import NativePlanPanel from "./NativePlanPanel";
 
 /* What each plan costs, as it is said to the household. Keep these in step
@@ -51,14 +51,18 @@ export default function PlanPanel({
   cancelAtPeriodEnd,
   justPaid,
 }: Props) {
-  const inNativeShell = useIsCapacitorNative();
+  const shell = useCapacitorNativeState();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prices = PRICES[locale ?? "UK"];
 
+  // Until we know whether this is the iPhone app, show neither card: the web
+  // checkout must never flash in the app, nor the App Store card on the web.
+  if (shell === "unknown") return null;
+
   // In the iPhone app the plan is bought and managed through Apple only:
   // nothing below this point (web checkout, the billing portal) is rendered.
-  if (inNativeShell) {
+  if (shell === "native") {
     return (
       <NativePlanPanel
         configured={configured}
@@ -106,7 +110,7 @@ export default function PlanPanel({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-ink-soft">
-          Everything in Hearth Home is switched on for this household.
+          Everything in Hearth is switched on for this household.
         </p>
         <p className="text-xs text-ink-faint">Billing isn’t set up yet.</p>
       </div>

@@ -33,7 +33,7 @@ const TAB_META: Record<
   "/family": { label: "Family", icon: Users },
   "/calendar": { label: "Calendar", icon: CalendarDays },
   "/lists": { label: "Lists", icon: ShoppingBasket },
-  "/documents": { label: "Documents", icon: FileText },
+  "/documents": { label: "Vault", icon: FileText },
 };
 
 const TABS: Tab[] = APP_TAB_HREFS.map((href) => ({

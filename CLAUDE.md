@@ -1,10 +1,10 @@
 @AGENTS.md
 
-# homeapp — "Hearth Home"
+# homeapp — "Hearth"
 
 A Next.js + Supabase app. This file records the plan and conventions so any
 agent (or human) picking up the repo has the same context. The product is
-being called **Hearth Home** in the UI (brand copy, emails, `lib/brand.ts`)
+being called **Hearth** in the UI (brand copy, emails, `lib/brand.ts`)
 as of the mid-September rebrand; the working-name decision in Notion is
 still formally open, so don't be surprised if it changes again — check
 `lib/brand.ts` for the current live name rather than assuming this doc.
@@ -42,7 +42,7 @@ is current.
 | 10 | Gmail document import (removed W2a). | **removed W2a** |
 | 11 | Hub / Lounge mode — read-mostly `/hub` display for a kitchen iPad. | done (no migration; composes existing loaders) |
 | 12 | iOS via Capacitor — thin native shell in a **separate** repo (`ios-shell-template`), loads this app's live URL. | in progress — see iOS section; last known blocker was an App Store Connect Issuer ID |
-| 13 | Rebrand to "Hearth Home" v1 — `AppMark`, deepened ink/navy/sage palette, map-forward hero. | done — superseded/extended by phase 16 |
+| 13 | Rebrand to "Hearth" v1 — `AppMark`, deepened ink/navy/sage palette, map-forward hero. | done — superseded/extended by phase 16 |
 | 14 | Renewals & deadlines — manual server-side until W2b; Coming up surfacing. | **removed W2b** — renewals live on-device in the native vault |
 | 15 | Household calendar subscribe feed — key dates and birthdays (no document dates post-W2a; no renewals post-W2b). | done, applied |
 | 16 | Theme system v2 + Home redesign — full light/dark via `prefers-color-scheme` (semantic CSS tokens, no in-app toggle), an evening map, the Home "card deck" (Coming up as a shuffleable stack), a weekend-only "Your week ahead" briefing. | done — replaced the phase-13 hero-and-list Home shape described in earlier revisions of this doc |
@@ -73,6 +73,23 @@ own initiative does not.
 ## Design system — "the household ledger", now theme-aware
 
 One visual system, defined once, used by every screen.
+
+**Palette v3 (Oct 2026)** — replaced washed-out pastels with mid-to-deep
+saturated hues while keeping token names unchanged. Principle: soft fills use
+~38% (light) / ~42% (dark) colour-mix instead of ~24% / ~28%; kind tints and
+washes are noticeably richer; accent and tab-bar active states are deeper amber.
+Text on soft fills still routes through `-ink` mixes for WCAG AA.
+
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--accent` | `#d4923a` | `#e0a84a` |
+| `--member-sage` | `#4a7350` | `#78a880` |
+| `--member-lilac` | `#5f5494` | `#9a90c8` |
+| `--member-sky` | `#3d7aa8` | `#6aa8d8` |
+| `--hue-lilac-tint` | `#ddd6ec` | `#2a2640` |
+| `--hue-peach-tint` | `#ecd4c0` | `#382818` |
+| `--hue-sky-tint` | `#d0e0ec` | `#1c2838` |
+| `--surface-glass-card` | `rgb(255 252 247 / 0.86)` | `rgb(24 34 58 / 0.88)` |
 
 - **Theme is system-driven only** — `prefers-color-scheme`, no in-app
   light/dark toggle anywhere. Light is the default. Every screen must work
@@ -567,7 +584,7 @@ new since the original billing write-up.
 - **Add document sheet** (`app/(app)/documents/AddDocumentSheet.tsx`) has
   three steps: `add` (Connect Gmail / Connect Outlook [disabled stub] / Take
   photo / Browse files / Upload from cloud storage [stub] / Share from other
-  apps [stub] / Email to Hearth Home [stub]) → `gmail-explain` → `gmail-review`
+  apps [stub] / Email to Hearth [stub]) → `gmail-explain` → `gmail-review`
   (tick candidates, pick a category per row; **nothing is stored until
   "Import N documents" is pressed**).
 - **OAuth**: `GET /api/gmail/connect` (CSRF `state` in an httpOnly cookie,

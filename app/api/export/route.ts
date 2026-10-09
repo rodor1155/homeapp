@@ -185,8 +185,8 @@ export async function GET() {
 
   zip.file(
     "README.txt",
-    `Hearth Home export — ${today}\r\n\r\n` +
-      `This zip is the household data Hearth Home stores on our servers: people, ` +
+    `Hearth export — ${today}\r\n\r\n` +
+      `This zip is the household data Hearth stores on our servers: people, ` +
       `schools, key dates, routines, meal plans, shopping lists and ` +
       `timetable slots. Documents and renewals live only on your iPhone ` +
       `(encrypted on-device and synced through your own iCloud) — they are ` +

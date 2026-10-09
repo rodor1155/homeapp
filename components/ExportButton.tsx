@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui";
-import { useIsCapacitorNative } from "@/lib/use-is-capacitor-native";
+import { useCapacitorNativeState } from "@/lib/use-is-capacitor-native";
 
 type Props = {
   canExport: boolean;
@@ -23,7 +23,7 @@ export default function ExportButton({
   align = "end",
   children,
 }: Props) {
-  const inNativeShell = useIsCapacitorNative();
+  const inNativeShell = useCapacitorNativeState() !== "web";
   const alignClass = align === "start" ? "items-start" : "items-end";
   const textAlign = align === "start" ? "text-left" : "text-right";
   const [pending, setPending] = useState(false);
