@@ -28,8 +28,8 @@ Open http://localhost:3000.
 | `CRON_SECRET` | server-only secret | bearer token for `/api/cron/reminders` and `/api/cron/school-calendars`; Vercel sends it automatically once set |
 | `STRIPE_SECRET_KEY` | server-only secret | Stripe key; **unset = billing off**, every household keeps the paid entitlements |
 | `STRIPE_WEBHOOK_SECRET` | server-only secret | signing secret for `/api/stripe/webhook`; unset = the webhook no-ops |
-| `STRIPE_PRICE_GBP_MONTHLY` | server-only | price ID offered to UK households, £4.99/mo |
-| `STRIPE_PRICE_GBP_YEARLY` | server-only | price ID offered to UK households, £39/yr |
+| `STRIPE_PRICE_GBP_MONTHLY` | server-only | price ID offered to UK households, £7.99/mo |
+| `STRIPE_PRICE_GBP_YEARLY` | server-only | price ID offered to UK households, £69/yr |
 | `STRIPE_PRICE_USD_MONTHLY` | server-only | price ID offered to US households, $6.99/mo |
 | `STRIPE_PRICE_USD_YEARLY` | server-only | price ID offered to US households, $59/yr |
 | `GOOGLE_CLIENT_ID` | server-only | OAuth client ID for Gmail read-only import (separate from Supabase sign-in Google) |
@@ -100,7 +100,7 @@ unreadable feed is recorded against that school rather than failing the run.
 ## Billing
 
 Free households keep unlimited documents but get three live reminders, no export
-and (later) no AI answers. Paying lifts all of that: £4.99/mo or £39/yr in the UK,
+and (later) no AI answers. Paying lifts all of that: £7.99/mo or £69/yr in the UK,
 $6.99/mo or $59/yr in the US, cancelled in one click from Stripe's billing portal.
 
 Billing is off until `STRIPE_SECRET_KEY` is set, and off means **inert** —

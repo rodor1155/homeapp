@@ -11,7 +11,7 @@ import NativePlanPanel from "./NativePlanPanel";
 /* What each plan costs, as it is said to the household. Keep these in step
    with the Stripe prices behind STRIPE_PRICE_GBP_* / STRIPE_PRICE_USD_*. */
 const PRICES: Record<Locale, Record<BillingInterval, string>> = {
-  UK: { monthly: "£4.99 a month", yearly: "£39 a year" },
+  UK: { monthly: "£7.99 a month", yearly: "£69 a year" },
   US: { monthly: "$6.99 a month", yearly: "$59 a year" },
 };
 
