@@ -78,6 +78,13 @@ function must(result, what) {
   return result.data;
 }
 
+/**
+ * Options for every multi-row insert. Without this PostgREST fills a key that
+ * is missing from some rows of a batch with NULL rather than the column
+ * default, which breaks NOT NULL columns such as bring_kit.
+ */
+const BATCH = { defaultToNull: false };
+
 function isoDate(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -172,23 +179,38 @@ async function ensureHousehold(userId) {
   return membership.household_id;
 }
 
+// Every table seed() fills. Children first; the rest cascade from these or are
+// independent.
+const SAMPLE_TABLES = [
+  "person_timetable_slots",
+  "household_meal_plans",
+  "household_routines",
+  "shopping_list_items",
+  "shopping_lists",
+  "household_events",
+  "household_people",
+  "schools",
+];
+
 async function clearSampleData(householdId) {
-  // Children first; the rest cascade from these or are independent.
-  for (const table of [
-    "person_timetable_slots",
-    "household_meal_plans",
-    "household_routines",
-    "shopping_list_items",
-    "shopping_lists",
-    "household_events",
-    "household_people",
-    "schools",
-  ]) {
+  for (const table of SAMPLE_TABLES) {
     must(
       await admin.from(table).delete().eq("household_id", householdId),
       `clear ${table}`
     );
   }
+}
+
+/** True if any sample table has a row — including one left by a run that failed part-way. */
+async function hasSampleData(householdId) {
+  for (const table of SAMPLE_TABLES) {
+    const rows = must(
+      await admin.from(table).select("id").eq("household_id", householdId).limit(1),
+      `read ${table}`
+    );
+    if (rows.length > 0) return true;
+  }
+  return false;
 }
 
 async function seed(householdId, userId) {
@@ -246,7 +268,7 @@ async function seed(householdId, userId) {
           postcode: "AL5 4TD",
           notes: "Bus 357 from the High Street at 7:55.",
         },
-      ])
+      ], BATCH)
       .select("id, name"),
     "create schools"
   );
@@ -298,7 +320,7 @@ async function seed(householdId, userId) {
           notes: "Swimming on Thursdays — towel and goggles.",
           sort_order: 3,
         },
-      ])
+      ], BATCH)
       .select("id, name"),
     "create people"
   );
@@ -357,7 +379,7 @@ async function seed(householdId, userId) {
         event_date: daysFromNow(40),
         event_type: "other",
       },
-    ]),
+    ], BATCH),
     "create dates"
   );
 
@@ -372,7 +394,7 @@ async function seed(householdId, userId) {
           notes: "Party is Saturday at the leisure centre.",
           sort_order: 1,
         },
-      ])
+      ], BATCH)
       .select("id, name"),
     "create lists"
   );
@@ -395,7 +417,7 @@ async function seed(householdId, userId) {
         3
       ),
       ...items(birthday.id, ["Candles", "Party bags x 12", "Football cake", "Balloons", "Thank-you cards"], 1),
-    ]),
+    ], BATCH),
     "create list items"
   );
 
@@ -405,7 +427,7 @@ async function seed(householdId, userId) {
       { household_id: householdId, title: "Swimming lesson — Leo", cadence: "weekly", weekday: 3, notes: "4:30 at the leisure centre.", sort_order: 1 },
       { household_id: householdId, title: "Change the bedding", cadence: "fortnightly", weekday: 5, anchor_date: daysFromNow(0), sort_order: 2 },
       { household_id: householdId, title: "Check smoke alarms", cadence: "monthly", day_of_month: 1, sort_order: 3 },
-    ]),
+    ], BATCH),
     "create routines"
   );
 
@@ -427,7 +449,9 @@ async function seed(householdId, userId) {
         weekday,
         title,
         ingredients_note: ingredients,
-      }))
+        sort_order: weekday,
+      })),
+      BATCH
     ),
     "create meal plan"
   );
@@ -439,6 +463,8 @@ async function seed(householdId, userId) {
     start_time: start,
     end_time: end,
     subject,
+    bring_kit: false,
+    bring_ingredients: false,
     ...extra,
   });
   must(
@@ -452,7 +478,7 @@ async function seed(householdId, userId) {
       slot(maya.id, 4, "08:50", "09:50", "History", { location: "H1" }),
       slot(leo.id, 1, "13:15", "14:15", "PE", { bring_kit: true, kit_label: "PE kit" }),
       slot(leo.id, 4, "13:15", "14:15", "PE", { bring_kit: true, kit_label: "PE kit" }),
-    ]),
+    ].map((row, index) => ({ ...row, sort_order: index })), BATCH),
     "create timetable"
   );
 }
@@ -461,16 +487,7 @@ async function main() {
   const userId = await ensureUser();
   const householdId = await ensureHousehold(userId);
 
-  const existingPeople = must(
-    await admin
-      .from("household_people")
-      .select("id", { count: "exact", head: false })
-      .eq("household_id", householdId)
-      .limit(1),
-    "read people"
-  );
-
-  if (existingPeople.length > 0 && !reset) {
+  if (!reset && (await hasSampleData(householdId))) {
     console.log(
       "The demo household already has data — left as it is. Re-run with --reset to clear and reseed it."
     );
