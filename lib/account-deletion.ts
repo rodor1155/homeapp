@@ -4,11 +4,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import {
   createStripeClient,
-  isBillingConfigured,
+  isStripeConfigured,
   loadSubscription,
   SUBSCRIPTION_SELECT,
   type SubscriptionRow,
 } from "@/lib/billing";
+import {
+  revokeAppleSignInForUser,
+  type AppleRevocationResult,
+} from "@/lib/apple-auth";
+import { loadActiveAppStoreSubscription } from "@/lib/appstore/subscriptions";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 const TERMINAL_STRIPE_STATUSES = new Set(["canceled", "incomplete_expired"]);
@@ -54,6 +59,8 @@ export type DeletionReport = {
   soleHouseholdsDeleted: string[];
   sharedHouseholdsLeft: string[];
   stripe: StripeDeletionResult[];
+  /** Sign in with Apple token revocation (Guideline 5.1.1(v)). */
+  apple: AppleRevocationResult;
 };
 
 export type AccountDeletionHouseholdPreview = {
@@ -63,6 +70,8 @@ export type AccountDeletionHouseholdPreview = {
   otherMemberCount: number;
   userRole: string;
   cancelSubscription: boolean;
+  /** A running App Store subscription — only Apple can cancel those. */
+  appStoreSubscription: boolean;
   nextOwnerLabel: string | null;
 };
 
@@ -103,9 +112,12 @@ export async function loadAccountDeletionPreview(
     const otherMemberCount = members.filter((row) => row.user_id !== userId).length;
 
     let cancelSubscription = false;
+    let appStoreSubscription = false;
     if (soleMember) {
       const subscription = await loadSubscription(membership.household_id);
       cancelSubscription = subscriptionNeedsCancellation(subscription);
+      appStoreSubscription =
+        (await loadActiveAppStoreSubscription(membership.household_id)) !== null;
     }
 
     let nextOwnerLabel: string | null = null;
@@ -128,6 +140,7 @@ export async function loadAccountDeletionPreview(
       otherMemberCount,
       userRole: membership.role,
       cancelSubscription,
+      appStoreSubscription,
       nextOwnerLabel,
     });
   }
@@ -163,6 +176,9 @@ export async function deleteAccountForUser(
     }
   }
 
+  // Before the user row goes (the stored token is deleted with it).
+  const apple = await revokeAppleSignInForUser(admin, userId);
+
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) {
     throw new AccountDeletionError(deleteError.message);
@@ -197,6 +213,7 @@ export async function deleteAccountForUser(
     soleHouseholdsDeleted: soleIds,
     sharedHouseholdsLeft: sharedIds,
     stripe,
+    apple,
   };
 }
 
@@ -318,7 +335,7 @@ async function cancelHouseholdSubscription(
     };
   }
 
-  if (!isBillingConfigured()) {
+  if (!isStripeConfigured()) {
     console.error(
       `[account-deletion] active subscription ${subscriptionId} for household ${householdId} but billing is not configured`
     );

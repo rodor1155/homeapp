@@ -10,6 +10,10 @@ import {
 } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase-client";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
+import {
+  signInWithAppleNative,
+  useHasNativeAppleSignIn,
+} from "@/lib/native-apple-sign-in";
 import { signInWithGoogleNative } from "@/lib/native-google-sign-in";
 import { publicAppOrigin } from "@/lib/public-app-origin";
 import PreAppShell from "@/components/PreAppShell";
@@ -39,8 +43,26 @@ export default function AuthPanel({
   );
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [googlePending, setGooglePending] = useState(false);
+  const showApple = useHasNativeAppleSignIn();
+  const [appleError, setAppleError] = useState<string | null>(null);
+  const [applePending, setApplePending] = useState(false);
+
+  async function handleApple() {
+    setAppleError(null);
+    setGoogleError(null);
+    setApplePending(true);
+    const { error, cancelled } = await signInWithAppleNative();
+    if (error || cancelled) {
+      setAppleError(error);
+      setApplePending(false);
+      return;
+    }
+    // The session is in this WebView's cookies now; let the server route.
+    window.location.assign(next);
+  }
 
   async function handleGoogle() {
+    setAppleError(null);
     setGoogleError(null);
     setGooglePending(true);
 
@@ -73,9 +95,12 @@ export default function AuthPanel({
     pwState?.success ??
     mlState?.error ??
     mlState?.success ??
+    appleError ??
     googleError ??
     null;
-  const isError = Boolean(pwState?.error || mlState?.error || googleError);
+  const isError = Boolean(
+    pwState?.error || mlState?.error || appleError || googleError
+  );
 
   return (
     <PreAppShell>
@@ -91,7 +116,22 @@ export default function AuthPanel({
           </p>
         </div>
 
-        <Button variant="quiet" type="button" onClick={handleGoogle} disabled={googlePending}>
+        {showApple ? (
+          <button
+            type="button"
+            onClick={handleApple}
+            disabled={applePending || googlePending}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-black px-4 text-[17px] font-medium text-white disabled:opacity-60"
+          >
+            {/* U+F8FF is the Apple logo in iOS system fonts; this button only renders in the iPhone app. */}
+            <span aria-hidden className="text-[19px] leading-none">
+              {"\uF8FF"}
+            </span>
+            {applePending ? "Signing in…" : "Sign in with Apple"}
+          </button>
+        ) : null}
+
+        <Button variant="quiet" type="button" onClick={handleGoogle} disabled={googlePending || applePending}>
           {googlePending ? "Taking you to Google…" : "Continue with Google"}
         </Button>
 

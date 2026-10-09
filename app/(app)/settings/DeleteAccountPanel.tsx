@@ -49,6 +49,7 @@ export default function DeleteAccountPanel({
 
   const armed = confirmText.trim() === CONFIRMATION;
   const cancelingSubscription = preview.some((row) => row.cancelSubscription);
+  const appStoreSubscription = preview.some((row) => row.appStoreSubscription);
 
   function remove() {
     if (demo) return;
@@ -110,6 +111,18 @@ export default function DeleteAccountPanel({
               cancelled immediately.
             </li>
           ) : null}
+          {appStoreSubscription ? (
+            <li>
+              Your Hearth Household subscription is billed by Apple and is{" "}
+              <strong className="font-medium text-ink">not</strong> cancelled
+              by deleting your account. Cancel it on your iPhone in Settings ›
+              your name › Subscriptions, or it will keep renewing.
+            </li>
+          ) : null}
+          <li>
+            If you signed in with Apple, Hearth Home is removed from the apps
+            using your Apple Account.
+          </li>
         </ul>
 
         <div className="mt-5 border-t border-rule pt-4">
