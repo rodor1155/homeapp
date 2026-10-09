@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test:sw": "node scripts/test-sw-policy.mjs",
-    "test:links": "node scripts/test-external-links.mjs"
+    "test:links": "node scripts/test-external-links.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@supabase/ssr": "^0.10.2",
@@ -32,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

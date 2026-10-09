@@ -46,7 +46,9 @@ export async function GET() {
     );
   }
 
-  const entitlements = await getEntitlements(membership.household_id);
+  const entitlements = await getEntitlements(membership.household_id, {
+    userEmail: user.email,
+  });
   if (!entitlements.canExport) {
     return Response.json(
       { error: "Export is a paid feature." },

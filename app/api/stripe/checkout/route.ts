@@ -1,6 +1,6 @@
 import {
   createStripeClient,
-  isBillingConfigured,
+  isStripeConfigured,
   loadSubscription,
   planKeyFor,
   priceIdFor,
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!isBillingConfigured()) {
+  if (!isStripeConfigured()) {
     return Response.json({ error: NOT_SET_UP }, { status: 503 });
   }
 

@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import {
   createStripeClient,
   householdIdForCustomer,
-  isBillingConfigured,
+  isStripeConfigured,
   patchFromSubscription,
   saveSubscription,
   type SubscriptionPatch,
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
   // With no key or secret there is nothing to verify against. 200 so Stripe
   // does not queue retries against a deployment that has never had billing on.
-  if (!isBillingConfigured() || !secret) {
+  if (!isStripeConfigured() || !secret) {
     return Response.json({ ok: true, ignored: "billing is not set up" });
   }
 

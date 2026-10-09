@@ -1,6 +1,6 @@
 import {
   createStripeClient,
-  isBillingConfigured,
+  isStripeConfigured,
   loadSubscription,
   returnUrl,
 } from "@/lib/billing";
@@ -23,7 +23,7 @@ export async function POST() {
     );
   }
 
-  if (!isBillingConfigured()) {
+  if (!isStripeConfigured()) {
     return Response.json(
       { error: "Billing is not set up yet." },
       { status: 503 }
