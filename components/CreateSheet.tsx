@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BottomSheet from "@/components/BottomSheet";
+import { usePaywall, usePlan } from "@/components/PlanProvider";
 import {
   hasNativeVault,
   openNativeAdd,
@@ -59,12 +60,18 @@ export default function CreateSheet({
   hideDocuments?: boolean;
 }) {
   const router = useRouter();
+  const canAddFamilyDates = usePlan()?.canAddFamilyDates ?? true;
+  const openPaywall = usePaywall();
   const options = hideDocuments
     ? OPTIONS.filter((option) => !option.href.startsWith("/documents"))
     : OPTIONS;
 
   function pick(href: string) {
     onClose();
+    if (href.startsWith("/calendar") && !canAddFamilyDates) {
+      void openPaywall("dates");
+      return;
+    }
     router.push(href);
   }
 

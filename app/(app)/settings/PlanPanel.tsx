@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { BillingInterval, EntitlementSource, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
+import { FREE_PLAN_COPY, PAID_PLAN_COPY, YEARLY_TRIAL_DAYS } from "@/lib/plan";
 import { Button } from "@/components/ui";
 import { openExternalUrl } from "@/lib/open-external";
 import { useCapacitorNativeState } from "@/lib/use-is-capacitor-native";
@@ -121,8 +122,8 @@ export default function PlanPanel({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-ink">
-          You are on the full plan — export and everyone you share the
-          household with.
+          You are on the full plan — household sharing, unlimited renewals
+          and the private document vault.
         </p>
         {source === "app_store" ? (
           <>
@@ -147,8 +148,8 @@ export default function PlanPanel({
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-ink">
-            You are on the full plan — export and everyone you share the
-            household with.
+            You are on the full plan — household sharing, unlimited renewals
+            and the private document vault.
           </p>
           {periodEnd ? (
             <p className="tnum mt-1 text-sm text-ink-soft">
@@ -181,9 +182,10 @@ export default function PlanPanel({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-ink">You are on the free plan.</p>
+        <p className="text-sm text-ink-soft">{FREE_PLAN_COPY}</p>
         <p className="text-sm text-ink-soft">
-          Paying adds export and sharing the household with someone else. You
-          can subscribe in the Hearth Home iPhone app.
+          Hearth Household: {PAID_PLAN_COPY}. You can subscribe in the Hearth
+          Home iPhone app.
         </p>
       </div>
     );
@@ -195,8 +197,9 @@ export default function PlanPanel({
         <p className="text-sm text-ink">
           You are on the free plan.
         </p>
+        <p className="mt-1 text-sm text-ink-soft">{FREE_PLAN_COPY}</p>
         <p className="mt-1 text-sm text-ink-soft">
-          Paying adds export and sharing the household with someone else.
+          Hearth Household: {PAID_PLAN_COPY}.
         </p>
       </div>
 
@@ -230,7 +233,8 @@ export default function PlanPanel({
         </Button>
       </div>
       <p className="text-xs text-ink-faint">
-        Cancel any time from this page. No refunds needed — the plan simply
+        The yearly plan starts with a {YEARLY_TRIAL_DAYS}-day free trial the
+        first time you subscribe. Cancel any time from this page. No refunds needed — the plan simply
         stops at the end of the period.
       </p>
     </div>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { EntitlementSource, Plan } from "@/lib/billing";
 import type { Locale } from "@/lib/household";
+import { FREE_PLAN_COPY, PAID_PLAN_COPY } from "@/lib/plan";
 import { Button } from "@/components/ui";
 import {
   manageNativeSubscriptions,
@@ -86,8 +87,8 @@ export default function NativePlanPanel({
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-ink">
-            You are on Hearth Household — export and everyone you share the
-            household with.
+            You are on Hearth Household — household sharing, unlimited
+            renewals and the private document vault.
           </p>
           {periodEnd ? (
             <p className="tnum mt-1 text-sm text-ink-soft">
@@ -143,8 +144,8 @@ export default function NativePlanPanel({
   if (plan === "paid") {
     return (
       <p className="text-sm text-ink">
-        Your household is on the full plan — export and everyone you share the
-        household with.
+        Your household is on the full plan — household sharing, unlimited
+        renewals and the private document vault.
       </p>
     );
   }
@@ -153,9 +154,9 @@ export default function NativePlanPanel({
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-sm text-ink">You are on the free plan.</p>
+        <p className="mt-1 text-sm text-ink-soft">{FREE_PLAN_COPY}</p>
         <p className="mt-1 text-sm text-ink-soft">
-          Hearth Household adds export and sharing the household with someone
-          else.
+          Hearth Household: {PAID_PLAN_COPY}.
         </p>
       </div>
       {messages}

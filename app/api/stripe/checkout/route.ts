@@ -9,6 +9,7 @@ import {
   type BillingInterval,
 } from "@/lib/billing";
 import { loadHouseholdContext } from "@/lib/household";
+import { YEARLY_TRIAL_DAYS } from "@/lib/plan";
 
 export const runtime = "nodejs";
 
@@ -75,6 +76,13 @@ export async function POST(request: Request) {
       }
     }
 
+    // The trial is for a household's first subscription only, as it is on
+    // the App Store, so cancelling and subscribing again does not repeat it.
+    const trial =
+      interval === "yearly" && !existing?.stripe_subscription_id
+        ? { trial_period_days: YEARLY_TRIAL_DAYS }
+        : {};
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -82,7 +90,7 @@ export async function POST(request: Request) {
       // Both, because the row may not exist yet when the event arrives.
       client_reference_id: household.id,
       metadata: { household_id: household.id },
-      subscription_data: { metadata: { household_id: household.id } },
+      subscription_data: { metadata: { household_id: household.id }, ...trial },
       success_url: returnUrl("/settings?billing=success"),
       cancel_url: returnUrl("/settings"),
       allow_promotion_codes: true,

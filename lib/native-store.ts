@@ -14,9 +14,24 @@ type PaywallResult = Signed & { purchased?: boolean; restored?: boolean };
 
 type ListenerHandle = { remove: () => void | Promise<void> };
 
+/** Why the paywall is being shown; the app says so above the plans. */
+export type PaywallReason = "renewals" | "sharing" | "vault" | "dates";
+
+/** The household's plan as the server decided it, for the app's own screens. */
+export type NativePlan = {
+  plan: "free" | "paid";
+  /** Renewals the app will track; null is unlimited. */
+  renewalLimit: number | null;
+  householdId: string;
+};
+
 type HearthStorePlugin = {
   getEntitlements?: () => Promise<Signed>;
-  openPaywall?: (options: { appAccountToken?: string }) => Promise<PaywallResult>;
+  openPaywall?: (options: {
+    appAccountToken?: string;
+    reason?: PaywallReason;
+  }) => Promise<PaywallResult>;
+  setPlan?: (plan: NativePlan) => Promise<void>;
   restorePurchases?: () => Promise<Signed & { message?: string }>;
   manageSubscriptions?: () => Promise<Signed>;
   addListener?: (
@@ -107,14 +122,15 @@ const NOTHING: StoreActionResult = {
 
 /** Opens the native paywall. `householdId` ties the purchase to this household. */
 export async function openNativePaywall(
-  householdId: string
+  householdId: string,
+  reason?: PaywallReason
 ): Promise<StoreActionResult> {
   const store = plugin();
   if (!store?.openPaywall) return NOTHING;
 
   let result: PaywallResult;
   try {
-    result = await store.openPaywall({ appAccountToken: householdId });
+    result = await store.openPaywall({ appAccountToken: householdId, reason });
   } catch (error) {
     return {
       ...NOTHING,
@@ -182,6 +198,22 @@ export async function manageNativeSubscriptions(): Promise<StoreActionResult> {
       ...NOTHING,
       error: messageOf(error, "Your subscriptions could not be opened."),
     };
+  }
+}
+
+/**
+ * Tells the app which plan the household is on. Renewals and the vault are
+ * native screens that keep their data on the phone, so the limits of the free
+ * plan are applied there; the plan itself is only ever decided on the server.
+ * Does nothing in a browser or in an app build from before the free plan.
+ */
+export async function syncNativePlan(plan: NativePlan): Promise<void> {
+  const store = plugin();
+  if (!store?.setPlan) return;
+  try {
+    await store.setPlan(plan);
+  } catch {
+    // The app keeps whatever it was last told.
   }
 }
 

@@ -5,6 +5,7 @@ import { isAppStoreConfigured } from "@/lib/appstore/config";
 import { accessEndsAt } from "@/lib/appstore/entitlement";
 import { loadActiveAppStoreSubscription } from "@/lib/appstore/subscriptions";
 import type { Locale } from "@/lib/household";
+import { FREE_RENEWAL_LIMIT } from "@/lib/plan";
 import { isReviewDemoEmail } from "@/lib/review-demo";
 import { createAdminClient } from "@/lib/supabase-admin";
 
@@ -32,9 +33,23 @@ export type EntitlementSource =
   | "review_demo"
   | "none";
 
+/** What an action answers with when the household needs the paid plan. */
+export const UPGRADE_MESSAGE = {
+  invite:
+    "Sharing your household is part of Hearth Household. The free plan is for one person.",
+  familyDates: "Adding family dates is part of Hearth Household.",
+} as const;
+
 export type Entitlements = {
   plan: Plan;
   canExport: boolean;
+  /** Invite someone else into the household. The free plan is for one person. */
+  canInvite: boolean;
+  canAddFamilyDates: boolean;
+  /** The document vault in the iPhone app. */
+  hasDocumentVault: boolean;
+  /** Renewals the iPhone app will track; null is unlimited. */
+  renewalLimit: number | null;
   activeSubscription: boolean;
   source: EntitlementSource;
   /** When the App Store subscription's access ends, when that is the source. */
@@ -68,6 +83,10 @@ function paid(
   return {
     plan: "paid",
     canExport: true,
+    canInvite: true,
+    canAddFamilyDates: true,
+    hasDocumentVault: true,
+    renewalLimit: null,
     // "Active subscription" means a real one: an unconfigured deployment and
     // the App Review demo account are paid without anything being billed.
     activeSubscription: source === "stripe" || source === "app_store",
@@ -80,6 +99,10 @@ function paid(
 const FREE: Entitlements = {
   plan: "free",
   canExport: false,
+  canInvite: false,
+  canAddFamilyDates: false,
+  hasDocumentVault: false,
+  renewalLimit: FREE_RENEWAL_LIMIT,
   activeSubscription: false,
   source: "none",
   appStoreAccessEndsAt: null,

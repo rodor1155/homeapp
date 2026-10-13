@@ -15,6 +15,7 @@ import { asMemberColour, nextFreeColour } from "@/lib/member-colours";
 import { syncHouseholdCalendar } from "@/lib/household-calendar";
 import { normaliseCalendarUrl } from "@/lib/ics";
 import { syncSchoolCalendar } from "@/lib/school-calendar";
+import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
@@ -23,11 +24,18 @@ import { createClient } from "@/lib/supabase-server";
    can touch; the household is resolved the same way the rest of the app
    resolves it — the most recently joined membership. */
 
-export type FamilyState = { error?: string; ok?: boolean } | undefined;
+export type FamilyState =
+  | {
+      error?: string;
+      ok?: boolean;
+      /** The household needs the paid plan for this; show the paywall. */
+      upgrade?: boolean;
+    }
+  | undefined;
 
 type Caller =
   | { ok: false; error: string }
-  | { ok: true; householdId: string };
+  | { ok: true; householdId: string; userEmail: string | null };
 
 async function resolveCaller(supabase: SupabaseClient): Promise<Caller> {
   const {
@@ -43,7 +51,11 @@ async function resolveCaller(supabase: SupabaseClient): Promise<Caller> {
     return { ok: false, error: "No household found for your account." };
   }
 
-  return { ok: true, householdId: membership.household_id as string };
+  return {
+    ok: true,
+    householdId: membership.household_id as string,
+    userEmail: user.email ?? null,
+  };
 }
 
 function text(formData: FormData, key: string): string {
@@ -663,6 +675,14 @@ export async function saveEvent(
       .eq("household_id", caller.householdId);
     if (error) return { error: error.message };
   } else {
+    // Only adding is part of the paid plan: dates already there can still be
+    // read, changed and removed on the free one.
+    const entitlements = await getEntitlements(caller.householdId, {
+      userEmail: caller.userEmail,
+    });
+    if (!entitlements.canAddFamilyDates) {
+      return { error: UPGRADE_MESSAGE.familyDates, upgrade: true };
+    }
     const { error } = await supabase
       .from("household_events")
       .insert({ household_id: caller.householdId, ...values });

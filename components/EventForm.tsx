@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { saveEvent, type FamilyState } from "@/app/actions/family";
+import { usePaywall } from "@/components/PlanProvider";
 import { Button, Field } from "@/components/ui";
 import {
   EVENT_TYPES,
@@ -36,9 +37,17 @@ export default function EventForm({
     undefined
   );
 
+  const openPaywall = usePaywall();
+
   useEffect(() => {
     if (state?.ok) onDone();
   }, [state?.ok, onDone]);
+
+  // The server turned a new date down because the household is on the free
+  // plan (it lapsed while the form was open).
+  useEffect(() => {
+    if (state?.upgrade) void openPaywall("dates");
+  }, [state, openPaywall]);
 
   return (
     <form action={submit} className="flex flex-col gap-3">

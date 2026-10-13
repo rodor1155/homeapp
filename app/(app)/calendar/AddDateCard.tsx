@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import EventForm from "@/components/EventForm";
+import { usePaywall, usePlan } from "@/components/PlanProvider";
 import { Button, Card } from "@/components/ui";
 import type { HouseholdPerson } from "@/lib/family";
 
@@ -24,8 +25,11 @@ export default function AddDateCard({
   monthLabel: string;
   startAdding?: boolean;
 }) {
-  const [adding, setAdding] = useState(startAdding);
+  const [wantsToAdd, setAdding] = useState(startAdding);
   const stopAdding = useCallback(() => setAdding(false), []);
+  const canAdd = usePlan()?.canAddFamilyDates ?? true;
+  const openPaywall = usePaywall();
+  const adding = wantsToAdd && canAdd;
 
   return (
     <Card title={adding ? "A new date" : undefined}>
@@ -44,7 +48,7 @@ export default function AddDateCard({
           <Button
             type="button"
             variant="quiet"
-            onClick={() => setAdding(true)}
+            onClick={() => (canAdd ? setAdding(true) : void openPaywall("dates"))}
             className="shrink-0"
           >
             Add a date

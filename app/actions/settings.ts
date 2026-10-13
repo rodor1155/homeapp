@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 import type { MemberEmail } from "@/lib/members";
@@ -138,6 +139,11 @@ export async function inviteMember(
   if (email === caller.email?.toLowerCase()) {
     return { error: "That is your own address — you are already here." };
   }
+
+  const entitlements = await getEntitlements(caller.householdId, {
+    userEmail: caller.email,
+  });
+  if (!entitlements.canInvite) return { error: UPGRADE_MESSAGE.invite };
 
   const { data: emails } = await supabase.rpc("household_member_emails", {
     p_household_id: caller.householdId,

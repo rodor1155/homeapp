@@ -3,6 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 import BottomSheet from "@/components/BottomSheet";
 import InviteSomeoneContent from "@/components/invite/InviteSomeoneContent";
+import { usePaywall } from "@/components/PlanProvider";
 import {
   createInviteLink,
   listInviteLinks,
@@ -26,11 +27,18 @@ export default function InviteSomeoneSheet({
   const [error, setError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const openPaywall = usePaywall();
 
   const onCreateLink = useCallback(() => {
     setError(null);
     startTransition(async () => {
       const result = await createInviteLink();
+      if (result?.upgrade) {
+        // The plan lapsed while the sheet was open.
+        onClose();
+        void openPaywall("sharing");
+        return;
+      }
       if (result?.error) {
         setError(result.error);
         return;
@@ -40,7 +48,7 @@ export default function InviteSomeoneSheet({
         setLinks(await listInviteLinks());
       }
     });
-  }, []);
+  }, [onClose, openPaywall]);
 
   const onRevoke = useCallback((id: string) => {
     setError(null);

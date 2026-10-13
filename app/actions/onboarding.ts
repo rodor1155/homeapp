@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getEntitlements } from "@/lib/billing";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
@@ -83,12 +84,19 @@ export async function completeOnboarding(
   }
 
   if (partnerEmail && partnerEmail !== user.email?.toLowerCase()) {
-    // Best effort: a failed invite record shouldn't block onboarding.
-    await supabase.from("household_invites").insert({
-      household_id: householdId,
-      email: partnerEmail,
-      invited_by: user.id,
+    // Sharing needs the paid plan; on the free one the invite is not noted and
+    // they can invite from Settings once they subscribe.
+    const entitlements = await getEntitlements(householdId, {
+      userEmail: user.email,
     });
+    if (entitlements.canInvite) {
+      // Best effort: a failed invite record shouldn't block onboarding.
+      await supabase.from("household_invites").insert({
+        household_id: householdId,
+        email: partnerEmail,
+        invited_by: user.id,
+      });
+    }
   }
 
   redirect("/dashboard");

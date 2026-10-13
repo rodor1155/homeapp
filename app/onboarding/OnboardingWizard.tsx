@@ -16,6 +16,8 @@ type Props = {
   defaultAddress: string;
   defaultType: string;
   defaultYearBuilt: number | null;
+  /** False on the free plan, which is for one person. */
+  canInvite: boolean;
 };
 
 const STEPS = ["Where your home is", "About the property", "Sharing"] as const;
@@ -25,6 +27,7 @@ export default function OnboardingWizard({
   defaultAddress,
   defaultType,
   defaultYearBuilt,
+  canInvite,
 }: Props) {
   const [state, dispatch] = useActionState<OnboardingState, OnboardingInput>(
     completeOnboarding,
@@ -136,7 +139,15 @@ export default function OnboardingWizard({
             </>
           )}
 
-          {step === 2 && (
+          {step === 2 && !canInvite && (
+            <p className="text-sm text-ink-soft">
+              Hearth is free for one person. To share your household with a
+              partner or another adult, see plans in Settings once you are set
+              up.
+            </p>
+          )}
+
+          {step === 2 && canInvite && (
             <>
               <Field label="Invite a partner by email" hint="optional">
                 <input

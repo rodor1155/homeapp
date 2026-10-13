@@ -8,7 +8,7 @@ App Review signs in with one email-and-password account whose household is alrea
 
 - **Who it is** comes from the environment: `REVIEW_DEMO_EMAIL` on Vercel. Nothing is hard-coded, and with the variable unset there is no demo account.
 - **Its password** exists only in Supabase Auth. You choose it when you run the seed script; it is never in the repo or on Vercel.
-- **Paywall bypass** is decided on the server, for that account only: `getEntitlements()` in `lib/billing.ts` returns the paid plan when the signed-in user's email equals `REVIEW_DEMO_EMAIL` (`lib/review-demo.ts`). The export endpoint and the Settings page both go through it. Nothing in the app or the browser can claim to be the demo account.
+- **Paywall bypass** is decided on the server, for that account only: `getEntitlements()` in `lib/billing.ts` returns the paid plan when the signed-in user's email equals `REVIEW_DEMO_EMAIL` (`lib/review-demo.ts`). Everything that depends on the plan goes through it — the export endpoint, the Settings page, the invite and family-date actions, and the plan the app layout passes to the iPhone app's own screens — so the demo account is never on the free plan. Nothing in the app or the browser can claim to be the demo account.
 - The reviewer can still see the purchase flow: the demo account's Plan card says it has the full plan without a purchase and offers **See subscription options**, which opens the real paywall.
 
 ### Setting it up
@@ -42,7 +42,7 @@ Notes (paste and adjust):
 >
 > **Demo data.** The demo household ("The Ashworths") has family members, schools, dates, shopping lists, routines, a meal plan and a timetable already entered.
 >
-> **Subscription (Hearth Household, auto-renewable, monthly and yearly).** Open Settings ▸ Plan. The demo account already has the full plan so every feature can be reviewed without paying; tap "See subscription options" there to open the paywall and make a sandbox purchase. Any other account sees "See plans" and "Restore purchases" in the same place. The subscription unlocks downloading the household's data ("Download my data") and sharing the household.
+> **Free plan and subscription (Hearth Household, auto-renewable, monthly and yearly, 7-day free trial on yearly).** Without a subscription the app is free for one person, who can track up to 5 renewals, scanning included. The subscription adds sharing the household, unlimited renewals, the private document vault and adding family dates; the paywall opens when a free account adds a sixth renewal, invites someone, opens the Documents tab of the vault or adds a family date. Open Settings ▸ Plan. The demo account already has the full plan so every feature can be reviewed without paying; tap "See subscription options" there to open the paywall and make a sandbox purchase. Any other account sees "See plans" and "Restore purchases" in the same place.
 >
 > **Documents.** Open Documents and add one by scanning, or by choosing a photo or PDF. Documents are stored only on the device and in the user's own iCloud, end-to-end encrypted; they never reach our servers. iCloud must be signed in on the test device for sync, but adding a document works without it.
 >
@@ -57,4 +57,6 @@ Notes (paste and adjust):
 - `REVIEW_DEMO_EMAIL` is set on Vercel and the account signs in.
 - `APPSTORE_APP_APPLE_ID` is set on Vercel (otherwise billing is off and the Plan card shows no paywall), the two migrations are applied, and both subscription products are "Ready to Submit" and attached to the version.
 - A sandbox purchase on TestFlight flips a normal account to "You are on Hearth Household", and Restore purchases works on a second install.
+- The yearly product has a 7-day free trial introductory offer in App Store Connect. The paywall only mentions a trial when StoreKit offers one to that Apple Account, so without it the yearly plan is simply shown at its price.
+- A normal account with no subscription can add five renewals and is shown the paywall on the sixth; the demo account is not limited.
 - Nothing in the iPhone app mentions paying on the web or names a card processor (Settings ▸ Plan, the export message, the privacy policy).

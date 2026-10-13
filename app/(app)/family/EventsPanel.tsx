@@ -3,6 +3,7 @@
 import { useActionState, useCallback, useState } from "react";
 import { deleteEvent, type FamilyState } from "@/app/actions/family";
 import EventForm from "@/components/EventForm";
+import { usePaywall, usePlan } from "@/components/PlanProvider";
 import { Button } from "@/components/ui";
 import { formatDate, relativeWhen } from "@/lib/dates";
 import {
@@ -23,6 +24,8 @@ export default function EventsPanel({ events, people, locale }: Props) {
   const [adding, setAdding] = useState(false);
   const [showingPast, setShowingPast] = useState(false);
   const stopAdding = useCallback(() => setAdding(false), []);
+  const canAdd = usePlan()?.canAddFamilyDates ?? true;
+  const openPaywall = usePaywall();
 
   const ahead: HouseholdEvent[] = [];
   const behind: HouseholdEvent[] = [];
@@ -83,10 +86,14 @@ export default function EventsPanel({ events, people, locale }: Props) {
       ) : null}
 
       <div className="border-t border-rule pt-4">
-        {adding ? (
+        {adding && canAdd ? (
           <EventForm people={people} onDone={stopAdding} />
         ) : (
-          <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
+          <Button
+            type="button"
+            variant="quiet"
+            onClick={() => (canAdd ? setAdding(true) : void openPaywall("dates"))}
+          >
             Add a date
           </Button>
         )}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import InviteSomeoneSheet from "@/components/InviteSomeoneSheet";
+import { usePaywall, usePlan } from "@/components/PlanProvider";
 import type { PendingInviteLink } from "@/lib/invite-links";
 
 type Props = {
@@ -17,6 +18,8 @@ export default function InviteSomeoneButton({
   className = "",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const canInvite = usePlan()?.canInvite ?? true;
+  const openPaywall = usePaywall();
 
   const btnClass =
     variant === "primary"
@@ -28,7 +31,7 @@ export default function InviteSomeoneButton({
       <button
         type="button"
         className={btnClass}
-        onClick={() => setOpen(true)}
+        onClick={() => (canInvite ? setOpen(true) : void openPaywall("sharing"))}
       >
         {variant === "quiet" ? (
           <UserPlus size={16} aria-hidden strokeWidth={2} />

@@ -8,11 +8,20 @@ import {
   loadPendingInviteLinks,
   type PendingInviteLink,
 } from "@/lib/invite-links";
+import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
 import { queryActiveMembership } from "@/lib/household";
 import { publicAppOrigin } from "@/lib/public-app-origin";
 import { createClient } from "@/lib/supabase-server";
 
-export type InviteLinkState = { error?: string; ok?: boolean; url?: string } | undefined;
+export type InviteLinkState =
+  | {
+      error?: string;
+      ok?: boolean;
+      url?: string;
+      /** The household needs the paid plan for this; show the paywall. */
+      upgrade?: boolean;
+    }
+  | undefined;
 
 const MAX_PENDING_LINKS = 10;
 const LINK_TTL_DAYS = 7;
@@ -40,6 +49,7 @@ async function resolveHousehold() {
     ok: true as const,
     supabase,
     userId: user.id,
+    userEmail: user.email ?? null,
     householdId: membership.household_id as string,
   };
 }
@@ -55,6 +65,15 @@ export async function listInviteLinks(): Promise<PendingInviteLink[]> {
 export async function createInviteLink(): Promise<InviteLinkState> {
   const caller = await resolveHousehold();
   if (!caller.ok) return { error: caller.error };
+
+  // The free plan is for one person. Links already out, and the people who
+  // have already joined, are left alone.
+  const entitlements = await getEntitlements(caller.householdId, {
+    userEmail: caller.userEmail,
+  });
+  if (!entitlements.canInvite) {
+    return { error: UPGRADE_MESSAGE.invite, upgrade: true };
+  }
 
   const now = new Date();
   const { count, error: countErr } = await caller.supabase
