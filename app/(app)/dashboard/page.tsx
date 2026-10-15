@@ -19,6 +19,7 @@ export default async function DashboardPage(
       user={user}
       locale={locale}
       householdId={household.id}
+      householdName={household.name}
       address={property.address}
       openWeekSheet={week === "1"}
     />

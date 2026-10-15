@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { House } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
+import HearthMapController from "@/components/HearthMapController";
 import type { ComingUpEntry } from "@/lib/coming-up";
 import type { HouseholdPerson } from "@/lib/family";
 import type { Locale } from "@/lib/household";
@@ -13,12 +14,11 @@ import WhosWhereChips from "./WhosWhereChips";
 export type EveningMapViewProps = {
   firstName: string;
   initials: string;
+  householdName: string;
   entries: readonly ComingUpEntry[];
   people: readonly HouseholdPerson[];
   statuses: Record<string, string>;
-  mapImagePathLight: string | null;
-  mapImagePathDark: string | null;
-  usesCarto: boolean;
+  mapCenter: { lat: number; lng: number } | null;
   locale: Locale;
   loadFault: string | null;
   invites: ReactNode;
@@ -29,12 +29,11 @@ export type EveningMapViewProps = {
 export default function EveningMapView({
   firstName,
   initials,
+  householdName,
   entries,
   people,
   statuses,
-  mapImagePathLight,
-  mapImagePathDark,
-  usesCarto,
+  mapCenter,
   locale,
   loadFault,
   invites,
@@ -43,10 +42,8 @@ export default function EveningMapView({
 }: EveningMapViewProps) {
   return (
     <div className="evening-map-screen">
-      <MapLayer
-        mapImagePathLight={mapImagePathLight}
-        mapImagePathDark={mapImagePathDark}
-      />
+      <HearthMapController mapCenter={mapCenter} />
+      <div aria-hidden className="evening-map-layer evening-map-fallback" />
       <div aria-hidden className="evening-map-scrim-top" />
       <div aria-hidden className="evening-map-scrim-bottom" />
 
@@ -57,17 +54,11 @@ export default function EveningMapView({
         </span>
       </div>
 
-      {mapImagePathLight ? (
-        <p className="evening-map-credit">
-          © OpenStreetMap{usesCarto ? " · CARTO" : ""}
-        </p>
-      ) : null}
-
       <div className="evening-map-chrome">
         <header className="flex items-start justify-between gap-3 px-4 pb-2 pt-3">
           <div className="min-w-0 flex-1">
             <EveningMapGreeting firstName={firstName} />
-            <EveningMapBriefing entries={entries} />
+            <EveningMapBriefing householdName={householdName} entries={entries} />
             <WhosWhereChips people={people} statuses={statuses} />
           </div>
           <Link
@@ -97,32 +88,6 @@ export default function EveningMapView({
           />
         </Suspense>
       </div>
-    </div>
-  );
-}
-
-function MapLayer({
-  mapImagePathLight,
-  mapImagePathDark,
-}: {
-  mapImagePathLight: string | null;
-  mapImagePathDark: string | null;
-}) {
-  if (!mapImagePathLight) {
-    return <div aria-hidden className="evening-map-layer evening-map-fallback" />;
-  }
-
-  return (
-    <div aria-hidden className="evening-map-layer">
-      <picture>
-        {mapImagePathDark ? (
-          <source
-            media="(prefers-color-scheme: dark)"
-            srcSet={mapImagePathDark}
-          />
-        ) : null}
-        <img src={mapImagePathLight} alt="" />
-      </picture>
     </div>
   );
 }

@@ -34,6 +34,20 @@ export const HOME_MAP_COORD_DECIMALS = 3;
  * we can place. Memoised for the request so the hero and anything else share
  * one lookup.
  */
+/** Geocoded home pin for MapKit / fallbacks — no raster stitch. */
+export const resolveHomeCoordinates = cache(
+  async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
+    const postcode = extractUkPostcode(address);
+    if (!postcode) return null;
+    const point = await geocodePostcode(postcode);
+    if (!point) return null;
+    return {
+      latitude: roundCoord(point.latitude),
+      longitude: roundCoord(point.longitude),
+    };
+  }
+);
+
 export const resolveHomeMap = cache(
   async (address: string): Promise<HomeMapPoint | null> => {
     const postcode = extractUkPostcode(address);
@@ -47,7 +61,7 @@ export const resolveHomeMap = cache(
     const token = mintHomeMapToken(latitude, longitude);
     const imagePathLight = homeMapImagePath(latitude, longitude, token, "light");
     const imagePathDark = homeMapImagePath(latitude, longitude, token, "dark");
-    const usesCarto = Boolean(process.env.CARTO_BASEMAPS_API_KEY?.trim());
+    const usesCarto = false;
     return { latitude, longitude, imagePathLight, imagePathDark, usesCarto };
   }
 );

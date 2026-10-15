@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { displayName, type ShellUser } from "@/components/ShellGreeting";
 import type { Locale } from "@/lib/household";
-import { resolveHomeMap } from "@/lib/home-map";
+import { resolveHomeCoordinates } from "@/lib/home-map";
 import { createClient } from "@/lib/supabase-server";
 import { loadPersonDayStatuses, todayIso } from "@/lib/whos-where";
 import { loadComingUpData } from "./coming-up-data";
@@ -22,21 +22,23 @@ export default async function EveningMapHome({
   user,
   locale,
   householdId,
+  householdName,
   address,
   openWeekSheet = false,
 }: {
   user: ShellUser;
   locale: Locale;
   householdId: string;
+  householdName: string;
   address: string;
   openWeekSheet?: boolean;
 }) {
   const supabase = await createClient();
   const date = todayIso();
-  const [comingUp, statusLoad, homeMap] = await Promise.all([
+  const [comingUp, statusLoad, mapCenter] = await Promise.all([
     loadComingUpData(supabase, householdId, new Date(), locale),
     loadPersonDayStatuses(supabase, householdId, date),
-    resolveHomeMap(address),
+    resolveHomeCoordinates(address),
   ]);
 
   const name = displayName(user);
@@ -50,12 +52,15 @@ export default async function EveningMapHome({
     <EveningMapView
       firstName={firstName}
       initials={initials(name)}
+      householdName={householdName}
       entries={comingUp.entries}
       people={comingUp.people}
       statuses={statuses}
-      mapImagePathLight={homeMap?.imagePathLight ?? null}
-      mapImagePathDark={homeMap?.imagePathDark ?? null}
-      usesCarto={homeMap?.usesCarto ?? false}
+      mapCenter={
+        mapCenter
+          ? { lat: mapCenter.latitude, lng: mapCenter.longitude }
+          : null
+      }
       locale={locale}
       loadFault={comingUp.loadFault}
       weekAhead={comingUp.weekAhead}

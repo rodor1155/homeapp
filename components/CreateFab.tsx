@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Plus } from "lucide-react";
-import CreateSheet from "@/components/CreateSheet";
-import { useHasNativeVault } from "@/lib/native-vault";
+import AddToHouseSheet from "@/components/AddToHouseSheet";
+import HearthShareInListener from "@/components/HearthShareInListener";
+import type { HearthShareInDraft } from "@/lib/hearth-share-in";
 import { useViewMode } from "@/components/ViewModeToggle";
 
-/** Centre + above the tab bar — opens the create chooser sheet. */
+/** Centre + above the tab bar — opens the Atlas add sheet. */
 export default function CreateFab() {
   const [open, setOpen] = useState(false);
+  const [shareDraft, setShareDraft] = useState<HearthShareInDraft | null>(null);
   const viewMode = useViewMode();
-  const nativeVault = useHasNativeVault();
+  const onShareDraft = useCallback((draft: HearthShareInDraft) => {
+    setShareDraft(draft);
+    setOpen(true);
+  }, []);
 
   return (
     <>
+      <HearthShareInListener onDraft={onShareDraft} />
       <div
         className="hearth-create-fab pointer-events-none fixed inset-x-0 z-40 flex justify-center"
         style={{
@@ -32,10 +38,11 @@ export default function CreateFab() {
           <Plus size={28} strokeWidth={2.3} aria-hidden />
         </button>
       </div>
-      <CreateSheet
-        open={open}
+      <AddToHouseSheet
+        open={open && viewMode !== "child"}
         onClose={() => setOpen(false)}
-        hideDocuments={viewMode === "child" || !nativeVault}
+        shareDraft={shareDraft}
+        onShareDraftConsumed={() => setShareDraft(null)}
       />
     </>
   );
