@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePaywall } from "@/components/PlanProvider";
 import { Button } from "@/components/ui";
 import { useCapacitorNativeState } from "@/lib/use-is-capacitor-native";
 
@@ -24,6 +25,7 @@ export default function ExportButton({
   children,
 }: Props) {
   const inNativeShell = useCapacitorNativeState() !== "web";
+  const openPaywall = usePaywall();
   const alignClass = align === "start" ? "items-start" : "items-end";
   const textAlign = align === "start" ? "text-left" : "text-right";
   const [pending, setPending] = useState(false);
@@ -31,21 +33,22 @@ export default function ExportButton({
 
   if (inNativeShell && billingConfigured && !canExport) {
     return (
-      <div className={`flex flex-col gap-1 ${alignClass} ${className}`}>
+      <div className={`flex flex-col gap-2 ${alignClass} ${className}`}>
         <p className={`text-sm text-ink-soft ${textAlign}`}>
           <span>{children}</span>
           <span className="mark-review">
             {" "}
-            — Export is part of Hearth Household.{" "}
-            <Link
-              href="/settings"
-              className="text-action underline-offset-2 hover:underline"
-            >
-              See plans in Settings
-            </Link>
-            .
+            — Export is part of Hearth Household.
           </span>
         </p>
+        <Button
+          type="button"
+          variant={variant}
+          className="w-full sm:w-auto"
+          onClick={() => void openPaywall()}
+        >
+          See plans
+        </Button>
       </div>
     );
   }

@@ -113,7 +113,9 @@ export default function EventForm({
         />
       </Field>
 
-      {state?.error ? <p className="text-sm mark-fault">{state.error}</p> : null}
+      {state?.error && !state.upgrade ? (
+        <p className="text-sm mark-fault">{state.error}</p>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

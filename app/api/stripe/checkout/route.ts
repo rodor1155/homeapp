@@ -9,6 +9,10 @@ import {
   type BillingInterval,
 } from "@/lib/billing";
 import { loadHouseholdContext } from "@/lib/household";
+import {
+  isNativeShellRequest,
+  WEB_CHECKOUT_BLOCKED_MESSAGE,
+} from "@/lib/native-shell-request";
 import { YEARLY_TRIAL_DAYS } from "@/lib/plan";
 
 export const runtime = "nodejs";
@@ -22,6 +26,10 @@ function readInterval(body: unknown): BillingInterval {
 }
 
 export async function POST(request: Request) {
+  if (isNativeShellRequest(request)) {
+    return Response.json({ error: WEB_CHECKOUT_BLOCKED_MESSAGE }, { status: 403 });
+  }
+
   const { user, household } = await loadHouseholdContext();
   if (!user) {
     return Response.json({ error: "You are not signed in." }, { status: 401 });

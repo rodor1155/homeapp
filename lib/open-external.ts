@@ -5,6 +5,7 @@ import {
   shouldNavigateForOsScheme,
   shouldOpenExternalLink as shouldOpenExternalLinkImpl,
 } from "./open-external-link.mjs";
+import { isWebPaymentUrl } from "./web-payment-url.mjs";
 
 export type OpenExternalOptions = {
   /** In a plain browser, navigate the current tab instead of opening a new one. */
@@ -28,6 +29,10 @@ export async function openExternalUrl(
   url: string,
   options?: OpenExternalOptions
 ): Promise<void> {
+  if (isCapacitorNative() && isWebPaymentUrl(url)) {
+    return;
+  }
+
   if (isCapacitorNative()) {
     if (shouldNavigateForOsScheme(url)) {
       window.location.href = url;

@@ -6,6 +6,7 @@ import {
   shouldNavigateForOsScheme,
   shouldOpenExternalLink,
 } from "../lib/open-external-link.mjs";
+import { isWebPaymentUrl } from "../lib/web-payment-url.mjs";
 
 const ORIGIN = "https://homeapp-mu.vercel.app";
 
@@ -106,6 +107,16 @@ assert(
 assert(
   shouldNavigateForOsScheme("not a valid url %%") === false,
   "malformed URL should not use OS navigation",
+);
+
+assert(
+  isWebPaymentUrl("https://checkout.stripe.com/pay/cs_test"),
+  "Stripe checkout is a web payment URL",
+);
+
+assert(
+  isWebPaymentUrl("https://homeapp-mu.vercel.app/settings") === false,
+  "same-app settings is not a web payment URL",
 );
 
 console.log(`external links: ${passed} passed, ${failed} failed`);
