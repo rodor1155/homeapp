@@ -19,7 +19,10 @@ import {
   atlasActionsForComingUp,
   atlasEyebrowForComingUp,
 } from "@/lib/atlas-deck-actions";
-import { atlasColorForComingUpKind } from "@/lib/atlas-colors";
+import {
+  ATLAS_COLOR_CLASS,
+  atlasColorForComingUpKind,
+} from "@/lib/atlas-colors";
 import {
   eveningCardWhen,
   eveningStackEntries,
@@ -108,6 +111,7 @@ function AtlasDeckCardShell({
   crossfading,
   reducedMotion,
   peekTitle,
+  fillClass,
   children,
   cardRef,
   onFrontKeyDown,
@@ -125,6 +129,7 @@ function AtlasDeckCardShell({
   crossfading?: boolean;
   reducedMotion: boolean;
   peekTitle: string;
+  fillClass: string;
   children: ReactNode;
   cardRef?: React.RefObject<HTMLElement | null>;
   onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
@@ -162,7 +167,7 @@ function AtlasDeckCardShell({
       data-evening-deck-card={isFront ? "front" : stackIndex}
       role={isFront ? "group" : undefined}
       tabIndex={isFront ? 0 : undefined}
-      className={`evening-card atlas-deck-card ${peekClass}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`}
+      className={`evening-card atlas-deck-card ${fillClass} ${peekClass}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`}
       style={{
         zIndex: t.z,
         opacity,
@@ -187,13 +192,15 @@ function AtlasDeckCardShell({
       onPointerCancel={isFront ? onFrontPointerCancel : undefined}
     >
       {!isFront ? (
-        <p className="evening-card-peek-title" aria-hidden>
+        <p className="evening-card-peek-title atlas-peek-on-solid" aria-hidden>
           {peekTitle}
         </p>
       ) : null}
-      <div className="evening-card-content" aria-hidden={!isFront}>
-        {children}
-      </div>
+      {isFront ? (
+        <div className="evening-card-content evening-card--front">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -243,6 +250,7 @@ function EveningDeckCard({
 }) {
   const actions = atlasActionsForComingUp(entry);
   const color = atlasColorForComingUpKind(entry.kind);
+  const fillClass = ATLAS_COLOR_CLASS[color];
 
   return (
     <AtlasDeckCardShell
@@ -255,6 +263,7 @@ function EveningDeckCard({
       crossfading={crossfading}
       reducedMotion={reducedMotion}
       peekTitle={entry.title}
+      fillClass={fillClass}
       cardRef={cardRef}
       onFrontKeyDown={onFrontKeyDown}
       onFrontPointerDown={onFrontPointerDown}
@@ -316,6 +325,8 @@ function VaultEveningDeckCard({
   onFrontPointerUp?: (e: ReactPointerEvent<HTMLElement>) => void;
   onFrontPointerCancel?: (e: ReactPointerEvent<HTMLElement>) => void;
 }) {
+  const fillClass = ATLAS_COLOR_CLASS[card.color];
+
   return (
     <AtlasDeckCardShell
       stackIndex={stackIndex}
@@ -327,6 +338,7 @@ function VaultEveningDeckCard({
       crossfading={crossfading}
       reducedMotion={reducedMotion}
       peekTitle={card.title}
+      fillClass={fillClass}
       cardRef={cardRef}
       onFrontKeyDown={onFrontKeyDown}
       onFrontPointerDown={onFrontPointerDown}

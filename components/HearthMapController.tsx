@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   hasHearthMap,
   hideHearthMap,
@@ -23,6 +23,9 @@ function clientDark(): boolean {
 /**
  * Shows Apple MapKit behind a transparent Home web layer when the native
  * HearthMap plugin is available; hides it everywhere else.
+ *
+ * `hearth-native-map-active` is applied only after `show()` resolves true so
+ * we never leave a transparent WebView over the cream fallback when MapKit fails.
  */
 export default function HearthMapController({
   mapCenter,
@@ -32,41 +35,54 @@ export default function HearthMapController({
   const pathname = usePathname();
   const onHome = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
   const dark = useSyncExternalStore(subscribeDark, clientDark, () => false);
-  const nativeMap = hasHearthMap();
+  const pluginAvailable = hasHearthMap();
+  const [nativeMapVisible, setNativeMapVisible] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle(
       "hearth-native-map-active",
-      nativeMap && onHome && mapCenter != null
+      nativeMapVisible
     );
     return () => {
       document.documentElement.classList.remove("hearth-native-map-active");
     };
-  }, [nativeMap, onHome, mapCenter]);
+  }, [nativeMapVisible]);
 
   useEffect(() => {
-    if (!nativeMap) return;
+    if (!pluginAvailable || !nativeMapVisible) return;
     void setHearthMapAppearance(dark);
-  }, [nativeMap, dark]);
+  }, [pluginAvailable, nativeMapVisible, dark]);
 
   useEffect(() => {
-    if (!nativeMap) return;
+    let cancelled = false;
 
-    if (!onHome || !mapCenter) {
+    if (!pluginAvailable || !onHome || !mapCenter) {
+      setNativeMapVisible(false);
       void hideHearthMap();
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    void showHearthMap({
-      lat: mapCenter.lat,
-      lng: mapCenter.lng,
-      dark,
-    });
+    void (async () => {
+      const shown = await showHearthMap({
+        lat: mapCenter.lat,
+        lng: mapCenter.lng,
+        dark,
+      });
+      if (cancelled) return;
+      setNativeMapVisible(shown);
+      if (!shown) {
+        await hideHearthMap();
+      }
+    })();
 
     return () => {
+      cancelled = true;
+      setNativeMapVisible(false);
       void hideHearthMap();
     };
-  }, [nativeMap, onHome, mapCenter, dark]);
+  }, [pluginAvailable, onHome, mapCenter, dark]);
 
   return null;
 }

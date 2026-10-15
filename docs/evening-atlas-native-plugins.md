@@ -27,7 +27,9 @@ setAppearance(options: { dark: boolean }): Promise<void>;
 
 Web caller: `lib/hearth-map.ts`, `components/HearthMapController.tsx`.
 
-When the plugin is missing, Home uses the CSS grid fallback in `EveningMapView` (no raster tiles).
+**Contract:** `show()` must **resolve `true` only after MapKit is actually visible** behind the WebView. If registration or presentation fails, resolve `false` (do not throw). The web layer applies `hearth-native-map-active` (transparent WebView) **only after `show()` returns true** — otherwise users see the daylight grid fallback, not a blank cream layer.
+
+When the plugin is missing or `show()` returns false, Home uses the CSS grid fallback in `EveningMapView` (no raster tiles).
 
 ---
 
@@ -52,6 +54,14 @@ Web caller: `lib/hearth-scan.ts` → `components/AddToHouseSheet.tsx` (confirm s
 Files shared into Hearth from other apps (Share sheet → Hearth).
 
 ```typescript
+/** In-app Files picker — same on-device ingest pipeline as the Share extension. */
+pickFiles(): Promise<{
+  text?: string;
+  dates?: { iso: string; label?: string }[];
+  suggestedTitle?: string;
+  sourceNames?: string[];
+} | null>;
+
 /** Optional: cold-start queue after the shell receives files before JS loads. */
 consumePendingDraft(): Promise<{
   text?: string;

@@ -9,25 +9,49 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BottomSheet from "@/components/BottomSheet";
-import { usePaywall, usePlan } from "@/components/PlanProvider";
+import { usePaywall } from "@/components/PlanProvider";
 import {
   addRenewalFromPreset,
   confirmRenewalDraft,
+  hasVaultRenewalPresets,
 } from "@/lib/hearth-vault-renewals";
-import { runHearthScan, hasHearthScan } from "@/lib/hearth-scan";
-import type { HearthShareInDraft } from "@/lib/hearth-share-in";
+import {
+  runHearthScan,
+  hearthScanAvailabilityMessage,
+  hasHearthScan,
+} from "@/lib/hearth-scan";
+import {
+  hasHearthShareIn,
+  hasShareInPickFiles,
+  pickShareInFiles,
+  type HearthShareInDraft,
+} from "@/lib/hearth-share-in";
 import { UK_RENEWAL_PRESETS, type UkRenewalPreset } from "@/lib/uk-renewals";
 import { ATLAS_COLOR_CLASS } from "@/lib/atlas-colors";
 import { useRouter } from "next/navigation";
+import { isCapacitorNative } from "@/lib/is-capacitor-native";
 
 type Step = "pick" | "confirm-scan";
 
-const BRING_IN: { id: string; label: string; icon: LucideIcon; action: "scan" | "calendar" | "share" | "siri" }[] = [
+const BRING_IN: {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  action: "scan" | "calendar" | "share" | "siri";
+}[] = [
   { id: "scan", label: "Scan", icon: ScanLine, action: "scan" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, action: "calendar" },
   { id: "share", label: "Share in", icon: Share2, action: "share" },
   { id: "siri", label: "Siri", icon: Mic, action: "siri" },
 ];
+
+function Notice({ children }: { children: string }) {
+  return (
+    <p role="alert" className="atlas-sheet-notice text-sm">
+      {children}
+    </p>
+  );
+}
 
 export default function AddToHouseSheet({
   open,
@@ -37,13 +61,11 @@ export default function AddToHouseSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  /** When the shell forwards shared files, parent passes the on-device draft. */
   shareDraft?: HearthShareInDraft | null;
   onShareDraftConsumed?: () => void;
 }) {
   const router = useRouter();
   const openPaywall = usePaywall();
-  const plan = usePlan();
   const [step, setStep] = useState<Step>("pick");
   const [busy, setBusy] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -81,6 +103,15 @@ export default function AddToHouseSheet({
   async function pickPreset(preset: UkRenewalPreset) {
     setBusy(true);
     setNotice(null);
+    if (!hasVaultRenewalPresets()) {
+      setBusy(false);
+      setNotice(
+        isCapacitorNative()
+          ? "This TestFlight build is missing addRenewalFromPreset on HearthVault. Update the app, or add the renewal from Vault."
+          : "Preset renewals are saved on your iPhone. Open the Hearth app to add this."
+      );
+      return;
+    }
     const result = await addRenewalFromPreset(preset.id);
     setBusy(false);
     if (result.needsPaywall) {
@@ -88,11 +119,7 @@ export default function AddToHouseSheet({
       return;
     }
     if (!result.ok) {
-      setNotice(
-        plan
-          ? "Could not add this renewal. Try again from the Vault tab."
-          : "Add renewals in the iPhone app."
-      );
+      setNotice(result.message ?? "Could not add this renewal.");
       return;
     }
     closeAll();
@@ -100,33 +127,68 @@ export default function AddToHouseSheet({
   }
 
   async function startScan() {
+    const unavailable = hearthScanAvailabilityMessage();
+    if (unavailable) {
+      setNotice(unavailable);
+      return;
+    }
     if (!hasHearthScan()) {
-      setNotice("Scanning needs the Hearth iPhone app.");
+      setNotice(
+        "Scan is not registered in this app build (HearthScan plugin missing). Update the Hearth iPhone app."
+      );
       return;
     }
     setBusy(true);
     setNotice(null);
     const scan = await runHearthScan();
     setBusy(false);
-    if (!scan) {
-      setNotice("Scan was cancelled or could not run.");
+    if (!scan.ok) {
+      setNotice(scan.message);
       return;
     }
     setConfirmSource("scan");
-    setConfirmTitle(scan.suggestedTitle ?? "");
-    setConfirmExpiry(scan.dates[0]?.iso ?? "");
+    setConfirmTitle(scan.result.suggestedTitle ?? "");
+    setConfirmExpiry(scan.result.dates[0]?.iso ?? "");
     setStep("confirm-scan");
   }
 
   useEffect(() => {
     if (!open || !shareDraft || step !== "pick") return;
-    setConfirmSource("share");
-    setConfirmShareDraft(shareDraft);
-    setConfirmTitle(shareDraft.suggestedTitle ?? shareDraft.sourceNames?.[0] ?? "");
-    setConfirmExpiry(shareDraft.dates?.[0]?.iso ?? "");
-    setStep("confirm-scan");
+    openShareDraft(shareDraft);
     onShareDraftConsumed?.();
   }, [open, shareDraft, step, onShareDraftConsumed]);
+
+  function openShareDraft(draft: HearthShareInDraft) {
+    setConfirmSource("share");
+    setConfirmShareDraft(draft);
+    setConfirmTitle(draft.suggestedTitle ?? draft.sourceNames?.[0] ?? "");
+    setConfirmExpiry(draft.dates?.[0]?.iso ?? "");
+    setStep("confirm-scan");
+  }
+
+  async function startShareIn() {
+    if (hasShareInPickFiles()) {
+      setBusy(true);
+      setNotice(null);
+      const picked = await pickShareInFiles();
+      setBusy(false);
+      if (picked.ok) {
+        openShareDraft(picked.draft);
+        return;
+      }
+      if (picked.reason === "cancelled") {
+        setNotice(picked.message);
+        return;
+      }
+      setNotice(picked.message);
+      return;
+    }
+    setNotice(
+      hasHearthShareIn()
+        ? "From Mail, Files or Photos: tap Share → Hearth. The file stays on your phone; we open a confirm screen when the app receives it."
+        : "Share-in needs a newer Hearth iPhone build (HearthShareIn plugin). Update the app, then use Share → Hearth from another app."
+    );
+  }
 
   async function saveDraft() {
     setBusy(true);
@@ -153,7 +215,7 @@ export default function AddToHouseSheet({
       return;
     }
     if (!result.ok) {
-      setNotice("Could not save — check the Vault in the iPhone app.");
+      setNotice(result.message ?? "Could not save on your phone.");
       return;
     }
     closeAll();
@@ -170,9 +232,7 @@ export default function AddToHouseSheet({
         router.push("/calendar?add=1");
         break;
       case "share":
-        setNotice(
-          "Use Share from Mail, Files or Photos and pick Hearth — files stay on your phone."
-        );
+        void startShareIn();
         break;
       case "siri":
         setNotice("Siri shortcuts arrive in a later app update.");
@@ -181,6 +241,15 @@ export default function AddToHouseSheet({
         break;
     }
   }
+
+  const shareHint =
+    isCapacitorNative() && hasShareInPickFiles()
+      ? "Share in opens Files on this phone. You can also use Share → Hearth from Mail or Photos."
+      : isCapacitorNative() && hasHearthShareIn()
+        ? "Tip: share a PDF or photo from another app — choose Hearth in the Share sheet."
+        : isCapacitorNative()
+          ? "Share-in requires the latest Hearth iPhone build."
+          : null;
 
   return (
     <BottomSheet
@@ -195,6 +264,10 @@ export default function AddToHouseSheet({
             Pick one — we pre-fill the dates and reminders on your phone. Nothing
             is uploaded to Hearth&apos;s servers.
           </p>
+
+          {shareHint ? (
+            <p className="text-xs font-medium text-ink-muted">{shareHint}</p>
+          ) : null}
 
           <ul className="grid grid-cols-2 gap-2.5">
             {UK_RENEWAL_PRESETS.map((preset) => (
@@ -222,7 +295,10 @@ export default function AddToHouseSheet({
                     <button
                       type="button"
                       className="atlas-bring-in-btn"
-                      disabled={busy && item.action === "scan"}
+                      disabled={
+                        busy &&
+                        (item.action === "scan" || item.action === "share")
+                      }
                       onClick={() => bringIn(item.action)}
                     >
                       <Icon size={22} strokeWidth={1.9} aria-hidden />
@@ -234,11 +310,7 @@ export default function AddToHouseSheet({
             </ul>
           </div>
 
-          {notice ? (
-            <p role="status" className="text-sm text-ink-soft">
-              {notice}
-            </p>
-          ) : null}
+          {notice ? <Notice>{notice}</Notice> : null}
         </div>
       ) : (
         <div className="flex flex-col gap-4 pb-2">
@@ -281,11 +353,7 @@ export default function AddToHouseSheet({
               Save on this phone
             </button>
           </div>
-          {notice ? (
-            <p role="status" className="text-sm text-ink-soft">
-              {notice}
-            </p>
-          ) : null}
+          {notice ? <Notice>{notice}</Notice> : null}
         </div>
       )}
     </BottomSheet>
