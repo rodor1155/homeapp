@@ -6,6 +6,7 @@ import type { PersonSortable } from "@/lib/evening-map";
 import type { Locale } from "@/lib/household";
 import type { WeekAheadModel } from "@/lib/week-ahead";
 import EveningCardStack from "./EveningCardStack";
+import EveningDeckSkeleton from "./EveningDeckSkeleton";
 import { useVaultDeckCards } from "./useVaultDeckCards";
 
 export default function EveningCardStackHost({
@@ -23,7 +24,7 @@ export default function EveningCardStackHost({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { cards: vaultCards } = useVaultDeckCards();
+  const { cards: vaultCards, ready: vaultDeckReady } = useVaultDeckCards();
 
   const onWeekSheetClose = () => {
     if (!searchParams.get("week")) return;
@@ -32,6 +33,10 @@ export default function EveningCardStackHost({
     const query = next.toString();
     router.replace(query ? `/dashboard?${query}` : "/dashboard");
   };
+
+  if (!vaultDeckReady) {
+    return <EveningDeckSkeleton />;
+  }
 
   return (
     <EveningCardStack

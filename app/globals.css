@@ -18,9 +18,10 @@
 /* --- semantic tokens (light default) ------------------------------------ */
 
 :root {
-  --surface: #faf7f2;
-  --surface-raised: #ffffff;
-  --surface-sunk: #f3efe7;
+  /* Daylight Atlas — cool paper, not cream wash */
+  --surface: #e8ecf3;
+  --surface-raised: #f4f6fa;
+  --surface-sunk: #dce2ec;
 
   --surface-glass: rgb(252 248 242 / 0.82);
   --surface-glass-strong: rgb(255 252 247 / 0.9);
@@ -48,8 +49,8 @@
   --map-text: #1f2a44;
   --map-text-muted: #5b6478;
   --map-text-subtle: rgb(31 42 68 / 0.88);
-  --map-ground: #f3efe7;
-  --map-ground-2: #e8e4dc;
+  --map-ground: #dce4ef;
+  --map-ground-2: #c8d2e0;
   --map-scrim-top: linear-gradient(
     180deg,
     rgb(250 247 242 / 0.88) 0%,
@@ -170,8 +171,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: #141c2e;
-    --surface-raised: #1e2a44;
+    --surface: #0b101b;
+    --surface-raised: #141c2e;
     --surface-sunk: #1a2438;
 
     --surface-glass: rgb(18 26 44 / 0.78);
@@ -482,17 +483,22 @@
   /* --- the card, the one structural motif --------------------------------- */
 
   .card {
-    background-color: var(--color-paper-raised);
-    border: 1.5px solid color-mix(in oklab, var(--color-rule-strong) 88%, var(--color-ink) 12%);
+    background-color: var(--surface-raised);
+    border: 1px solid color-mix(in oklab, var(--border-strong) 85%, var(--text) 8%);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
   }
 
-  /* The accent card — a soft sage wash, for the one thing worth reading first. */
+  /* Accent panels — deep navy wash (Atlas), not pastel sage. */
   .card-accent {
-    background-color: var(--color-sage-tint);
-    border-color: color-mix(in oklab, var(--color-sage-soft) 34%, transparent);
+    background-color: color-mix(in oklab, var(--atlas-fill-navy) 22%, var(--surface-raised));
+    border-color: color-mix(in oklab, var(--atlas-fill-navy) 45%, var(--border));
     box-shadow: var(--shadow-card);
+  }
+
+  .atlas-app-ground {
+    background-color: var(--surface);
+    background-image: none;
   }
 
   /* Map-forward home hero: street underlay is the star; a paper scrim keeps
@@ -1272,6 +1278,74 @@
     font-size: 0.625rem;
     font-weight: 600;
     color: var(--text-muted);
+  }
+
+  .atlas-sheet-notice {
+    border-radius: 0.65rem;
+    border: 1px solid color-mix(in oklab, var(--accent) 45%, var(--border));
+    background: color-mix(in oklab, var(--accent) 12%, var(--surface-raised));
+    color: var(--text);
+    padding: 0.65rem 0.75rem;
+    line-height: 1.45;
+  }
+
+  .atlas-peek-on-solid {
+    color: var(--atlas-on-solid);
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  }
+
+  .atlas-skeleton-line,
+  .atlas-skeleton-pill {
+    display: block;
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--map-text) 8%, transparent);
+  }
+
+  .atlas-skeleton-shimmer {
+    background: linear-gradient(
+      110deg,
+      color-mix(in oklab, var(--map-text) 6%, transparent) 0%,
+      color-mix(in oklab, var(--map-text) 12%, transparent) 45%,
+      color-mix(in oklab, var(--map-text) 6%, transparent) 90%
+    );
+    background-size: 200% 100%;
+    animation: atlas-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes atlas-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  .atlas-deck-skeleton-stage {
+    position: relative;
+    min-height: 12.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .atlas-deck-skeleton-card {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    min-height: 11.5rem;
+    border-radius: var(--radius-evening-card);
+    box-shadow: var(--shadow-evening-card);
+  }
+
+  .atlas-deck-skeleton-card--back {
+    transform: translateY(-1.35rem) scale(0.94);
+    opacity: 0.85;
+    z-index: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .atlas-skeleton-shimmer {
+      animation: none;
+    }
   }
 
   .evening-map-chrome {

@@ -27,7 +27,9 @@ setAppearance(options: { dark: boolean }): Promise<void>;
 
 Web caller: `lib/hearth-map.ts`, `components/HearthMapController.tsx`.
 
-When the plugin is missing, Home uses the CSS grid fallback in `EveningMapView` (no raster tiles).
+**Contract:** `show()` must **resolve `true` only after MapKit is actually visible** behind the WebView. If registration or presentation fails, resolve `false` (do not throw). The web layer applies `hearth-native-map-active` (transparent WebView) **only after `show()` returns true** — otherwise users see the daylight grid fallback, not a blank cream layer.
+
+When the plugin is missing or `show()` returns false, Home uses the CSS grid fallback in `EveningMapView` (no raster tiles).
 
 ---
 

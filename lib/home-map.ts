@@ -37,14 +37,29 @@ export const HOME_MAP_COORD_DECIMALS = 3;
 /** Geocoded home pin for MapKit / fallbacks — no raster stitch. */
 export const resolveHomeCoordinates = cache(
   async (address: string): Promise<{ latitude: number; longitude: number } | null> => {
-    const postcode = extractUkPostcode(address);
-    if (!postcode) return null;
-    const point = await geocodePostcode(postcode);
-    if (!point) return null;
-    return {
-      latitude: roundCoord(point.latitude),
-      longitude: roundCoord(point.longitude),
-    };
+    const trimmed = address.trim();
+    if (!trimmed) return null;
+
+    const postcode = extractUkPostcode(trimmed);
+    if (postcode) {
+      const point = await geocodePostcode(postcode);
+      if (point) {
+        return {
+          latitude: roundCoord(point.latitude),
+          longitude: roundCoord(point.longitude),
+        };
+      }
+    }
+
+    const fuzzy = await geocodePostcodeSearch(trimmed);
+    if (fuzzy) {
+      return {
+        latitude: roundCoord(fuzzy.latitude),
+        longitude: roundCoord(fuzzy.longitude),
+      };
+    }
+
+    return null;
   }
 );
 
@@ -158,6 +173,58 @@ type PostcodesIoBody = {
     longitude?: unknown;
   };
 };
+
+type PostcodesSearchBody = {
+  result?: Array<{
+    latitude?: unknown;
+    longitude?: unknown;
+  }>;
+};
+
+/** Fuzzy UK lookup when the stored address line is not a clean postcode. */
+async function geocodePostcodeSearch(
+  address: string
+): Promise<{ latitude: number; longitude: number } | null> {
+  const lines = address
+    .split(/\n|,/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const queries = [
+    ...lines.slice(-2).reverse(),
+    extractUkPostcode(address) ?? "",
+    address.slice(0, 48),
+  ].filter(Boolean);
+
+  for (const query of queries) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(
+        `https://api.postcodes.io/postcodes?q=${encodeURIComponent(query)}&limit=1`,
+        {
+          signal: controller.signal,
+          headers: { accept: "application/json" },
+          next: { revalidate: 86_400 },
+        }
+      );
+      if (!response.ok) continue;
+      const body = (await response.json()) as PostcodesSearchBody;
+      const hit = body.result?.[0];
+      const latitude = hit?.latitude;
+      const longitude = hit?.longitude;
+      if (typeof latitude !== "number" || typeof longitude !== "number") {
+        continue;
+      }
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+      return { latitude, longitude };
+    } catch {
+      continue;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
 
 async function geocodePostcode(
   postcode: string

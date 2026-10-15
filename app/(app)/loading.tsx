@@ -10,7 +10,7 @@ export default function AppLoading() {
       role="status"
       aria-label="Loading"
       aria-busy="true"
-      className="flex animate-pulse flex-col gap-4"
+      className="flex flex-col gap-4"
     >
       <div className="px-1">
         <Bar className="h-7 w-40" />
@@ -23,7 +23,7 @@ export default function AppLoading() {
           <div className="mt-4 flex flex-col gap-3">
             {[0, 1, 2].map((row) => (
               <div key={row} className="flex items-center gap-3">
-                <span className="h-9 w-9 shrink-0 rounded-pill bg-paper-sunk" />
+                <span className="h-9 w-9 shrink-0 rounded-pill atlas-skeleton-pill" />
                 <div className="min-w-0 flex-1">
                   <Bar className="h-3.5 w-2/5" />
                   <Bar className="mt-1.5 h-3 w-3/5" />
@@ -38,5 +38,9 @@ export default function AppLoading() {
 }
 
 function Bar({ className }: { className?: string }) {
-  return <span className={`block max-w-full rounded-sm bg-paper-sunk ${className ?? ""}`} />;
+  return (
+    <span
+      className={`atlas-skeleton-line atlas-skeleton-shimmer block max-w-full ${className ?? ""}`}
+    />
+  );
 }

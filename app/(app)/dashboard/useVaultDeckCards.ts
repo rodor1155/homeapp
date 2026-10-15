@@ -9,24 +9,34 @@ import { hasNativeVault } from "@/lib/native-vault";
 
 export function useVaultDeckCards(): {
   cards: VaultDeckCard[];
+  /** False until the first client fetch completes (avoids an empty-then-pop deck). */
+  ready: boolean;
   refresh: () => void;
 } {
   const [cards, setCards] = useState<VaultDeckCard[]>([]);
+  const [ready, setReady] = useState(!hasNativeVault());
 
-  const refresh = useCallback(() => {
+  const load = useCallback((opts?: { silent?: boolean }) => {
     if (!hasNativeVault()) {
       setCards([]);
+      setReady(true);
       return;
     }
-    void fetchVaultDeckCards().then(setCards);
+    if (!opts?.silent) {
+      setReady(false);
+    }
+    void fetchVaultDeckCards().then((next) => {
+      setCards(next);
+      setReady(true);
+    });
   }, []);
 
   useEffect(() => {
-    refresh();
-    const onFocus = () => refresh();
+    load();
+    const onFocus = () => load({ silent: true });
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [refresh]);
+  }, [load]);
 
-  return { cards, refresh };
+  return { cards, ready, refresh: () => load({ silent: true }) };
 }
