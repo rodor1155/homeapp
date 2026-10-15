@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
 import { openExternalUrl, shouldOpenExternalLink } from "@/lib/open-external";
+import { isWebPaymentUrl } from "@/lib/web-payment-url.mjs";
 
 /**
  * Intercepts cross-origin http(s) anchor clicks in the Capacitor shell so they
@@ -26,6 +27,11 @@ export default function NativeExternalLinks() {
           download: anchor.hasAttribute("download"),
         })
       ) {
+        return;
+      }
+
+      if (isWebPaymentUrl(anchor.href)) {
+        event.preventDefault();
         return;
       }
 

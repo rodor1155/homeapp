@@ -5,13 +5,21 @@ import {
   returnUrl,
 } from "@/lib/billing";
 import { loadHouseholdContext } from "@/lib/household";
+import {
+  isNativeShellRequest,
+  WEB_CHECKOUT_BLOCKED_MESSAGE,
+} from "@/lib/native-shell-request";
 
 export const runtime = "nodejs";
 
 /* Stripe's own billing portal. This is the cancel path — one click from
    /settings to the page where the subscription can be ended, so we never hold
    a cancellation behind our own UI. */
-export async function POST() {
+export async function POST(request: Request) {
+  if (isNativeShellRequest(request)) {
+    return Response.json({ error: WEB_CHECKOUT_BLOCKED_MESSAGE }, { status: 403 });
+  }
+
   const { user, household } = await loadHouseholdContext();
   if (!user) {
     return Response.json({ error: "You are not signed in." }, { status: 401 });

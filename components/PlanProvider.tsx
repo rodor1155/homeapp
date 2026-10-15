@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Plan } from "@/lib/billing";
+import { isCapacitorNative } from "@/lib/is-capacitor-native";
 import {
   hasNativeStore,
   openNativePaywall,
@@ -62,16 +63,20 @@ export function usePlan(): PlanSummary | null {
  * Opens the paywall: Apple's in the iPhone app, the Plan card in Settings on
  * the web. Resolves once the app's paywall has closed.
  */
-export function usePaywall(): (reason: PaywallReason) => Promise<void> {
+export function usePaywall(): (reason?: PaywallReason) => Promise<void> {
   const router = useRouter();
   const summary = useContext(PlanContext);
   const householdId = summary?.householdId ?? null;
 
   return useCallback(
-    async (reason: PaywallReason) => {
+    async (reason?: PaywallReason) => {
       if (householdId && hasNativeStore()) {
         const result = await openNativePaywall(householdId, reason);
         if (result.changed) router.refresh();
+        return;
+      }
+      if (isCapacitorNative()) {
+        router.push("/settings");
         return;
       }
       router.push("/settings");

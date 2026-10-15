@@ -96,7 +96,6 @@ export default function PlanPanel({
       };
 
       if (response.ok && payload.url) {
-        // Stripe lives off-site; in the app-bound WKWebView we must use the system browser sheet.
         await openExternalUrl(payload.url, { sameTab: true });
         return;
       }

@@ -60,3 +60,4 @@ Notes (paste and adjust):
 - The yearly product has a 7-day free trial introductory offer in App Store Connect. The paywall only mentions a trial when StoreKit offers one to that Apple Account, so without it the yearly plan is simply shown at its price.
 - A normal account with no subscription can add five renewals and is shown the paywall on the sixth; the demo account is not limited.
 - Nothing in the iPhone app mentions paying on the web or names a card processor (Settings ▸ Plan, the export message, the privacy policy).
+- Optional hardening: set `x-hearth-native-shell: 1` on WKWebView requests so `/api/stripe/*` refuses checkout from the shell (see `lib/native-shell-request.ts` and `docs/appstore/guideline-311-audit.md`).
