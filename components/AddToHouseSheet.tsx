@@ -20,8 +20,12 @@ import {
   hearthScanAvailabilityMessage,
   hasHearthScan,
 } from "@/lib/hearth-scan";
-import { hasHearthShareIn } from "@/lib/hearth-share-in";
-import type { HearthShareInDraft } from "@/lib/hearth-share-in";
+import {
+  hasHearthShareIn,
+  hasShareInPickFiles,
+  pickShareInFiles,
+  type HearthShareInDraft,
+} from "@/lib/hearth-share-in";
 import { UK_RENEWAL_PRESETS, type UkRenewalPreset } from "@/lib/uk-renewals";
 import { ATLAS_COLOR_CLASS } from "@/lib/atlas-colors";
 import { useRouter } from "next/navigation";
@@ -150,13 +154,41 @@ export default function AddToHouseSheet({
 
   useEffect(() => {
     if (!open || !shareDraft || step !== "pick") return;
-    setConfirmSource("share");
-    setConfirmShareDraft(shareDraft);
-    setConfirmTitle(shareDraft.suggestedTitle ?? shareDraft.sourceNames?.[0] ?? "");
-    setConfirmExpiry(shareDraft.dates?.[0]?.iso ?? "");
-    setStep("confirm-scan");
+    openShareDraft(shareDraft);
     onShareDraftConsumed?.();
   }, [open, shareDraft, step, onShareDraftConsumed]);
+
+  function openShareDraft(draft: HearthShareInDraft) {
+    setConfirmSource("share");
+    setConfirmShareDraft(draft);
+    setConfirmTitle(draft.suggestedTitle ?? draft.sourceNames?.[0] ?? "");
+    setConfirmExpiry(draft.dates?.[0]?.iso ?? "");
+    setStep("confirm-scan");
+  }
+
+  async function startShareIn() {
+    if (hasShareInPickFiles()) {
+      setBusy(true);
+      setNotice(null);
+      const picked = await pickShareInFiles();
+      setBusy(false);
+      if (picked.ok) {
+        openShareDraft(picked.draft);
+        return;
+      }
+      if (picked.reason === "cancelled") {
+        setNotice(picked.message);
+        return;
+      }
+      setNotice(picked.message);
+      return;
+    }
+    setNotice(
+      hasHearthShareIn()
+        ? "From Mail, Files or Photos: tap Share → Hearth. The file stays on your phone; we open a confirm screen when the app receives it."
+        : "Share-in needs a newer Hearth iPhone build (HearthShareIn plugin). Update the app, then use Share → Hearth from another app."
+    );
+  }
 
   async function saveDraft() {
     setBusy(true);
@@ -200,11 +232,7 @@ export default function AddToHouseSheet({
         router.push("/calendar?add=1");
         break;
       case "share":
-        setNotice(
-          hasHearthShareIn()
-            ? "From Mail, Files or Photos: tap Share → Hearth. The file stays on your phone; we open a confirm screen when the app receives it."
-            : "Share-in needs a newer Hearth iPhone build (HearthShareIn plugin). Update the app, then use Share → Hearth from another app."
-        );
+        void startShareIn();
         break;
       case "siri":
         setNotice("Siri shortcuts arrive in a later app update.");
@@ -215,11 +243,13 @@ export default function AddToHouseSheet({
   }
 
   const shareHint =
-    isCapacitorNative() && hasHearthShareIn()
-      ? "Tip: share a PDF or photo from another app — choose Hearth in the Share sheet."
-      : isCapacitorNative()
-        ? "Share-in requires the latest Hearth iPhone build."
-        : null;
+    isCapacitorNative() && hasShareInPickFiles()
+      ? "Share in opens Files on this phone. You can also use Share → Hearth from Mail or Photos."
+      : isCapacitorNative() && hasHearthShareIn()
+        ? "Tip: share a PDF or photo from another app — choose Hearth in the Share sheet."
+        : isCapacitorNative()
+          ? "Share-in requires the latest Hearth iPhone build."
+          : null;
 
   return (
     <BottomSheet
@@ -265,7 +295,10 @@ export default function AddToHouseSheet({
                     <button
                       type="button"
                       className="atlas-bring-in-btn"
-                      disabled={busy && item.action === "scan"}
+                      disabled={
+                        busy &&
+                        (item.action === "scan" || item.action === "share")
+                      }
                       onClick={() => bringIn(item.action)}
                     >
                       <Icon size={22} strokeWidth={1.9} aria-hidden />

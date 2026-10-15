@@ -54,6 +54,14 @@ Web caller: `lib/hearth-scan.ts` → `components/AddToHouseSheet.tsx` (confirm s
 Files shared into Hearth from other apps (Share sheet → Hearth).
 
 ```typescript
+/** In-app Files picker — same on-device ingest pipeline as the Share extension. */
+pickFiles(): Promise<{
+  text?: string;
+  dates?: { iso: string; label?: string }[];
+  suggestedTitle?: string;
+  sourceNames?: string[];
+} | null>;
+
 /** Optional: cold-start queue after the shell receives files before JS loads. */
 consumePendingDraft(): Promise<{
   text?: string;
