@@ -158,27 +158,13 @@ async function stitchMap(
     .toBuffer();
 }
 
-function cartoBasemapKey(): string | null {
-  return process.env.CARTO_BASEMAPS_API_KEY?.trim() || null;
-}
-
 async function fetchTile(
   z: number,
   x: number,
   y: number,
   style: MapStyle
 ): Promise<Buffer> {
-  const cartoKey = cartoBasemapKey();
-  let tileUrl: string;
-  if (cartoKey) {
-    const subdomain = ["a", "b", "c", "d"][(x + y) % 4]!;
-    const variant = style === "dark" ? "dark_all" : "light_all";
-    tileUrl =
-      `https://${subdomain}.basemaps.cartocdn.com/rastertiles/${variant}/${z}/${x}/${y}.png` +
-      `?key=${encodeURIComponent(cartoKey)}`;
-  } else {
-    tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-  }
+  const tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -192,11 +178,8 @@ async function fetchTile(
       throw new Error(`tile ${z}/${x}/${y} → ${response.status}`);
     }
     const raw = Buffer.from(await response.arrayBuffer());
-    if (!cartoKey) {
-      if (style === "dark") return recolorOsmDark(raw);
-      return recolorOsmLight(raw);
-    }
-    return raw;
+    if (style === "dark") return recolorOsmDark(raw);
+    return recolorOsmLight(raw);
   } finally {
     clearTimeout(timer);
   }

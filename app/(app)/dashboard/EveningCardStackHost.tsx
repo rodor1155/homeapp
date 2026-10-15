@@ -6,6 +6,7 @@ import type { PersonSortable } from "@/lib/evening-map";
 import type { Locale } from "@/lib/household";
 import type { WeekAheadModel } from "@/lib/week-ahead";
 import EveningCardStack from "./EveningCardStack";
+import { useVaultDeckCards } from "./useVaultDeckCards";
 
 export default function EveningCardStackHost({
   entries,
@@ -22,6 +23,7 @@ export default function EveningCardStackHost({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { cards: vaultCards } = useVaultDeckCards();
 
   const onWeekSheetClose = () => {
     if (!searchParams.get("week")) return;
@@ -34,6 +36,7 @@ export default function EveningCardStackHost({
   return (
     <EveningCardStack
       entries={entries}
+      vaultCards={vaultCards}
       people={people}
       locale={locale}
       weekAhead={weekAhead}

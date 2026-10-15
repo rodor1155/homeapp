@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react";
 import type { ComingUpEntry } from "@/lib/coming-up";
 import {
-  eveningBriefingLine,
-  eveningBriefingServerSnapshot,
+  atlasBriefingLine,
+  atlasBriefingServerSnapshot,
 } from "@/lib/evening-map";
 
 function subscribe() {
@@ -12,18 +12,20 @@ function subscribe() {
 }
 
 export default function EveningMapBriefing({
+  householdName,
   entries,
 }: {
+  householdName: string;
   entries: readonly ComingUpEntry[];
 }) {
   const line = useSyncExternalStore(
     subscribe,
-    () => eveningBriefingLine(entries),
-    () => eveningBriefingServerSnapshot(entries)
+    () => atlasBriefingLine(householdName, entries),
+    () => atlasBriefingServerSnapshot(householdName, entries)
   );
 
   return (
-    <p className="evening-greeting-sub mt-1" suppressHydrationWarning>
+    <p className="evening-greeting-sub atlas-briefing mt-1" suppressHydrationWarning>
       {line}
     </p>
   );

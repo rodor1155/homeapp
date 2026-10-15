@@ -31,7 +31,7 @@ const TAB_META: Record<
 > = {
   "/dashboard": { label: "Home", icon: House },
   "/family": { label: "Family", icon: Users },
-  "/calendar": { label: "Calendar", icon: CalendarDays },
+  "/calendar": { label: "Dates", icon: CalendarDays },
   "/lists": { label: "Lists", icon: ShoppingBasket },
   "/documents": { label: "Vault", icon: FileText },
 };

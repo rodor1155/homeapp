@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, IBM_Plex_Sans } from "next/font/google";
+import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import NativeExternalLinks from "@/components/NativeExternalLinks";
 import NativeOAuthListener from "@/components/NativeOAuthListener";
@@ -20,6 +20,13 @@ const plex = IBM_Plex_Sans({
   variable: "--font-plex",
   display: "swap",
   weight: ["400", "500", "600"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -46,7 +53,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${plex.variable}`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${plex.variable} ${plexMono.variable}`}
+    >
       <body>
         <NativeOAuthListener />
         <NativeExternalLinks />

@@ -9,35 +9,30 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CalendarDays, ChevronRight, Shuffle } from "lucide-react";
+import { comingUpHref, type ComingUpEntry } from "@/lib/coming-up";
 import {
-  Backpack,
-  Cake,
-  CalendarDays,
-  ChevronRight,
-  FileText,
-  GraduationCap,
-  Repeat,
-  Share2,
-  Shuffle,
-  type LucideIcon,
-} from "lucide-react";
+  atlasActionsForComingUp,
+  atlasEyebrowForComingUp,
+} from "@/lib/atlas-deck-actions";
+import { atlasColorForComingUpKind } from "@/lib/atlas-colors";
 import {
-  COMING_UP_TONE,
-  comingUpHref,
-  type ComingUpEntry,
-} from "@/lib/coming-up";
-import {
-  cardTintForEntry,
   eveningCardWhen,
   eveningStackEntries,
-  memberEdgeClass,
   type PersonSortable,
 } from "@/lib/evening-map";
+import { openExternalUrl } from "@/lib/open-external";
+import {
+  bookVaultRecord,
+  openVaultRecord,
+  type VaultDeckCard,
+} from "@/lib/hearth-vault-renewals";
+import AtlasDeckCardFace from "./AtlasDeckCardFace";
 import type { Locale } from "@/lib/household";
-import { TONE_PILL } from "@/lib/tones";
 import { memberColourStyle } from "@/lib/member-colours";
 import {
   weekAheadCardTint,
@@ -47,16 +42,6 @@ import EveningCardDetailOverlay, { type CardDetailRect } from "./EveningCardDeta
 import EveningComingUpSheet from "./EveningComingUpSheet";
 import WeekAheadMorphOverlay from "./WeekAheadMorphOverlay";
 import WeekAheadSheet from "./WeekAheadSheet";
-
-const COMING_UP_ICON: Record<string, LucideIcon> = {
-  document: FileText,
-  birthday: Cake,
-  event: CalendarDays,
-  school: GraduationCap,
-  shared: Share2,
-  timetable: Backpack,
-  routine: Repeat,
-};
 
 const TAP_PX = 6;
 const SWIPE_RATIO = 0.3;
@@ -113,52 +98,48 @@ function clientReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function EveningDeckCard({
-  entry,
-  edge,
-  cardTint,
-  locale,
+function AtlasDeckCardShell({
   stackIndex,
   isFront,
-  href,
+  frontIsWeekAhead,
   dragX,
   dragRotate,
   exiting,
   crossfading,
   reducedMotion,
+  peekTitle,
+  children,
   cardRef,
-  onFrontClick,
   onFrontKeyDown,
   onFrontPointerDown,
   onFrontPointerMove,
   onFrontPointerUp,
   onFrontPointerCancel,
-  frontIsWeekAhead,
 }: {
-  entry: ComingUpEntry;
-  edge: string;
-  cardTint: string;
-  locale: Locale;
   stackIndex: number;
   isFront: boolean;
   frontIsWeekAhead: boolean;
-  href: string | null;
   dragX: number;
   dragRotate: number;
   exiting: "left" | "right" | null;
   crossfading?: boolean;
   reducedMotion: boolean;
+  peekTitle: string;
+  children: ReactNode;
   cardRef?: React.RefObject<HTMLElement | null>;
-  onFrontClick?: (e: ReactMouseEvent<HTMLAnchorElement>) => void;
-  onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLAnchorElement>) => void;
+  onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
   onFrontPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void;
   onFrontPointerMove?: (e: ReactPointerEvent<HTMLElement>) => void;
   onFrontPointerUp?: (e: ReactPointerEvent<HTMLElement>) => void;
   onFrontPointerCancel?: (e: ReactPointerEvent<HTMLElement>) => void;
 }) {
-  const Icon = COMING_UP_ICON[entry.kind] ?? CalendarDays;
-  const tone = TONE_PILL[COMING_UP_TONE[entry.kind]];
   const t = stackTransform(stackIndex, frontIsWeekAhead);
+  const peekClass =
+    stackIndex === 0
+      ? "atlas-deck-card--front"
+      : stackIndex === 1
+        ? "atlas-deck-card--peek-near"
+        : "atlas-deck-card--peek-far";
 
   let transform = `translateY(${t.y}px) scale(${t.scale}) rotate(${t.rotate}deg)`;
   let opacity = crossfading ? 0 : t.opacity;
@@ -175,103 +156,204 @@ function EveningDeckCard({
     }
   }
 
-  const surfaceClass = isFront
-    ? "evening-glass-card-front"
-    : stackIndex === 1
-      ? "evening-glass-card-peek-near"
-      : "evening-glass-card-peek-far";
-
-  const cardBody = (
-    <>
+  return (
+    <div
+      ref={cardRef as React.RefObject<HTMLDivElement | null>}
+      data-evening-deck-card={isFront ? "front" : stackIndex}
+      role={isFront ? "group" : undefined}
+      tabIndex={isFront ? 0 : undefined}
+      className={`evening-card atlas-deck-card ${peekClass}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`}
+      style={{
+        zIndex: t.z,
+        opacity,
+        transform,
+        ["--peek-band" as string]: t.peekBand ? `${t.peekBand}px` : undefined,
+        pointerEvents: isFront ? ("auto" as const) : ("none" as const),
+        willChange:
+          isFront && (dragX !== 0 || exiting)
+            ? ("transform, opacity" as const)
+            : undefined,
+        transition:
+          isFront && (exiting || (dragX === 0 && !reducedMotion))
+            ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
+            : !isFront && !reducedMotion
+              ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
+              : undefined,
+      }}
+      onKeyDown={isFront ? onFrontKeyDown : undefined}
+      onPointerDown={isFront ? onFrontPointerDown : undefined}
+      onPointerMove={isFront ? onFrontPointerMove : undefined}
+      onPointerUp={isFront ? onFrontPointerUp : undefined}
+      onPointerCancel={isFront ? onFrontPointerCancel : undefined}
+    >
       {!isFront ? (
         <p className="evening-card-peek-title" aria-hidden>
-          {entry.title}
+          {peekTitle}
         </p>
       ) : null}
-
       <div className="evening-card-content" aria-hidden={!isFront}>
-        <div className="evening-card-row">
-          <span
-            aria-hidden
-            className={`icon-well evening-card-icon ${tone}`}
-          >
-            <Icon size={17} strokeWidth={1.9} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="evening-card-title">{entry.title}</p>
-            <p className="evening-card-meta">{entry.note}</p>
-            <p className="evening-card-when tnum">
-              {eveningCardWhen(entry, locale)}
-            </p>
-          </div>
-        </div>
+        {children}
       </div>
-    </>
+    </div>
   );
+}
 
-  const sharedProps = {
-    "data-evening-deck-card": isFront ? "front" : stackIndex,
-    className: `evening-card evening-card-front evening-glass-card ${surfaceClass} ${edge}${isFront ? " evening-card--front evening-card--interactive" : " evening-card--back"}${isFront && !reducedMotion ? " touch-none" : ""}`,
-    style: {
-      zIndex: t.z,
-      opacity,
-      transform,
-      ["--card-tint" as string]: cardTint,
-      ["--peek-band" as string]: t.peekBand ? `${t.peekBand}px` : undefined,
-      pointerEvents: isFront ? ("auto" as const) : ("none" as const),
-      willChange:
-        isFront && (dragX !== 0 || exiting)
-          ? ("transform, opacity" as const)
-          : undefined,
-      transition:
-        isFront && (exiting || (dragX === 0 && !reducedMotion))
-          ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
-          : !isFront && !reducedMotion
-            ? `transform ${SHUFFLE_MS}ms ${SPRING}, opacity ${SHUFFLE_MS * 0.85}ms ease-out`
-            : undefined,
-    },
-  };
-
-  if (isFront && href) {
-    return (
-      <Link
-        ref={cardRef as React.RefObject<HTMLAnchorElement | null>}
-        href={href}
-        {...sharedProps}
-        onClick={onFrontClick}
-        onKeyDown={onFrontKeyDown}
-        onPointerDown={onFrontPointerDown}
-        onPointerMove={onFrontPointerMove}
-        onPointerUp={onFrontPointerUp}
-        onPointerCancel={onFrontPointerCancel}
-      >
-        {cardBody}
-      </Link>
-    );
-  }
-
-  if (isFront) {
-    return (
-      <div
-        ref={cardRef as React.RefObject<HTMLDivElement | null>}
-        {...sharedProps}
-        onPointerDown={onFrontPointerDown}
-        onPointerMove={onFrontPointerMove}
-        onPointerUp={onFrontPointerUp}
-        onPointerCancel={onFrontPointerCancel}
-      >
-        {cardBody}
-      </div>
-    );
-  }
+function EveningDeckCard({
+  entry,
+  locale,
+  stackIndex,
+  isFront,
+  deckPosition,
+  deckTotal,
+  dragX,
+  dragRotate,
+  exiting,
+  crossfading,
+  reducedMotion,
+  cardRef,
+  onOpen,
+  onBook,
+  onFrontKeyDown,
+  onFrontPointerDown,
+  onFrontPointerMove,
+  onFrontPointerUp,
+  onFrontPointerCancel,
+  frontIsWeekAhead,
+}: {
+  entry: ComingUpEntry;
+  locale: Locale;
+  stackIndex: number;
+  isFront: boolean;
+  deckPosition: number;
+  deckTotal: number;
+  frontIsWeekAhead: boolean;
+  dragX: number;
+  dragRotate: number;
+  exiting: "left" | "right" | null;
+  crossfading?: boolean;
+  reducedMotion: boolean;
+  cardRef?: React.RefObject<HTMLElement | null>;
+  onOpen?: () => void;
+  onBook?: () => void;
+  onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
+  onFrontPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerMove?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerUp?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerCancel?: (e: ReactPointerEvent<HTMLElement>) => void;
+}) {
+  const actions = atlasActionsForComingUp(entry);
+  const color = atlasColorForComingUpKind(entry.kind);
 
   return (
-    <div {...sharedProps}>{cardBody}</div>
+    <AtlasDeckCardShell
+      stackIndex={stackIndex}
+      isFront={isFront}
+      frontIsWeekAhead={frontIsWeekAhead}
+      dragX={dragX}
+      dragRotate={dragRotate}
+      exiting={exiting}
+      crossfading={crossfading}
+      reducedMotion={reducedMotion}
+      peekTitle={entry.title}
+      cardRef={cardRef}
+      onFrontKeyDown={onFrontKeyDown}
+      onFrontPointerDown={onFrontPointerDown}
+      onFrontPointerMove={onFrontPointerMove}
+      onFrontPointerUp={onFrontPointerUp}
+      onFrontPointerCancel={onFrontPointerCancel}
+    >
+      <AtlasDeckCardFace
+        color={color}
+        eyebrow={atlasEyebrowForComingUp(entry)}
+        title={entry.title}
+        whenLabel={eveningCardWhen(entry, locale)}
+        position={deckPosition}
+        total={deckTotal}
+        bookLabel={actions.bookLabel}
+        onBook={isFront && actions.bookLabel ? onBook : undefined}
+        onOpen={isFront ? onOpen : undefined}
+        openLabel={actions.openLabel}
+        interactive={isFront}
+      />
+    </AtlasDeckCardShell>
+  );
+}
+
+function VaultEveningDeckCard({
+  card,
+  stackIndex,
+  isFront,
+  dragX,
+  dragRotate,
+  exiting,
+  crossfading,
+  reducedMotion,
+  cardRef,
+  onOpen,
+  onBook,
+  onFrontKeyDown,
+  onFrontPointerDown,
+  onFrontPointerMove,
+  onFrontPointerUp,
+  onFrontPointerCancel,
+  frontIsWeekAhead,
+}: {
+  card: VaultDeckCard;
+  stackIndex: number;
+  isFront: boolean;
+  frontIsWeekAhead: boolean;
+  dragX: number;
+  dragRotate: number;
+  exiting: "left" | "right" | null;
+  crossfading?: boolean;
+  reducedMotion: boolean;
+  cardRef?: React.RefObject<HTMLElement | null>;
+  onOpen?: () => void;
+  onBook?: () => void;
+  onFrontKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
+  onFrontPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerMove?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerUp?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onFrontPointerCancel?: (e: ReactPointerEvent<HTMLElement>) => void;
+}) {
+  return (
+    <AtlasDeckCardShell
+      stackIndex={stackIndex}
+      isFront={isFront}
+      frontIsWeekAhead={frontIsWeekAhead}
+      dragX={dragX}
+      dragRotate={dragRotate}
+      exiting={exiting}
+      crossfading={crossfading}
+      reducedMotion={reducedMotion}
+      peekTitle={card.title}
+      cardRef={cardRef}
+      onFrontKeyDown={onFrontKeyDown}
+      onFrontPointerDown={onFrontPointerDown}
+      onFrontPointerMove={onFrontPointerMove}
+      onFrontPointerUp={onFrontPointerUp}
+      onFrontPointerCancel={onFrontPointerCancel}
+    >
+      <AtlasDeckCardFace
+        color={card.color}
+        eyebrow={card.eyebrow}
+        title={card.title}
+        badge={card.badge}
+        whenLabel={card.whenLabel}
+        position={card.position}
+        total={card.total}
+        bookLabel={card.bookLabel}
+        onBook={isFront && card.bookLabel ? onBook : undefined}
+        onOpen={isFront ? onOpen : undefined}
+        interactive={isFront}
+      />
+    </AtlasDeckCardShell>
   );
 }
 
 type DeckItem =
   | { kind: "week-ahead"; key: string; model: WeekAheadModel }
+  | { kind: "vault"; key: string; card: VaultDeckCard }
   | { kind: "entry"; key: string; entry: ComingUpEntry };
 
 function WeekAheadDeckCard({
@@ -439,6 +521,7 @@ function WeekAheadDeckCard({
 export default function EveningCardStack({
   entries,
   deckEntries,
+  vaultCards = [],
   people,
   locale,
   weekAhead = null,
@@ -448,6 +531,7 @@ export default function EveningCardStack({
   entries: readonly ComingUpEntry[];
   /** Entries for the swipeable fan; defaults to `entries`. */
   deckEntries?: readonly ComingUpEntry[];
+  vaultCards?: readonly VaultDeckCard[];
   people: readonly PersonSortable[];
   locale: Locale;
   weekAhead?: WeekAheadModel | null;
@@ -456,26 +540,34 @@ export default function EveningCardStack({
 }) {
   const fanSource = deckEntries ?? entries;
   const regularStack = eveningStackEntries(fanSource, 6);
+  const vaultItems: DeckItem[] = vaultCards.map((card) => ({
+    kind: "vault" as const,
+    key: `vault:${card.id}`,
+    card,
+  }));
+  const entryItems: DeckItem[] = regularStack.map((entry) => ({
+    kind: "entry" as const,
+    key: entry.key,
+    entry,
+  }));
   const stack: DeckItem[] = weekAhead
     ? [
         { kind: "week-ahead", key: "week-ahead", model: weekAhead },
-        ...regularStack.map((entry) => ({
-          kind: "entry" as const,
-          key: entry.key,
-          entry,
-        })),
+        ...vaultItems,
+        ...entryItems,
       ]
-    : regularStack.map((entry) => ({
-        kind: "entry" as const,
-        key: entry.key,
-        entry,
-      }));
+    : [...vaultItems, ...entryItems];
+  const deckTotal = stack.length;
   const stackFingerprint = stack
-    .map((item) =>
-      item.kind === "week-ahead"
-        ? `week-ahead:${item.model.range.monday}`
-        : `${item.entry.key}:${item.entry.date}`
-    )
+    .map((item) => {
+      if (item.kind === "week-ahead") {
+        return `week-ahead:${item.model.range.monday}`;
+      }
+      if (item.kind === "vault") {
+        return `vault:${item.card.id}:${item.card.whenLabel}`;
+      }
+      return `${item.entry.key}:${item.entry.date}`;
+    })
     .join("|");
 
   const [deckRotation, setDeckRotation] = useState(0);
@@ -530,6 +622,8 @@ export default function EveningCardStack({
   const frontEntryKey = frontItem?.key;
   const frontEntry =
     frontItem?.kind === "entry" ? frontItem.entry : undefined;
+  const frontVault =
+    frontItem?.kind === "vault" ? frontItem.card : undefined;
   const frontHref = frontEntry ? comingUpHref(frontEntry) : null;
   const frontIsWeekAhead = frontItem?.kind === "week-ahead";
 
@@ -607,6 +701,29 @@ export default function EveningCardStack({
     setNavOpen(true);
   };
 
+  const openFrontRecord = () => {
+    if (frontVault) {
+      void openVaultRecord(frontVault.id);
+      return;
+    }
+    if (frontEntry && frontHref) startNavigate(frontEntry, frontHref);
+  };
+
+  const bookFrontRecord = () => {
+    if (frontVault?.bookUrl) {
+      void openExternalUrl(frontVault.bookUrl);
+      return;
+    }
+    if (frontVault) {
+      void bookVaultRecord(frontVault.id);
+      return;
+    }
+    if (frontEntry) {
+      const { bookUrl } = atlasActionsForComingUp(frontEntry);
+      if (bookUrl) void openExternalUrl(bookUrl);
+    }
+  };
+
   const startWeekAhead = () => {
     if (!weekAhead) return;
     const el = frontCardRef.current;
@@ -679,8 +796,8 @@ export default function EveningCardStack({
     if (dist < TAP_PX) {
       if (frontIsWeekAhead) {
         startWeekAhead();
-      } else if (frontEntry && frontHref) {
-        startNavigate(frontEntry, frontHref);
+      } else if (frontVault || (frontEntry && frontHref)) {
+        openFrontRecord();
       }
       setDragX(0);
       return;
@@ -702,12 +819,8 @@ export default function EveningCardStack({
     finishShuffle("right");
   };
 
-  const onFrontClick = (e: ReactMouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-  };
-
   const onFrontKeyDown = (
-    e: ReactKeyboardEvent<HTMLAnchorElement | HTMLButtonElement>
+    e: ReactKeyboardEvent<HTMLAnchorElement | HTMLButtonElement | HTMLElement>
   ) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -715,8 +828,7 @@ export default function EveningCardStack({
       startWeekAhead();
       return;
     }
-    if (!frontEntry || !frontHref) return;
-    startNavigate(frontEntry, frontHref);
+    if (frontVault || (frontEntry && frontHref)) openFrontRecord();
   };
 
   const onDeckKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -773,7 +885,7 @@ export default function EveningCardStack({
               aria-controls="evening-coming-up-sheet"
               onClick={() => setSheetOpen(true)}
             >
-              See all ({entries.length})
+              See all ({entries.length + vaultCards.length})
               <ChevronRight size={18} strokeWidth={2} aria-hidden />
             </button>
           </div>
@@ -826,30 +938,58 @@ export default function EveningCardStack({
                 );
               }
 
+              if (item.kind === "vault") {
+                const card = item.card;
+                return (
+                  <VaultEveningDeckCard
+                    key={item.key}
+                    card={card}
+                    stackIndex={stackIndex}
+                    isFront={isFront}
+                    frontIsWeekAhead={frontIsWeekAhead}
+                    dragX={isFront ? dragX : 0}
+                    dragRotate={isFront ? dragRotate : 0}
+                    exiting={isFront ? exiting : null}
+                    crossfading={isFront && fadeKey === item.key}
+                    reducedMotion={reducedMotion}
+                    cardRef={isFront ? frontCardRef : undefined}
+                    onOpen={isFront ? openFrontRecord : undefined}
+                    onBook={isFront ? bookFrontRecord : undefined}
+                    onFrontKeyDown={isFront ? onFrontKeyDown : undefined}
+                    onFrontPointerDown={isFront ? onFrontPointerDown : undefined}
+                    onFrontPointerMove={isFront ? onFrontPointerMove : undefined}
+                    onFrontPointerUp={isFront ? onFrontPointerUp : undefined}
+                    onFrontPointerCancel={
+                      isFront ? onFrontPointerCancel : undefined
+                    }
+                  />
+                );
+              }
+
               const entry = item.entry;
-              const edge = memberEdgeClass(entry.personId, people);
-              const cardTint = cardTintForEntry(entry, people);
+              const deckPosition =
+                rotatedStack.findIndex((v) => v.key === item.key) + 1;
 
               return (
                 <EveningDeckCard
                   key={entry.key}
                   entry={entry}
-                  edge={edge}
-                  cardTint={cardTint}
                   locale={locale}
                   stackIndex={stackIndex}
                   isFront={isFront}
+                  deckPosition={deckPosition}
+                  deckTotal={deckTotal}
                   frontIsWeekAhead={frontIsWeekAhead}
-                  href={isFront && !frontIsWeekAhead ? frontHref : null}
                   dragX={isFront ? dragX : 0}
                   dragRotate={isFront ? dragRotate : 0}
                   exiting={isFront ? exiting : null}
                   crossfading={isFront && fadeKey === entry.key}
                   reducedMotion={reducedMotion}
                   cardRef={isFront ? frontCardRef : undefined}
-                  onFrontClick={isFront ? onFrontClick : undefined}
+                  onOpen={isFront ? openFrontRecord : undefined}
+                  onBook={isFront ? bookFrontRecord : undefined}
                   onFrontKeyDown={isFront ? onFrontKeyDown : undefined}
-                  onFrontPointerDown={isFront ? onFrontPointerDown : undefined}
+                  onFrontPointerDown={ isFront ? onFrontPointerDown : undefined}
                   onFrontPointerMove={isFront ? onFrontPointerMove : undefined}
                   onFrontPointerUp={isFront ? onFrontPointerUp : undefined}
                   onFrontPointerCancel={isFront ? onFrontPointerCancel : undefined}

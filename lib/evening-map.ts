@@ -58,6 +58,30 @@ export function eveningBriefingLine(
   return todayCount === 1 ? `1 thing ${period}` : `${todayCount} things ${period}`;
 }
 
+function thingsThisWeek(entries: readonly ComingUpEntry[]): number {
+  return entries.filter((e) => e.daysAway >= 0 && e.daysAway <= 7).length;
+}
+
+/** Atlas mono subline: HOUSEHOLD · N THINGS THIS WEEK */
+export function atlasBriefingLine(
+  householdName: string,
+  entries: readonly ComingUpEntry[]
+): string {
+  const name = householdName.trim().toUpperCase() || "YOUR HOUSEHOLD";
+  const n = thingsThisWeek(entries);
+  if (n === 0) return `${name} · CLEAR THIS WEEK`;
+  return n === 1
+    ? `${name} · 1 THING THIS WEEK`
+    : `${name} · ${n} THINGS THIS WEEK`;
+}
+
+export function atlasBriefingServerSnapshot(
+  householdName: string,
+  entries: readonly ComingUpEntry[]
+): string {
+  return atlasBriefingLine(householdName, entries);
+}
+
 /** Cards for the stack: today first, else the next few upcoming items. */
 export function eveningStackEntries(
   entries: readonly ComingUpEntry[],

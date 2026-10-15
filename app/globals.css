@@ -99,9 +99,24 @@
   --member-slate-ink: color-mix(in oklab, var(--member-slate) 72%, var(--text));
   --member-neutral: #8b93a5;
 
-  --pin-halo: rgb(212 146 58 / 0.52);
-  --pin-glow: rgb(212 146 58 / 0.62);
+  --atlas-pin-fill: #1a2438;
+  --atlas-pin-icon: #faf7f2;
+  --pin-halo: rgb(26 36 56 / 0.45);
+  --pin-glow: rgb(26 36 56 / 0.55);
   --fab-ring: rgb(255 255 255 / 0.35);
+
+  --atlas-fill-navy: #1e3a5f;
+  --atlas-fill-forest: #1f4d3a;
+  --atlas-fill-maroon: #5c2438;
+  --atlas-fill-plum: #3d2f6e;
+  --atlas-fill-amber: #6b4a12;
+  --atlas-fill-teal: #1a4f4f;
+  --atlas-fill-rose: #6b3048;
+  --atlas-fill-slate: #2a3548;
+  --atlas-on-solid: #f5f7fb;
+  --atlas-on-solid-muted: rgb(245 247 251 / 0.72);
+  --atlas-plate-bg: #e8b923;
+  --atlas-plate-ink: #141c2e;
 
   --shadow-card: 0 1px 2px rgb(31 42 68 / 0.05), 0 2px 8px rgb(31 42 68 / 0.06),
     0 14px 28px -16px rgb(31 42 68 / 0.22);
@@ -236,9 +251,27 @@
     --member-slate-ink: #b8c4d8;
     --member-neutral: #8b9ab5;
 
+    --atlas-pin-fill: #e0a84a;
+    --atlas-pin-icon: #141c2e;
     --pin-halo: rgb(232 179 90 / 0.45);
     --pin-glow: rgb(232 179 90 / 0.55);
     --fab-ring: rgb(20 28 46 / 0.35);
+
+    --atlas-fill-navy: #243c68;
+    --atlas-fill-forest: #245840;
+    --atlas-fill-maroon: #6e2840;
+    --atlas-fill-plum: #4a3888;
+    --atlas-fill-amber: #8a6018;
+    --atlas-fill-teal: #226060;
+    --atlas-fill-rose: #7a3858;
+    --atlas-fill-slate: #323e54;
+    --atlas-on-solid: #ffffff;
+    --atlas-on-solid-muted: rgb(255 255 255 / 0.72);
+    --atlas-plate-bg: #e8b923;
+    --atlas-plate-ink: #141c2e;
+
+    --map-ground: #0b101b;
+    --map-ground-2: #141c2e;
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.28),
       0 14px 28px -14px rgb(0 0 0 / 0.55);
@@ -1032,9 +1065,213 @@
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 50%;
-    background: var(--accent);
-    color: var(--map-pin-icon-on);
+    background: var(--atlas-pin-fill);
+    color: var(--atlas-pin-icon);
     box-shadow: 0 0 24px var(--pin-glow);
+  }
+
+  html.hearth-native-map-active .evening-map-screen {
+    background: transparent;
+  }
+
+  html.hearth-native-map-active .evening-map-layer.evening-map-fallback {
+    opacity: 0;
+  }
+
+  html.hearth-native-map-active .evening-map-scrim-top,
+  html.hearth-native-map-active .evening-map-scrim-bottom {
+    opacity: 0.85;
+  }
+
+  .atlas-briefing {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .atlas-deck-card {
+    border: none;
+    padding: 0;
+    overflow: hidden;
+    color: var(--atlas-on-solid);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.35);
+  }
+
+  .atlas-deck-card--peek-near {
+    filter: brightness(0.92);
+  }
+
+  .atlas-deck-card--peek-far {
+    filter: brightness(0.84);
+  }
+
+  .atlas-card-inner {
+    padding: 1rem 1rem 1.05rem;
+    min-height: 11.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .atlas-fill-navy {
+    background-color: var(--atlas-fill-navy);
+  }
+  .atlas-fill-forest {
+    background-color: var(--atlas-fill-forest);
+  }
+  .atlas-fill-maroon {
+    background-color: var(--atlas-fill-maroon);
+  }
+  .atlas-fill-plum {
+    background-color: var(--atlas-fill-plum);
+  }
+  .atlas-fill-amber {
+    background-color: var(--atlas-fill-amber);
+  }
+  .atlas-fill-teal {
+    background-color: var(--atlas-fill-teal);
+  }
+  .atlas-fill-rose {
+    background-color: var(--atlas-fill-rose);
+  }
+  .atlas-fill-slate {
+    background-color: var(--atlas-fill-slate);
+  }
+
+  .atlas-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .atlas-card-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--atlas-on-solid-muted);
+  }
+
+  .atlas-card-index {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--atlas-on-solid-muted);
+  }
+
+  .atlas-card-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .atlas-card-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.15rem;
+  }
+
+  .atlas-plate {
+    display: inline-flex;
+    border-radius: 0.35rem;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: var(--atlas-plate-bg);
+    color: var(--atlas-plate-ink);
+  }
+
+  .atlas-card-when {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--atlas-on-solid-muted);
+  }
+
+  .atlas-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.85rem;
+  }
+
+  .atlas-btn {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+  }
+
+  .atlas-btn--book {
+    background: var(--accent);
+    color: var(--atlas-plate-ink);
+  }
+
+  .atlas-btn--open {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--atlas-on-solid);
+    border: 1px solid rgb(255 255 255 / 0.18);
+  }
+
+  .atlas-renewal-tile {
+    display: flex;
+    min-height: 5.25rem;
+    width: 100%;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    border-radius: 0.85rem;
+    padding: 0.75rem;
+    text-align: left;
+    color: var(--atlas-on-solid);
+    border: none;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+  }
+
+  .atlas-renewal-tile-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .atlas-renewal-tile-sub {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--atlas-on-solid-muted);
+  }
+
+  .atlas-section-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .atlas-bring-in-btn {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface-sunk);
+    padding: 0.65rem 0.35rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--text-muted);
   }
 
   .evening-map-chrome {
