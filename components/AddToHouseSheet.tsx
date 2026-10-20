@@ -33,6 +33,21 @@ import { isCapacitorNative } from "@/lib/is-capacitor-native";
 
 type Step = "pick" | "confirm-scan";
 
+/** Mirrors lib/mot.ts's MotLookup shape — kept local so this client
+ * component never imports the server-only module that defines it. */
+type MotLookupResponse =
+  | {
+      found: true;
+      registration: string;
+      make: string | null;
+      model: string | null;
+      colour: string | null;
+      fuelType: string | null;
+      motExpiryDate: string | null;
+      lastTestResult: string | null;
+    }
+  | { found: false };
+
 const BRING_IN: {
   id: string;
   label: string;
@@ -76,6 +91,9 @@ export default function AddToHouseSheet({
   const [confirmShareDraft, setConfirmShareDraft] =
     useState<HearthShareInDraft | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [regInput, setRegInput] = useState("");
+  const [motLookupBusy, setMotLookupBusy] = useState(false);
+  const [motNotice, setMotNotice] = useState<string | null>(null);
 
   const resetConfirm = useCallback(() => {
     setStep("pick");
@@ -84,6 +102,9 @@ export default function AddToHouseSheet({
     setConfirmSource(null);
     setConfirmShareDraft(null);
     setNotice(null);
+    setRegInput("");
+    setMotLookupBusy(false);
+    setMotNotice(null);
   }, []);
 
   const closeAll = useCallback(() => {
@@ -188,6 +209,50 @@ export default function AddToHouseSheet({
         ? "From Mail, Files or Photos: tap Share → Hearth. The file stays on your phone; we open a confirm screen when the app receives it."
         : "Share-in needs a newer Hearth iPhone build (HearthShareIn plugin). Update the app, then use Share → Hearth from another app."
     );
+  }
+
+  async function lookupRegistration() {
+    const registration = regInput.trim();
+    if (!registration) {
+      setMotNotice("Enter a registration first.");
+      return;
+    }
+    setMotLookupBusy(true);
+    setMotNotice(null);
+    try {
+      const response = await fetch("/api/vehicle/mot", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ registration }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMotNotice(
+          (body && typeof body.error === "string" && body.error) ||
+            "The MOT lookup didn’t answer. Try again in a moment."
+        );
+        return;
+      }
+      const result = body as MotLookupResponse;
+      if (!result.found) {
+        setMotNotice("No MOT record found for that registration.");
+        return;
+      }
+      const vehicleTitle = [result.make, result.model].filter(Boolean).join(" ");
+      setConfirmTitle(vehicleTitle ? `${vehicleTitle} MOT` : "MOT");
+      if (result.motExpiryDate) {
+        setConfirmExpiry(result.motExpiryDate);
+        setMotNotice(null);
+      } else {
+        setMotNotice(
+          "No expiry found for this vehicle — the last test may not have passed. You can still enter the date yourself."
+        );
+      }
+    } catch {
+      setMotNotice("Could not reach the MOT lookup. Try again in a moment.");
+    } finally {
+      setMotLookupBusy(false);
+    }
   }
 
   async function saveDraft() {
@@ -317,6 +382,28 @@ export default function AddToHouseSheet({
           <p className="text-sm text-ink-soft">
             Check the title and expiry — reminders stay on this iPhone only.
           </p>
+          <label className="block">
+            <span className="field-label">Registration</span>
+            <div className="mt-1 flex gap-2">
+              <input
+                className="field-input w-full uppercase"
+                value={regInput}
+                onChange={(e) => setRegInput(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="characters"
+                placeholder="FX74YGF"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary shrink-0"
+                disabled={motLookupBusy}
+                onClick={() => void lookupRegistration()}
+              >
+                {motLookupBusy ? "Looking up…" : "Look up"}
+              </button>
+            </div>
+          </label>
+          {motNotice ? <Notice>{motNotice}</Notice> : null}
           <label className="block">
             <span className="field-label">Title</span>
             <input
