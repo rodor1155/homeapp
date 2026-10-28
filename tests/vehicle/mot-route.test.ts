@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { INVALID_REGISTRATION_MESSAGE } from "@/lib/registration";
 
 /* POST /api/vehicle/mot: DVSA's quota is shared by everyone, so nothing reaches
    lookupMot() unless the caller is a household member, inside their burst
@@ -122,7 +123,32 @@ describe("POST /api/vehicle/mot", () => {
     const response = await post();
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ found: true });
-    expect(h.lookupMot).toHaveBeenCalledWith("FG11 VXY");
+    expect(h.lookupMot).toHaveBeenCalledWith("FG11VXY");
+  });
+
+  it("normalises spaces, hyphens and case before calling DVSA", async () => {
+    h.lookupMot.mockResolvedValue({ found: true, registration: "AB12CDE" });
+    const response = await post("ab-12 cde");
+    expect(response.status).toBe(200);
+    expect(h.lookupMot).toHaveBeenCalledTimes(1);
+    expect(h.lookupMot).toHaveBeenCalledWith("AB12CDE");
+  });
+
+  it.each(["..", "AB/12", "", "A", "ABCDEFGHI", "FG11 VXY;"])(
+    "answers 400 to %j without calling DVSA or spending quota",
+    async (registration) => {
+      const response = await post(registration);
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe(INVALID_REGISTRATION_MESSAGE);
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.lookupMot).not.toHaveBeenCalled();
+    }
+  );
+
+  it("doesn't let invalid registrations use up the burst allowance", async () => {
+    for (let i = 0; i < 10; i++) expect((await post("..")).status).toBe(400);
+    expect((await post()).status).toBe(200);
+    expect(h.lookupMot).toHaveBeenCalledTimes(1);
   });
 
   it("answers 429 to a burst, without calling DVSA for the excess", async () => {
@@ -189,6 +215,18 @@ describe("POST /api/vehicle/mot", () => {
     const response = await post("   ");
     expect(response.status).toBe(400);
     expect(h.rpc).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 to a non-string registration", async () => {
+    const response = await route.POST(
+      new Request("https://homeapp.test/api/vehicle/mot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registration: 1234 }),
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(h.lookupMot).not.toHaveBeenCalled();
   });
 });
 

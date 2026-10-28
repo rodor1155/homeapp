@@ -30,6 +30,10 @@ import { UK_RENEWAL_PRESETS, type UkRenewalPreset } from "@/lib/uk-renewals";
 import { ATLAS_COLOR_CLASS } from "@/lib/atlas-colors";
 import { useRouter } from "next/navigation";
 import { isCapacitorNative } from "@/lib/is-capacitor-native";
+import {
+  INVALID_REGISTRATION_MESSAGE,
+  normaliseRegistration,
+} from "@/lib/registration";
 
 type Step = "pick" | "confirm-scan";
 
@@ -212,9 +216,10 @@ export default function AddToHouseSheet({
   }
 
   async function lookupRegistration() {
-    const registration = regInput.trim();
+    // Same rule and wording as the route, so a typo never costs a lookup.
+    const registration = normaliseRegistration(regInput);
     if (!registration) {
-      setMotNotice("Enter a registration first.");
+      setMotNotice(INVALID_REGISTRATION_MESSAGE);
       return;
     }
     setMotLookupBusy(true);
