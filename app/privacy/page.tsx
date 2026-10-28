@@ -13,7 +13,7 @@ export const metadata = {
     "How Hearth collects, uses and protects your household data.",
 };
 
-const CONTACT_EMAIL = "ross@ellner.co.uk";
+const CONTACT_EMAIL = "info@rodortech.com";
 const LAST_UPDATED = "28 October 2026";
 
 export default function PrivacyPage() {
