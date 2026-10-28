@@ -16,6 +16,7 @@ import { syncHouseholdCalendar } from "@/lib/household-calendar";
 import { normaliseCalendarUrl } from "@/lib/ics";
 import { syncSchoolCalendar } from "@/lib/school-calendar";
 import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
+import { insertHouseholdEvent } from "@/lib/gated-inserts";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
@@ -683,10 +684,15 @@ export async function saveEvent(
     if (!entitlements.canAddFamilyDates) {
       return { error: UPGRADE_MESSAGE.familyDates, upgrade: true };
     }
-    const { error } = await supabase
-      .from("household_events")
-      .insert({ household_id: caller.householdId, ...values });
-    if (error) return { error: error.message };
+    const { error, planRequired } = await insertHouseholdEvent(
+      supabase,
+      entitlements,
+      { householdId: caller.householdId, ...values }
+    );
+    if (planRequired) {
+      return { error: UPGRADE_MESSAGE.familyDates, upgrade: true };
+    }
+    if (error) return { error };
   }
 
   refresh();

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
+import { insertHouseholdInvite } from "@/lib/gated-inserts";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 import type { MemberEmail } from "@/lib/members";
@@ -165,12 +166,13 @@ export async function inviteMember(
     return { error: "There is already an invitation waiting at that address." };
   }
 
-  const { error } = await supabase.from("household_invites").insert({
-    household_id: caller.householdId,
-    email,
-    invited_by: caller.userId,
-  });
-  if (error) return { error: error.message };
+  const { error, planRequired } = await insertHouseholdInvite(
+    supabase,
+    entitlements,
+    { householdId: caller.householdId, invitedBy: caller.userId, email }
+  );
+  if (planRequired) return { error: UPGRADE_MESSAGE.invite };
+  if (error) return { error };
 
   revalidatePath("/settings");
   return { ok: true };
