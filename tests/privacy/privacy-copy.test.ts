@@ -57,3 +57,26 @@ describe("no false on-device claims for the server lookups", () => {
     expect(text).not.toMatch(/nothing is uploaded/i);
   });
 });
+
+describe("postal address", () => {
+  const page = source("app/privacy/page.tsx");
+
+  it("shows the postal/contact address on the privacy page", () => {
+    expect(page).toContain("Postal and contact address: Suite 861, 80A Ruskin Ave, Welling DA16 3QQ.");
+  });
+
+  it("does not call it a registered office or add 'Ltd'", () => {
+    expect(page).not.toMatch(/registered office/i);
+    expect(page).not.toMatch(/\bLtd\b|\bLimited\b/);
+  });
+
+  it("has no previous home address anywhere in the legal pages", () => {
+    for (const file of [
+      "app/privacy/page.tsx",
+      "app/account-deletion/page.tsx",
+      "app/account-deleted/page.tsx",
+    ]) {
+      expect(source(file)).not.toMatch(/craddocks|KT21|ashtead/i);
+    }
+  });
+});
