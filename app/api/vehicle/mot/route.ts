@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { loadHouseholdContext } from "@/lib/household";
 import { lookupMot, MotLookupError } from "@/lib/mot";
 import { consumeMotLookup } from "@/lib/mot-quota";
+import { INVALID_REGISTRATION_MESSAGE, normaliseRegistration } from "@/lib/registration";
 import { takeToken } from "@/lib/rate-limit";
 
 // Calls DVSA's API, so it runs on Node and never on the edge cache.
@@ -12,7 +13,9 @@ export const dynamic = "force-dynamic";
    anything leaves the server: household members only (403 otherwise), a
    per-user burst limit in this isolate's memory, and durable per-user and
    app-wide daily caps counted in Postgres (lib/mot-quota.ts) that a cold start
-   can't reset. Either limit answers 429. */
+   can't reset. Either limit answers 429. A registration that isn't 2–8
+   letters/digits (after dropping spaces and hyphens) is a 400 before any of
+   the limits are touched. */
 
 const MAX_BODY_BYTES = 2_000;
 const RATE_LIMIT = 5;
@@ -45,8 +48,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Send a registration." }, { status: 400 });
   }
 
-  if (typeof registration !== "string" || !registration.trim()) {
+  if (typeof registration !== "string") {
     return NextResponse.json({ error: "Send a registration." }, { status: 400 });
+  }
+
+  // Checked before the burst limit and the daily caps: a typo is refused
+  // locally for free, so it shouldn't spend an allowance meant for DVSA calls.
+  const normalised = normaliseRegistration(registration);
+  if (!normalised) {
+    return NextResponse.json({ error: INVALID_REGISTRATION_MESSAGE }, { status: 400 });
   }
 
   if (
@@ -70,7 +80,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await lookupMot(registration);
+    const result = await lookupMot(normalised);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof MotLookupError) {

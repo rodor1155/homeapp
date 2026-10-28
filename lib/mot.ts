@@ -1,4 +1,5 @@
 import "server-only";
+import { normaliseRegistration } from "@/lib/registration";
 
 /* DVSA MOT History API — OAuth2 client-credentials token exchange, then a
  * per-registration GET with that bearer token plus a separate x-api-key.
@@ -28,10 +29,7 @@ export type MotLookup =
 
 export class MotLookupError extends Error {}
 
-/** "fg11 vxy" and "FG11VXY" are the same lookup. */
-export function normaliseRegistration(raw: string): string {
-  return raw.replace(/\s+/g, "").toUpperCase();
-}
+export { normaliseRegistration } from "@/lib/registration";
 
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 
@@ -126,6 +124,10 @@ function toStringOrNull(value: unknown): string | null {
 /** Looks up a vehicle's MOT history. Never leaks the token or API key. */
 export async function lookupMot(registrationRaw: string): Promise<MotLookup> {
   const registration = normaliseRegistration(registrationRaw);
+  // The route has already refused these with a 400; never send one to DVSA.
+  if (!registration) {
+    throw new MotLookupError("Refusing to look up an invalid registration.");
+  }
   const apiKey = process.env.DVSA_MOT_API_KEY;
   if (!apiKey) {
     throw new MotLookupError("DVSA MOT credentials are not configured.");
