@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getEntitlements } from "@/lib/billing";
+import { insertHouseholdInvite } from "@/lib/gated-inserts";
 import { queryActiveMembership } from "@/lib/household";
 import { createClient } from "@/lib/supabase-server";
 
@@ -91,10 +92,10 @@ export async function completeOnboarding(
     });
     if (entitlements.canInvite) {
       // Best effort: a failed invite record shouldn't block onboarding.
-      await supabase.from("household_invites").insert({
-        household_id: householdId,
+      await insertHouseholdInvite(supabase, entitlements, {
+        householdId,
+        invitedBy: user.id,
         email: partnerEmail,
-        invited_by: user.id,
       });
     }
   }

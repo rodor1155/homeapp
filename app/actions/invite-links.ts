@@ -9,6 +9,7 @@ import {
   type PendingInviteLink,
 } from "@/lib/invite-links";
 import { getEntitlements, UPGRADE_MESSAGE } from "@/lib/billing";
+import { insertHouseholdInvite } from "@/lib/gated-inserts";
 import { queryActiveMembership } from "@/lib/household";
 import { publicAppOrigin } from "@/lib/public-app-origin";
 import { createClient } from "@/lib/supabase-server";
@@ -95,14 +96,18 @@ export async function createInviteLink(): Promise<InviteLinkState> {
     now.getTime() + LINK_TTL_DAYS * 24 * 60 * 60 * 1000
   );
 
-  const { error } = await caller.supabase.from("household_invites").insert({
-    household_id: caller.householdId,
-    invited_by: caller.userId,
-    token,
-    expires_at: expiresAt.toISOString(),
-    status: "pending",
-  });
-  if (error) return { error: error.message };
+  const { error, planRequired } = await insertHouseholdInvite(
+    caller.supabase,
+    entitlements,
+    {
+      householdId: caller.householdId,
+      invitedBy: caller.userId,
+      token,
+      expiresAt: expiresAt.toISOString(),
+    }
+  );
+  if (planRequired) return { error: UPGRADE_MESSAGE.invite, upgrade: true };
+  if (error) return { error };
 
   revalidatePath("/settings");
   revalidatePath("/family");

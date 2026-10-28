@@ -8,12 +8,17 @@ const HOUSEHOLD = "5b0e1f0a-6c62-4b0c-9a55-0d6f0f5f7a11";
 const DEMO = "review@example.com";
 
 const subscription = vi.fn();
+const adminInserts = vi.fn();
 vi.mock("@/lib/supabase-admin", () => ({
   createAdminClient: () => ({
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({ maybeSingle: async () => ({ data: subscription(), error: null }) }),
       }),
+      insert: async (row: unknown) => {
+        adminInserts(table, row);
+        return { error: null };
+      },
     }),
   }),
 }));
@@ -32,6 +37,7 @@ vi.mock("next/navigation", () => ({
 
 const inserts = vi.fn();
 const updates = vi.fn();
+const rpcs = vi.fn();
 let userEmail = "someone@example.com";
 
 /** A cookie client that records writes and answers every read with nothing. */
@@ -63,6 +69,10 @@ function fakeSupabase() {
       getUser: async () => ({ data: { user: { id: "user-1", email: userEmail } } }),
     },
     from: chain,
+    rpc: async (fn: string, args: unknown) => {
+      rpcs(fn, args);
+      return { data: null, error: null };
+    },
   };
 }
 
@@ -92,6 +102,8 @@ beforeEach(() => {
   appStoreSubscription.mockReturnValue(null);
   inserts.mockClear();
   updates.mockClear();
+  rpcs.mockClear();
+  adminInserts.mockClear();
   userEmail = "someone@example.com";
 });
 
@@ -171,6 +183,7 @@ describe("inviting someone", () => {
     expect(result?.upgrade).toBe(true);
     expect(result?.url).toBeUndefined();
     expect(inserts).not.toHaveBeenCalled();
+    expect(rpcs).not.toHaveBeenCalled();
   });
 
   it("still works for a paid household", async () => {
@@ -178,16 +191,22 @@ describe("inviting someone", () => {
     const result = await createInviteLink();
     expect(result?.ok).toBe(true);
     expect(result?.url).toContain("/join/");
-    expect(inserts).toHaveBeenCalledWith(
-      "household_invites",
-      expect.objectContaining({ household_id: HOUSEHOLD, status: "pending" })
+    expect(rpcs).toHaveBeenCalledWith(
+      "create_household_invite",
+      expect.objectContaining({ p_household_id: HOUSEHOLD })
     );
+    expect(inserts).not.toHaveBeenCalled();
   });
 
   it("still works for the App Review demo account", async () => {
     userEmail = DEMO;
     const result = await createInviteLink();
     expect(result?.ok).toBe(true);
+    // The database can't see REVIEW_DEMO_EMAIL, so the server writes it.
+    expect(adminInserts).toHaveBeenCalledWith(
+      "household_invites",
+      expect.objectContaining({ household_id: HOUSEHOLD, status: "pending" })
+    );
   });
 });
 
@@ -196,6 +215,7 @@ describe("family dates", () => {
     const result = await saveEvent(undefined, eventForm({}));
     expect(result?.upgrade).toBe(true);
     expect(inserts).not.toHaveBeenCalled();
+    expect(rpcs).not.toHaveBeenCalled();
   });
 
   it("that already exist can still be changed on the free plan", async () => {
@@ -211,9 +231,10 @@ describe("family dates", () => {
     subscription.mockReturnValue({ household_id: HOUSEHOLD, status: "active" });
     const result = await saveEvent(undefined, eventForm({}));
     expect(result).toEqual({ ok: true });
-    expect(inserts).toHaveBeenCalledWith(
-      "household_events",
-      expect.objectContaining({ household_id: HOUSEHOLD })
+    expect(rpcs).toHaveBeenCalledWith(
+      "create_household_event",
+      expect.objectContaining({ p_household_id: HOUSEHOLD, p_title: "Autumn term starts" })
     );
+    expect(inserts).not.toHaveBeenCalled();
   });
 });
