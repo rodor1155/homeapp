@@ -14,7 +14,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = "ross@ellner.co.uk";
-const LAST_UPDATED = "9 October 2026";
+const LAST_UPDATED = "28 October 2026";
 
 export default function PrivacyPage() {
   return (
@@ -137,6 +137,30 @@ export default function PrivacyPage() {
               <li>
                 <strong>Google</strong> — optional sign-in only, if you choose
                 Continue with Google.
+              </li>
+            </ul>
+            <p>
+              Some lookups send one piece of information, through our server,
+              to an outside service. Nothing else about you or your household
+              goes with it:
+            </p>
+            <ul>
+              <li>
+                <strong>DVSA (MOT History API)</strong> — receives the vehicle
+                registration you enter when you use the MOT lookup, and returns
+                the vehicle&apos;s details and MOT expiry date. We don&apos;t
+                keep the registration on our servers.
+              </li>
+              <li>
+                <strong>Ideal Postcodes</strong> — receives the postcode you
+                enter when you use the address lookup for your home or a school,
+                and returns the addresses at that postcode.
+              </li>
+              <li>
+                <strong>postcodes.io</strong> — receives your home&apos;s
+                postcode (or the start of its address, if no postcode is found)
+                to place it on the Home map, and checks a postcode in the address
+                lookup if Ideal Postcodes isn&apos;t set up.
               </li>
             </ul>
             <p>

@@ -331,8 +331,9 @@ export default function AddToHouseSheet({
       {step === "pick" ? (
         <div className="flex flex-col gap-5 pb-2">
           <p className="text-sm text-ink-soft">
-            Pick one — we pre-fill the dates and reminders on your phone. Nothing
-            is uploaded to Hearth&apos;s servers.
+            Pick one — we pre-fill the dates and reminders on your phone. Your
+            renewals stay on your phone; an MOT lookup sends the registration,
+            via Hearth&apos;s server, to the DVSA.
           </p>
 
           {shareHint ? (
@@ -386,6 +387,8 @@ export default function AddToHouseSheet({
         <div className="flex flex-col gap-4 pb-2">
           <p className="text-sm text-ink-soft">
             Check the title and expiry — reminders stay on this iPhone only.
+            Look up sends the registration, via Hearth&apos;s server, to the
+            DVSA.
           </p>
           <label className="block">
             <span className="field-label">Registration</span>
