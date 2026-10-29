@@ -225,6 +225,10 @@ export default function PrivacyPage() {
               </a>
               .
             </p>
+            <p>
+              Postal and contact address: Suite 861, 80A Ruskin Ave, Welling
+              DA16 3QQ.
+            </p>
           </section>
         </article>
 
