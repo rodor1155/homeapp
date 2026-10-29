@@ -9,7 +9,7 @@ export const metadata = {
     "How to delete your Hearth account, what is removed, and what happens in shared households.",
 };
 
-const CONTACT_EMAIL = "ross@ellner.co.uk";
+const CONTACT_EMAIL = "info@rodortech.com";
 
 export default function AccountDeletionPage() {
   return (
