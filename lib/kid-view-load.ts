@@ -21,6 +21,7 @@ import {
 } from "@/lib/member-colours";
 import { weekdayForDate } from "@/lib/timetable";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { WHOS_WHERE_ENABLED } from "@/lib/whos-where";
 
 const KID_VIEW_DAY_COUNT = 7;
 const BIRTHDAY_COUNTDOWN_DAYS = 14;
@@ -353,13 +354,15 @@ export async function loadKidViewForToken(
       .order("weekday", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("start_time", { ascending: true, nullsFirst: true }),
-    admin
-      .from("person_day_status")
-      .select(STATUS_SELECT)
-      .eq("household_id", householdId)
-      .eq("person_id", personId)
-      .gte("status_date", rangeStart)
-      .lte("status_date", rangeEnd),
+    WHOS_WHERE_ENABLED
+      ? admin
+          .from("person_day_status")
+          .select(STATUS_SELECT)
+          .eq("household_id", householdId)
+          .eq("person_id", personId)
+          .gte("status_date", rangeStart)
+          .lte("status_date", rangeEnd)
+      : Promise.resolve({ data: [] as StatusRow[], error: null }),
     schoolId
       ? admin
           .from("school_calendar_events")

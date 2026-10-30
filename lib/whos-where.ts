@@ -3,6 +3,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calendarDayParts, type FamilyList } from "@/lib/family";
 
+/**
+ * Launch switch: Who's where is hidden everywhere (Home chips, Family section,
+ * Hub column, kid view "You're: ..."), and nothing queries person_day_status.
+ * Data, table, actions and components are kept; set to true to bring it back.
+ */
+export const WHOS_WHERE_ENABLED = false;
+
 export type PersonDayStatus = {
   id: string;
   person_id: string;

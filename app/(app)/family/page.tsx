@@ -21,6 +21,7 @@ import MealsPanel from "./MealsPanel";
 import RoutinesPanel from "./RoutinesPanel";
 import TimetablePanel from "./TimetablePanel";
 import WhosWhereSection from "../dashboard/WhosWhereSection";
+import { WHOS_WHERE_ENABLED } from "@/lib/whos-where";
 import { Suspense } from "react";
 import { appTitle } from "@/lib/brand";
 
@@ -121,9 +122,11 @@ export default async function FamilyPage({
         </p>
       ) : null}
 
-      <Suspense fallback={null}>
-        <WhosWhereSection householdId={household.id} />
-      </Suspense>
+      {WHOS_WHERE_ENABLED ? (
+        <Suspense fallback={null}>
+          <WhosWhereSection householdId={household.id} />
+        </Suspense>
+      ) : null}
 
       <Card
         title="Schools"
