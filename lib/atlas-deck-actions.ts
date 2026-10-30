@@ -15,7 +15,8 @@ function titleLooksLikeMot(title: string): boolean {
 }
 
 function titleLooksLikeTax(title: string): boolean {
-  return /\b(tax|ved)\b/i.test(title);
+  if (/council/i.test(title)) return false;
+  return /\b(car tax|vehicle tax|road tax|ved)\b/i.test(title);
 }
 
 /** External booking links only — nothing hits Rodor servers. */
