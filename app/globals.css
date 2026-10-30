@@ -1167,6 +1167,7 @@
   }
 
   .atlas-card-title {
+    color: var(--atlas-on-solid);
     font-size: 1.35rem;
     font-weight: 700;
     line-height: 1.15;
@@ -1246,6 +1247,7 @@
   }
 
   .atlas-renewal-tile-title {
+    color: var(--atlas-on-solid);
     font-size: 0.9375rem;
     font-weight: 700;
     line-height: 1.2;
