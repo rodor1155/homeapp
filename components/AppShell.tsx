@@ -34,7 +34,7 @@ export default function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className={`min-h-dvh ${isHome ? "bg-night" : "bg-surface atlas-app-ground"}`}>
+    <div className={`min-h-dvh ${isHome ? "bg-night hearth-home-wrapper" : "bg-surface atlas-app-ground"}`}>
       <PrefetchAppRoutes />
       <OfflineBanner />
       {!hideHeader ? (
