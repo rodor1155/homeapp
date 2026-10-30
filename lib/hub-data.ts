@@ -18,7 +18,11 @@ import {
 import { loadMealPlans, weekStartMonday, type MealPlan } from "@/lib/meals";
 import { loadHouseholdRoutines } from "@/lib/routines";
 import { loadPersonTimetableSlots, weekdayForDate } from "@/lib/timetable";
-import { loadPersonDayStatuses, todayIso } from "@/lib/whos-where";
+import {
+  loadPersonDayStatuses,
+  todayIso,
+  WHOS_WHERE_ENABLED,
+} from "@/lib/whos-where";
 import { createClient } from "@/lib/supabase-server";
 
 export type HubTodayRow = {
@@ -167,7 +171,9 @@ export async function loadHubData(householdId: string): Promise<HubData> {
     loadPersonTimetableSlots(supabase, householdId),
     loadHouseholdRoutines(supabase, householdId),
     loadMealPlans(supabase, householdId, weekStart),
-    loadPersonDayStatuses(supabase, householdId, date),
+    WHOS_WHERE_ENABLED
+      ? loadPersonDayStatuses(supabase, householdId, date)
+      : Promise.resolve({ items: [], fault: null }),
   ]);
 
   const people = peopleLoad.items;
@@ -204,7 +210,7 @@ export async function loadHubData(householdId: string): Promise<HubData> {
 
   return {
     today: todayRows(timetable, routineList, dinner),
-    whosWhere: whosWhereRows(people, byPerson),
+    whosWhere: WHOS_WHERE_ENABLED ? whosWhereRows(people, byPerson) : [],
     meals: mealRows(todayMeal, tomorrowMeal),
     comingUp: comingUpRows(comingUp),
     loadFault,

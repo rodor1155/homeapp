@@ -11,10 +11,11 @@ import {
 import { requireOnboarded } from "@/lib/household";
 import { loadHubData } from "@/lib/hub-data";
 import { appTitle } from "@/lib/brand";
+import { WHOS_WHERE_ENABLED } from "@/lib/whos-where";
 
 export const metadata = {
   title: appTitle("Hub"),
-  description: "Kitchen display — today, who's where, and what's coming up.",
+  description: "Kitchen display — today, meals, and what's coming up.",
 };
 
 export default async function HubPage() {
@@ -39,30 +40,32 @@ export default async function HubPage() {
       </HubColumn>
 
       <div className="flex flex-col gap-5 lg:gap-6">
-        <HubColumn
-          title="Who's where"
-          icon={MapPin}
-          href="/dashboard"
-          compact
-        >
-          {data.whosWhere.length === 0 ? (
-            <HubEmpty
-              message="Add the family on Family and you'll see who's home, at school, or out."
-            />
-          ) : (
-            <ul className="divide-y divide-rule">
-              {data.whosWhere.map((row) => (
-                <li
-                  key={row.personId}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <span className="text-xl font-medium text-ink">{row.name}</span>
-                  <span className="truncate text-xl text-sage">{row.status}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </HubColumn>
+        {WHOS_WHERE_ENABLED ? (
+          <HubColumn
+            title="Who's where"
+            icon={MapPin}
+            href="/dashboard"
+            compact
+          >
+            {data.whosWhere.length === 0 ? (
+              <HubEmpty
+                message="Add the family on Family and you'll see who's home, at school, or out."
+              />
+            ) : (
+              <ul className="divide-y divide-rule">
+                {data.whosWhere.map((row) => (
+                  <li
+                    key={row.personId}
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span className="text-xl font-medium text-ink">{row.name}</span>
+                    <span className="truncate text-xl text-sage">{row.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HubColumn>
+        ) : null}
 
         <HubColumn title="Meals" icon={UtensilsCrossed} href="/family" compact>
           <ul className="divide-y divide-rule">

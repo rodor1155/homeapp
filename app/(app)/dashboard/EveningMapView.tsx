@@ -10,6 +10,7 @@ import type { WeekAheadModel } from "@/lib/week-ahead";
 import EveningMapBriefing from "./EveningMapBriefing";
 import EveningMapGreeting from "./EveningMapGreeting";
 import WhosWhereChips from "./WhosWhereChips";
+import { WHOS_WHERE_ENABLED } from "@/lib/whos-where";
 
 export type EveningMapViewProps = {
   firstName: string;
@@ -59,7 +60,9 @@ export default function EveningMapView({
           <div className="min-w-0 flex-1">
             <EveningMapGreeting firstName={firstName} />
             <EveningMapBriefing householdName={householdName} entries={entries} />
-            <WhosWhereChips people={people} statuses={statuses} />
+            {WHOS_WHERE_ENABLED ? (
+              <WhosWhereChips people={people} statuses={statuses} />
+            ) : null}
           </div>
           <Link
             href="/settings"

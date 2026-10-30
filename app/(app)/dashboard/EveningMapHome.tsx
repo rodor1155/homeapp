@@ -3,7 +3,11 @@ import { displayName, type ShellUser } from "@/components/ShellGreeting";
 import type { Locale } from "@/lib/household";
 import { resolveHomeCoordinates } from "@/lib/home-map";
 import { createClient } from "@/lib/supabase-server";
-import { loadPersonDayStatuses, todayIso } from "@/lib/whos-where";
+import {
+  loadPersonDayStatuses,
+  todayIso,
+  WHOS_WHERE_ENABLED,
+} from "@/lib/whos-where";
 import { loadComingUpData } from "./coming-up-data";
 import EveningMapView from "./EveningMapView";
 import InvitesBanner from "./InvitesBanner";
@@ -37,7 +41,9 @@ export default async function EveningMapHome({
   const date = todayIso();
   const [comingUp, statusLoad, mapCenter] = await Promise.all([
     loadComingUpData(supabase, householdId, new Date(), locale),
-    loadPersonDayStatuses(supabase, householdId, date),
+    WHOS_WHERE_ENABLED
+      ? loadPersonDayStatuses(supabase, householdId, date)
+      : Promise.resolve({ items: [], fault: null }),
     resolveHomeCoordinates(address),
   ]);
 
