@@ -2126,3 +2126,18 @@
     filter: brightness(1.05);
   }
 }
+
+/* Native MapKit underlay (iOS shell): the map sits behind the WebView, so every
+   opaque web layer above it must go clear. Deliberately unlayered so it beats
+   @layer base (html/body) and the Tailwind bg-night utility on the Home
+   wrapper without !important. Nothing applies unless the class is set. */
+html.hearth-native-map-active,
+html.hearth-native-map-active body,
+html.hearth-native-map-active .hearth-home-wrapper {
+  background-color: transparent;
+  background-image: none;
+}
+
+html.hearth-native-map-active .evening-map-pin {
+  display: none;
+}
