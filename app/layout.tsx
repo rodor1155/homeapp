@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import NativeExternalLinks from "@/components/NativeExternalLinks";
 import NativeOAuthListener from "@/components/NativeOAuthListener";
@@ -62,6 +63,7 @@ export default function RootLayout({
         <NativeExternalLinks />
         <ServiceWorkerRegister />
         {children}
+        <Analytics />
       </body>
     </html>
   );
