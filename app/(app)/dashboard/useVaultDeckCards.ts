@@ -32,7 +32,7 @@ export function useVaultDeckCards(): {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => load());
     const onFocus = () => load({ silent: true });
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
