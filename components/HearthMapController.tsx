@@ -57,7 +57,7 @@ export default function HearthMapController({
     let cancelled = false;
 
     if (!pluginAvailable || !onHome || !mapCenter) {
-      setNativeMapVisible(false);
+      queueMicrotask(() => setNativeMapVisible(false));
       void hideHearthMap();
       return () => {
         cancelled = true;

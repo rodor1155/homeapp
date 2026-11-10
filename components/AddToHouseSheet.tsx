@@ -177,19 +177,21 @@ export default function AddToHouseSheet({
     setStep("confirm-scan");
   }
 
-  useEffect(() => {
-    if (!open || !shareDraft || step !== "pick") return;
-    openShareDraft(shareDraft);
-    onShareDraftConsumed?.();
-  }, [open, shareDraft, step, onShareDraftConsumed]);
-
-  function openShareDraft(draft: HearthShareInDraft) {
+  const openShareDraft = useCallback((draft: HearthShareInDraft) => {
     setConfirmSource("share");
     setConfirmShareDraft(draft);
     setConfirmTitle(draft.suggestedTitle ?? draft.sourceNames?.[0] ?? "");
     setConfirmExpiry(draft.dates?.[0]?.iso ?? "");
     setStep("confirm-scan");
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!open || !shareDraft || step !== "pick") return;
+    queueMicrotask(() => {
+      openShareDraft(shareDraft);
+      onShareDraftConsumed?.();
+    });
+  }, [open, shareDraft, step, onShareDraftConsumed, openShareDraft]);
 
   async function startShareIn() {
     if (hasShareInPickFiles()) {
