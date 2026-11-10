@@ -94,9 +94,19 @@ async function handleSubscriptionEvent(
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
-  // With no key or secret there is nothing to verify against. 200 so Stripe
-  // does not queue retries against a deployment that has never had billing on.
-  if (!isStripeConfigured() || !secret) {
+  if (!secret) {
+    console.error(
+      "[billing] refused a webhook: STRIPE_WEBHOOK_SECRET is not set — unsigned events are never processed"
+    );
+    return Response.json(
+      { error: "webhook signing is not configured" },
+      { status: 503 }
+    );
+  }
+
+  // No Stripe key — nothing to bill; 200 so Stripe does not retry forever on
+  // a deployment that has never had billing on.
+  if (!isStripeConfigured()) {
     return Response.json({ ok: true, ignored: "billing is not set up" });
   }
 
