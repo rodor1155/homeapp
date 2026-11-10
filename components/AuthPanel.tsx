@@ -111,7 +111,7 @@ export default function AuthPanel({
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             {isSignUp
-              ? "Set up your household in a few minutes."
+              ? "We’ll email you a confirmation link. After you confirm, sign in to set up your household."
               : "Sign in to pick up where you left off."}
           </p>
         </div>
